@@ -267,7 +267,7 @@ function doPost(e) {
 }
 // Opening the API URL in a browser is not the app; say so, with no data.
 // Bump with each server change: opening the /exec link in a browser shows which build is live.
-var BUILD = '2026-10-11 · units, reflections, workout mode';
+var BUILD = '2026-10-14 · student demo view';
 function doGet() {
   return ContentService.createTextOutput(JSON.stringify({ ok: false, build: BUILD, error: 'This is the data service for My PE Profile. Open the app link your PE teacher shared.' }))
     .setMimeType(ContentService.MimeType.JSON);
@@ -439,7 +439,7 @@ function bootstrap_(cfg, id) {
     if (id.teacher) out.alsoTeacher = true;
   } else if (id.role === 'teacher' || id.role === 'unknown') {
     out.email = id.email; // the caller's own address, so they can see which account they used
-    if (id.role === 'teacher') out.meta = combineMeta_();
+    if (id.role === 'teacher') { out.meta = combineMeta_(); out.predict = { items: PREDICT_ITEMS, checkpoints: PREDICT_CHECKPOINTS, ratings: RATINGS, freqs: FREQS }; } // for the made-up demo student
   }
   return out;
 }

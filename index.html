@@ -731,6 +731,21 @@ tr.r-flag td.mx-nm{box-shadow:inset 3px 0 0 #c0392b}
 @media(prefers-reduced-motion:reduce){.pk-pack,.pk-cut,.pk-glint,.pk-front::after{animation:none}.pk-card{transition:none}}
 </style>
 
+<style>
+/* ── demo student bar ── */
+body.demo{padding-top:52px}
+#demobar{position:fixed;top:0;left:0;right:0;z-index:90;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;padding:8px 12px;background:repeating-linear-gradient(135deg,#e7b64b 0 14px,#f0c96b 14px 28px);color:#3a1008;font:600 14px var(--body);box-shadow:0 4px 14px rgba(0,0,0,.25)}
+#demobar .db-t{margin-right:6px}
+#demobar button{font:700 13px var(--disp);border-radius:999px;padding:6px 12px;border:1.5px solid #3a1008;background:rgba(255,255,255,.55);color:#3a1008;cursor:pointer}
+#demobar button.on{background:#3a1008;color:#fff}
+#demobar .db-x{background:#6f1d2c;border-color:#6f1d2c;color:#fff}
+@media(max-width:560px){#demobar .db-t{flex-basis:100%;text-align:center;font-size:13px}body.demo{padding-top:84px}}
+.demobox{margin:22px 0 10px;padding:18px 20px;border:2px dashed #e7b64b;border-radius:16px;background:#fffaf0}
+.demobox h3{margin:0 0 6px;font-family:var(--disp)}
+.demobtns{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 8px;justify-content:flex-start}.demobtns .ct-btn{margin:0}
+.ct-btn.ghost{background:#fff;color:#6f1d2c;border:2px solid #6f1d2c}
+</style>
+
 </head>
 <body>
 <div id="app"><div class="loading"><div class="spinner"></div>Loading…</div></div>
@@ -906,6 +921,7 @@ async function rawCall(action, payload) {
 const PERMANENT = /Unknown style|Unknown action|Incomplete|class list|not connected|Bad request/i;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function call(action, payload) {
+  if (demo) return demoCall(action, payload || {});
   let delay = (window.__preview && window.__preview.fastRetry) ? 30 : 1200;
   for (let attempt = 0; ; attempt++) {
     try { return await rawCall(action, payload); }
@@ -2193,9 +2209,86 @@ function classGrade(s) {
   if (!gs.length) return null;
   return Math.round(gs.reduce(function (a, b) { return a + b; }, 0) / gs.length);
 }
+// ═══════════════ demo student (teacher → "View as a student") ═══════════════
+// A made-up student built entirely in the browser. Nothing is read from or written to
+// the Sheet: saves are answered locally and vanish on exit, so it is safe on the board.
+let demo = null; // { teacher: <teacher bootstrap>, kind: 'fresh'|'example' }
+const DEMO_PREDICT = { items: ['cv', 'me', 'power', 'speed', 'throw', 'catch', 'strike', 'dribble', 'kick', 'balance', 'agility', 'jump', 'core'], checkpoints: ['intro'], ratings: ['strength', 'neutral', 'work-on'], freqs: ['often', 'sometimes', 'rarely'] };
+function demoBootstrap(t, kind) {
+  const ago = d => { const x = new Date(Date.now() - d * 864e5); return x.toISOString().slice(0, 10); };
+  const st = { name: 'Demo Student', first: 'Demo', klass: '8 Demo', initials: 'DS', style: '', goal: '', photoUrl: '', predictions: {}, combine: null, locked: {}, reflections: {} };
+  if (kind === 'example') {
+    st.style = 'improver';
+    const P = t.predict || DEMO_PREDICT, items = {};
+    P.items.forEach((k, i) => { items[k] = { rating: P.ratings[i % 3], freq: P.freqs[(i + 1) % 3] }; });
+    st.predictions = { intro: { timestamp: ago(20), items: items } };
+    st.combine = {
+      fitness: { mile: { sept: 598 }, pushups: { sept: 15 }, sitstand: { sept: 29 }, broad: { sept: 170 }, grip: { sept: 24 }, sprint: { sept: 5.8 }, illinois: { sept: 18.7 }, stork: { sept: 6 } },
+      skills: { throw: { sept: 4 }, catch: { sept: 5 }, strike: { sept: 3 }, dribble: { sept: 4 }, kick: { sept: 4 }, jump: { sept: 4 }, core: { sept: 5 } },
+      ap: { ready: { self: 5, tchr: 5 }, effort: { self: 5, tchr: 4 }, growth: { self: 6, tchr: 5 }, team: { self: 5, tchr: 5 }, manage: { self: 4, tchr: 4 } },
+      bands: {}, goals: [{ component: 'mile', target: 540, goal: '' }, { component: 'pushups', target: 22, goal: '' }], goalNote: 'Run twice a week, push-ups after every PE lesson.',
+      plan: { v: 3,
+        warmup: [{ n: 'Light jog', min: 3, int: 'easy' }, { n: 'Dynamic stretches', min: 2, int: 'easy' }],
+        cardio: [{ n: 'Running intervals', sets: 4, reps: '1 min', min: 6, int: 'hard' }, { n: 'Skipping rope', min: 4, int: 'moderate' }],
+        strength: [{ n: 'Push-ups (max reps)', sets: 3, reps: '8', int: 'hard' }, { n: 'Bodyweight squats', sets: 3, reps: '12', int: 'moderate' }],
+        focus: [{ n: 'Sprints', sets: 4, reps: '20 m', min: 4, int: 'hard' }],
+        cooldown: [{ n: 'Static stretches', min: 4, int: 'easy' }],
+        sChoice: 'strength', fChoice: 'speed', hr: '150–170 bpm', fWhy: 'Faster sprint for my mile finish', equip: ['water bottle'], days: { tue: true, sat: true },
+        log: [{ date: ago(3), who: 'family', where: 'home' }], reflection: '' } };
+  }
+  return { role: 'student', config: t.config, styles: t.styles, meta: t.meta, predict: t.predict || DEMO_PREDICT, student: st };
+}
+async function demoCall(action, p) {
+  const now = new Date().toISOString();
+  const R = {
+    bootstrap: () => state,
+    saveStyle: () => ({ ok: true, style: p.style }),
+    savePrediction: () => ({ ok: true, checkpoint: p.checkpoint, prediction: { timestamp: now, items: p.answers } }),
+    saveCombine: () => ({ ok: true, checkpoint: p.checkpoint, results: p.results }),
+    saveMySkills: () => ({ ok: true, checkpoint: p.checkpoint, levels: p.levels }),
+    saveGoals: () => ({ ok: true, goals: p.goals, note: p.note }),
+    savePlan: () => ({ ok: true, plan: p.plan }),
+    saveReflection: () => ({ ok: true, key: p.key, reflection: { text: p.text, updated: now } })
+  };
+  await sleep(150);
+  if (!R[action]) throw new Error('Not available in the demo');
+  return R[action]();
+}
+function startDemo(kind) {
+  const t = demo ? demo.teacher : state;
+  demo = { teacher: t, kind: kind };
+  wo = null; planDraft = null; goalSel = null; unitDraft = null; lastHub = 'profile';
+  document.body.classList.add('demo');
+  demoBar();
+  render(demoBootstrap(t, kind));
+  window.scrollTo(0, 0);
+}
+function exitDemo() {
+  if (!demo) return;
+  const t = demo.teacher; demo = null;
+  if (wo) { woStop(); woWakeOff(); wo = null; }
+  planDraft = null; goalSel = null; unitDraft = null; closeOv();
+  document.body.classList.remove('demo');
+  const bar = $('#demobar'); if (bar) bar.remove();
+  setSkin(''); document.documentElement.style.removeProperty('--frame');
+  render(t);
+}
+function demoBar() {
+  let bar = $('#demobar');
+  if (!bar) { bar = document.createElement('div'); bar.id = 'demobar'; document.body.appendChild(bar); }
+  bar.innerHTML = '<span class="db-t">👀 <b>Student view</b> · made-up student · nothing is saved</span>' +
+    '<button type="button" data-demo="fresh"' + (demo.kind === 'fresh' ? ' class="on"' : '') + '>New student</button>' +
+    '<button type="button" data-demo="example"' + (demo.kind === 'example' ? ' class="on"' : '') + '>Mid-unit example</button>' +
+    '<button type="button" class="db-x" data-demo="exit">✕ Exit</button>';
+  bar.onclick = e => { const b = e.target.closest('[data-demo]'); if (!b) return; const k = b.getAttribute('data-demo'); if (k === 'exit') exitDemo(); else startDemo(k); };
+}
+
 function teacherLanding(b) {
   return '<div class="wrap"><div class="phero"><div class="k">TEACHER</div><h1>G8 PE — class view</h1><p>Signed in as <code>' + esc(b.email) + '</code>. Open the class dashboard to see everyone’s Combine and record the skill-ladder results your classes run.</p></div>' +
     '<div class="done"><button type="button" class="ct-btn" id="toclass">Open class dashboard ↗</button></div>' +
+    '<div class="demobox"><h3>👀 View as a student</h3><p>Show the class what to do, on the board. Uses a <b>made-up student</b>, so no real names or results appear, and nothing is saved.</p>' +
+    '<div class="demobtns"><button type="button" class="ct-btn" data-demo="fresh">New student</button><button type="button" class="ct-btn ghost" data-demo="example">Mid-unit example</button></div>' +
+    '<p class="small">New student: an empty profile, starting from the Athlete Pack. Mid-unit example: Combine done, goals set and a workout built.</p></div>' +
     '<p class="small"><button type="button" class="lnk" id="signout">Sign out</button></p></div>';
 }
 function classView() {
@@ -2217,7 +2310,7 @@ function classView() {
   const classOpts = ['all'].concat(mxClasses()).map(c => '<option value="' + esc(c) + '"' + (c === teacherFilter ? ' selected' : '') + '>' + (c === 'all' ? 'All classes' : esc(c)) + '</option>').join('');
   const cpBtns = CPS.map(cp => '<button type="button" class="cpbtn' + (cp === teacherCp ? ' on' : '') + '" data-cp="' + cp + '">' + CP_LABEL[cp] + '</button>').join('');
   return '<div class="wrap wide">' +
-    '<button type="button" class="back light" id="toprofileT">← Back</button>' +
+    '<button type="button" class="back light" id="toprofileT">← Back</button>' + (state.role === 'teacher' ? '<button type="button" class="back light" id="todemo" style="margin-left:8px">👀 View as a student</button>' : '') +
     '<div class="phero tight"><div class="k">TEACHER · GRADEBOOK</div><h1>Class dashboard</h1><p>' + rows.length + ' student' + (rows.length === 1 ? '' : 's') + (teacherFilter === 'all' ? '' : ' · ' + esc(teacherFilter)) + '. Tap a skill or band cell to set it. 🔒 locks a student so they can’t change their own entries.</p></div>' +
     '<div class="mxbar">' +
       '<label class="mxf">Class <select id="mxclass">' + classOpts + '</select></label>' +
@@ -2561,6 +2654,7 @@ function show(v, arg) {
   } else if (v === 'class') {
     app.innerHTML = classView();
     wire('toprofileT', () => { if (state.role === 'student') show('profile'); else renderTeacher(state); });
+    wire('todemo', () => startDemo('fresh'));
     const cl = $('#mxclass'); if (cl) cl.addEventListener('change', () => { teacherFilter = cl.value; show('class'); });
     document.querySelectorAll('.cpbtn').forEach(b => b.addEventListener('click', () => { teacherCp = b.getAttribute('data-cp'); show('class'); }));
     document.querySelectorAll('th[data-sort]').forEach(th => th.addEventListener('click', () => { const c = th.getAttribute('data-sort'); if (teacherSort.col === c) teacherSort.dir *= -1; else teacherSort = { col: c, dir: 1 }; show('class'); }));
@@ -2580,7 +2674,7 @@ function show(v, arg) {
     $('#tocard').addEventListener('click', () => show('card'));
     goalSel = null; planDraft = null; unitDraft = null;
     wire('togoals2', () => show('goals')); wire('togoals3', () => show('goals'));
-    wire('tomyskills', () => show('myskills')); wire('toteacher', loadClass); wire('toarchive', () => show('archive'));
+    wire('tomyskills', () => show('myskills')); wire('toteacher', () => demo ? exitDemo() : loadClass()); wire('toarchive', () => show('archive'));
     wire('towo', () => { woStart('profile'); show('workout'); });
     wire('hubnext', () => { const g = $('#hubnext').dataset.go, to = { topredict: 'predict', toentry: 'entry', tocompare: 'compare', togoals: 'goals', toplan: 'plan' }[g];
       if (g === 'towo') { woStart('profile'); return show('workout'); } lastHub = 'fitness'; show(to); });
@@ -2600,6 +2694,7 @@ function renderTeacher(b) {
   document.body.classList.remove('dark');
   $('#app').innerHTML = teacherLanding(b);
   wire('toclass', loadClass); wire('signout', signOut);
+  document.querySelectorAll('.demobox [data-demo]').forEach(x => x.addEventListener('click', () => startDemo(x.getAttribute('data-demo'))));
 }
 async function loadClass() {
   $('#app').innerHTML = '<div class="loading"><div class="spinner"></div>Loading the class…</div>';

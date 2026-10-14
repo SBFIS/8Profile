@@ -67,6 +67,7 @@ check('"L, First Middle" → first token after the comma', (() => { const st = a
 check('nameParts_ edge cases', nameParts_('  ').first === '' && nameParts_('Solo').display === 'Solo' && nameParts_(',').first === '');
 check('owner on roster → student + alsoTeacher', (() => { const b = as(OWNER, 'bootstrap').data; return b.role === 'student' && b.alsoTeacher === true; })());
 check('teacher not on roster → teacher view with own email only', (() => { const b = as(T, 'bootstrap').data; return b.role === 'teacher' && b.email === T && !b.student; })());
+check('teacher bootstrap carries prediction labels for the demo, and no student data', (() => { const b = as(T, 'bootstrap').data; return b.predict && b.predict.items.length > 0 && !b.student && !b.students && !b.roster; })());
 check('domain account on no tab → unknown', as('nobody@example.edu', 'bootstrap').data.role === 'unknown');
 check('other domain (hd) → wrong_domain, nothing else', (() => { const b = as('someone@gmail.example', 'bootstrap').data; return b.role === 'wrong_domain' && !b.email && !b.student; })());
 check('lookalike domain → wrong_domain', as('x@example.edu.evil.test', 'bootstrap').data.role === 'wrong_domain');

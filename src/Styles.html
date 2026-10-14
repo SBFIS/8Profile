@@ -718,3 +718,18 @@ tr.r-flag td.mx-nm{box-shadow:inset 3px 0 0 #c0392b}
 .pack-wrap{padding-bottom:140px}
 @media(prefers-reduced-motion:reduce){.pk-pack,.pk-cut,.pk-glint,.pk-front::after{animation:none}.pk-card{transition:none}}
 </style>
+
+<style>
+/* ── demo student bar ── */
+body.demo{padding-top:52px}
+#demobar{position:fixed;top:0;left:0;right:0;z-index:90;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;padding:8px 12px;background:repeating-linear-gradient(135deg,#e7b64b 0 14px,#f0c96b 14px 28px);color:#3a1008;font:600 14px var(--body);box-shadow:0 4px 14px rgba(0,0,0,.25)}
+#demobar .db-t{margin-right:6px}
+#demobar button{font:700 13px var(--disp);border-radius:999px;padding:6px 12px;border:1.5px solid #3a1008;background:rgba(255,255,255,.55);color:#3a1008;cursor:pointer}
+#demobar button.on{background:#3a1008;color:#fff}
+#demobar .db-x{background:#6f1d2c;border-color:#6f1d2c;color:#fff}
+@media(max-width:560px){#demobar .db-t{flex-basis:100%;text-align:center;font-size:13px}body.demo{padding-top:84px}}
+.demobox{margin:22px 0 10px;padding:18px 20px;border:2px dashed #e7b64b;border-radius:16px;background:#fffaf0}
+.demobox h3{margin:0 0 6px;font-family:var(--disp)}
+.demobtns{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 8px;justify-content:flex-start}.demobtns .ct-btn{margin:0}
+.ct-btn.ghost{background:#fff;color:#6f1d2c;border:2px solid #6f1d2c}
+</style>
