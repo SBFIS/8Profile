@@ -1482,6 +1482,7 @@ const AP_SHORT = { ready: 'Ready', effort: 'Effort', growth: 'Growth', team: 'Te
 function apLog() { const m = measured(); return (m && m.apLog) || { self: [], teacher: [] }; }
 function apVal(v, key) {
   if (key !== 'all') return v[key] != null ? v[key] : null;
+  if (v.overall != null) return v.overall;
   const xs = AP_KEYS_C.map(k => v[k]).filter(x => x != null);
   return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
 }
@@ -1510,8 +1511,9 @@ function apTrend() {
   const lastSelf = log.self.length ? log.self[log.self.length - 1] : null, lastTeach = log.teacher.length ? log.teacher[log.teacher.length - 1] : null;
   const shared = (key === 'all' ? AP_KEYS_C : [key]).filter(k => lastSelf && lastTeach && lastSelf.v[k] != null && lastTeach.v[k] != null);
   const avgOf = (v, ks) => ks.reduce((a, k) => a + v[k], 0) / ks.length;
-  const lastS = shared.length ? avgOf(lastSelf.v, shared) : (sp.length ? sp[sp.length - 1][1] : null);
-  const lastT = shared.length ? [avgOf(lastTeach.v, shared), lastTeach.label] : null;
+  let lastS = shared.length ? avgOf(lastSelf.v, shared) : (sp.length ? sp[sp.length - 1][1] : null);
+  let lastT = shared.length ? [avgOf(lastTeach.v, shared), lastTeach.label] : null;
+  if (!lastT && key === 'all' && lastTeach && lastTeach.v.overall != null) lastT = [lastTeach.v.overall, lastTeach.label]; // single Canvas AP grade vs my average
   let say = '';
   if (lastS != null && lastT) { const d = Math.round((lastS - lastT[0]) * 10) / 10;
     say = Math.abs(d) < 0.5 ? 'Your latest check matches your teacher’s ' + esc(lastT[1]) + ' grade. Nice self-awareness.' :

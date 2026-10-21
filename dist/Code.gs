@@ -92,7 +92,7 @@ var TABS = {
   Combine:       ['Email', 'Checkpoint'].concat(FIT_KEYS).concat(['Updated']),   // students enter their own fitness numbers
   Skills:        ['Email', 'Checkpoint'].concat(SKILL_KEYS).concat(['Updated']), // teachers enter the skill-ladder levels
   Participation: apHeaders_(),                                                   // teacher-reported, self + teacher per key
-  APLog:         ['Email', 'Date', 'Source', 'Round'].concat(AP_KEYS).concat(['Updated']), // every AP rating: student self-checks (often) + teacher grades (4 rounds)
+  APLog:         ['Email', 'Date', 'Source', 'Round'].concat(AP_KEYS).concat(['Updated', 'overall']), // every AP rating: student self-checks (often) + teacher grades (4 rounds); overall = the single Canvas AP grade
   Bands:         ['Email'].concat(BAND_KEYS).concat(['Updated']),                // the three report bands
   Goals:         ['Email', 'Component', 'Goal', 'Updated', 'Target'],            // focus goals: Target added last so it appends cleanly onto an existing Goals tab; plus one '_note' row
 
@@ -361,7 +361,7 @@ function ymd_(d) {
 }
 function apEntry_(r) {
   var v = {}, any = false;
-  AP_KEYS.forEach(function (k) { var n = numOrNull_(r[k]); if (n !== null && n >= 1 && n <= 7) { v[k] = n; any = true; } });
+  AP_KEYS.concat(['overall']).forEach(function (k) { var n = numOrNull_(r[k]); if (n !== null && n >= 1 && n <= 7) { v[k] = n; any = true; } });
   return any ? v : null;
 }
 function apLogIndex_() {
@@ -474,7 +474,7 @@ function measuredFor_(email) {
   var row = readTab_('Participation').filter(function (r) { return lower_(r.Email) === email; })[0] || null;
   var ap = apLatest_(apLog, row);
   var any = Object.keys(fitness).length || Object.keys(skills).length ||
-            Object.keys(ap).length || Object.keys(bands).length || g.items.length || g.note || plan;
+            Object.keys(ap).length || apLog.self.length || apLog.teacher.length || Object.keys(bands).length || g.items.length || g.note || plan;
   if (!any) return null;
   return { fitness: fitness, skills: skills, ap: ap, apLog: apLog, bands: bands, goals: g.items, goalNote: g.note, plan: plan };
 }
@@ -893,7 +893,13 @@ function importApRows_(rows, round) {
   var headers = rows[0].map(str_);
   var cols = {}, missing = [];
   AP_CANVAS.forEach(function (o) { var c = apHeaderCol_(headers, o.match); if (c === -1) missing.push(o.key); else cols[o.key] = c; });
-  if (missing.length === AP_KEYS.length) throw new Error('No AP outcome columns found in the import');
+  // Grades export: one assignment column ("Am I an Active Participant in PE? (id)") → overall.
+  var overallCol = -1;
+  headers.forEach(function (h, i) {
+    var t = lower_(h);
+    if (overallCol === -1 && /active particip/.test(t) && !/\b(points|score|grade)\b.*\(semester/.test(t)) overallCol = i;
+  });
+  if (missing.length === AP_KEYS.length && overallCol === -1) throw new Error('No AP columns found: export Grades (with the AP assignment) or Learning Mastery from Canvas');
   // Who is who: an email-looking column first, else match the Canvas name to the Students tab.
   var emailCol = -1;
   headers.forEach(function (h, i) {
@@ -907,6 +913,7 @@ function importApRows_(rows, round) {
   var today = ymd_(new Date()), imported = 0, unmatched = [], blank = 0;
   for (var r = 1; r < rows.length; r++) {
     var row = rows[r];
+    if (/^\s*points possible/i.test(str_(row[0]))) continue;
     var email = emailCol !== -1 ? byEmail[lower_(row[emailCol])] : null;
     if (!email && nameCol !== -1) email = byName[apNameKey_(row[nameCol])] || null;
     if (!email) { var who = nameCol !== -1 ? str_(row[nameCol]) : ''; if (who) unmatched.push(who); continue; }
@@ -915,12 +922,14 @@ function importApRows_(rows, round) {
       var v = cols[k] === undefined ? null : numOrNull_(row[cols[k]]);
       if (v !== null && v >= 1 && v <= 7) { fields[k] = Math.round(v); n++; } else fields[k] = '';
     });
+    var ov = overallCol === -1 ? null : numOrNull_(row[overallCol]);
+    if (ov !== null && ov >= 1 && ov <= 7) { fields.overall = Math.round(ov); n++; } else fields.overall = '';
     if (!n) { blank++; continue; }
     fields.Date = today; fields.Updated = new Date();
     upsert_('APLog', { Email: email, Source: 'teacher', Round: round }, fields);
     imported++;
   }
-  return { imported: imported, unmatched: unmatched, blank: blank, missing: missing };
+  return { imported: imported, unmatched: unmatched, blank: blank, missing: overallCol === -1 ? missing : (missing.length === AP_KEYS.length ? [] : missing), overall: overallCol !== -1 };
 }
 function importApFromCanvas() {
   var ui = SpreadsheetApp.getUi();
@@ -932,6 +941,7 @@ function importApFromCanvas() {
   try { res = importApRows_(sh.getDataRange().getValues(), ans.getResponseText()); }
   catch (e) { ui.alert('Import stopped', e.message, ui.ButtonSet.OK); return; }
   var msg = res.imported + ' students imported into APLog (' + lower_(ans.getResponseText()) + ').';
+  if (res.overall) msg += '\nUsed the overall AP grade from the Grades export.';
   if (res.missing.length) msg += '\n\nNo column found for: ' + res.missing.join(', ') + '.';
   if (res.blank) msg += '\n' + res.blank + ' rows had no AP scores yet.';
   if (res.unmatched.length) msg += '\n\nNot on the Students tab (check spelling):\n' + res.unmatched.join('\n');

@@ -197,6 +197,17 @@ check('student AP log holds no other student', (() => { const j = JSON.stringify
 check('teacher classStudent includes that student\'s AP log', (() => { const r = as(T, 'classStudent', { email: S2 }); return r.ok && r.data.student.apLog.teacher[0].v.growth === 4; })());
 check('classOverview uses the latest teacher AP', (() => { const r = as(T, 'classOverview'); const s2 = r.data.students.find(s => s.id === S2); return s2 && s2.ap.growth.tchr === 4; })());
 
+const GRADES = [
+  ['Student', 'ID', 'SIS User ID', 'SIS Login ID', 'Integration ID', 'Section', 'Assignment -  Am I an Active Participant in PE? (139255)', 'Assignments Current Points (Semester 1)', 'Current Score (Semester 1)', 'Final Grade (Semester 1)'],
+  ['    Points Possible', '', '', '', '', '', 7, '(read only)', '(read only)', '(read only)'],
+  ['Made Up Name', '9', 'x', 'SAMPLE.THREE@example.edu', '', '8B', 6, 6, 85.7, 'B'],
+  ['Someone Else', '8', 'y', 'nobody@example.edu', '', '8B', 5, 5, 71, 'C']
+];
+const g = importApRows_(GRADES, 's1-mid');
+check('Grades export: AP assignment column imported as overall, matched by SIS Login email', (() => { const t = readTab_('APLog').filter(r => r.Email === S3 && r.Source === 'teacher'); return g.overall === true && g.imported === 1 && t.length === 1 && t[0].overall === 6 && t[0].effort === '' ; })());
+check('Grades export: Points Possible row skipped, unknown email not imported', g.unmatched.length === 1 && !readTab_('APLog').some(r => /nobody/.test(r.Email)));
+check('overall grade reaches only that student', (() => { const c = as(S3, 'bootstrap').data.student.combine; return c.apLog.teacher[0].v.overall === 6 && !JSON.stringify(as(S1, 'bootstrap')).includes('sample.three'); })());
+
 console.log('retention');
 FakeSheets.uiAnswer = 'YES';
 clearProfileData();
