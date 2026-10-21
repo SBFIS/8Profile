@@ -110,8 +110,7 @@ var CONFIG_DEFAULTS = {
   oauth_client_id: ['701639243214-ud6m1qtmc6ma0pq6v24tk39afbuhcblv.apps.googleusercontent.com', 'The Google sign-in client the page uses. A token is accepted only if it was issued to this client. Public, not a secret.'],
   year_label:      ['26/27', 'Shown on the card header'],
   app_title:       ['My PE Profile', 'App title'],
-  goal_max:        ['140', 'Maximum characters for the student\'s own goal'],
-  ap_form_sheet:   ['', 'Link to the AP self-rating form responses Sheet (for "Import AP self-ratings from the form"). Stays in this Sheet, never in the page.']
+  goal_max:        ['140', 'Maximum characters for the student\'s own goal']
 };
 
 // The six PE Styles. Keys are what the Profile tab stores; the client owns the colours.
@@ -995,15 +994,16 @@ function importApFormRows_(rows) {
   }
   return { imported: imported, skipped: skipped };
 }
+// Reads the form through an APForm tab in THIS Sheet (A1: =IMPORTRANGE("<responses link>", "A:V")),
+// so the script keeps its this-spreadsheet-only permission.
 function importApFromForm() {
   var ui = SpreadsheetApp.getUi();
-  var link = str_(config_().ap_form_sheet);
-  var m = link.match(/\/d\/([a-zA-Z0-9_-]{20,})/), idv = m ? m[1] : (/^[a-zA-Z0-9_-]{20,}$/.test(link) ? link : '');
-  if (!idv) { ui.alert('Form responses not linked', 'Paste the link to the AP form responses Sheet into the Config tab (Key: ap_form_sheet), then run this again.', ui.ButtonSet.OK); return; }
+  var sh = tab_('APForm');
+  if (!sh || sh.getLastRow() < 2) { ui.alert('No APForm tab yet', 'Add a tab called APForm. In cell A1 type:\n=IMPORTRANGE("<link to the AP form responses Sheet>", "A:V")\nClick Allow access, wait for the rows to load, then run this again.', ui.ButtonSet.OK); return; }
   var res;
-  try { var book = SpreadsheetApp.openById(idv), src = book.getSheetByName('Data') || book.getSheets()[0]; res = importApFormRows_(src.getDataRange().getValues()); }
+  try { res = importApFormRows_(sh.getDataRange().getValues()); }
   catch (e) { ui.alert('Import stopped', e.message, ui.ButtonSet.OK); return; }
-  ui.alert('AP self-ratings imported', res.imported + ' form responses copied into APLog as student self-ratings.\n' + res.skipped + ' rows skipped (not on the Students tab, or no ratings). Safe to run again: it updates, never duplicates.', ui.ButtonSet.OK);
+  ui.alert('AP self-ratings imported', res.imported + ' form responses copied into APLog as student self-ratings.\n' + res.skipped + ' rows skipped (not on the Students tab, or no ratings). Safe to run again after new responses: it updates, never duplicates.', ui.ButtonSet.OK);
 }
 
 // Retention: wipes every student-written row (styles, goals, predictions). Roster is untouched.
