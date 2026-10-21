@@ -211,6 +211,18 @@ check('overall grade reaches only that student', (() => { const c = as(S3, 'boot
 check('finds an un-renamed Canvas export tab by its headers', (() => { const t = FakeSheets.book.insertSheet('2026-10-21T2014_Grades-Physical_Education_8-Bain'); t.getRange(1, 1, 2, GRADES[0].length).setValues(GRADES.slice(0, 2)); return canvasTab_() === t; })());
 check('does not mistake the app\'s own tabs for an export', (() => { FakeSheets.book.sheets = FakeSheets.book.sheets.filter(t => !/Grades-/.test(t.name)); return canvasTab_() === null; })());
 
+const FORM_HDR = ['Timestamp', 'Email Address', 'Lesson', 'First', 'Last', 'x', 'ACT', 'SM', 'GM', 'SA', 'how', 'why', 'goals', 'met', 'metwhy', 'take', 'SOC'];
+const FORM = [FORM_HDR,
+  [new Date(2026, 8, 3), S2, 'Start of unit', 'A', 'B', '', 'Mostly…', 'Consistently…', 'Sometimes…', 'Mostly…', '', '', '', '', '', '', 'I rarely…'],
+  [new Date(2026, 8, 24), S2, 'End of unit', 'A', 'B', '', 'Consistently…', 'Consistently…', 'Mostly…', 'Mostly…', '', '', '', '', '', '', 'Mostly…'],
+  [new Date(2026, 8, 24), 'not.on.roster@example.edu', 'End of unit', 'C', 'D', '', 'Mostly…', '', '', '', '', '', '', '', '', '', '']];
+const f = importApFormRows_(FORM);
+check('form self-ratings import as dated self rows, roster only', (() => { const rows = readTab_('APLog').filter(r => r.Email === S2 && r.Source === 'self' && /2026-09-(03|24)/.test(r.Date)); return f.imported === 2 && f.skipped === 1 && rows.length === 2 && !readTab_('APLog').some(r => /not\.on\.roster/.test(r.Email)); })());
+check('form words map to the 1-7 bands', (() => { const st = readTab_('APLog').find(r => r.Email === S2 && r.Date === '2026-09-03'); return st.effort === 5 && st.ready === 7 && st.growth === 3 && st.team === 1; })());
+check('re-running the form import does not duplicate', (() => { importApFormRows_(FORM); return readTab_('APLog').filter(r => r.Email === S2 && r.Source === 'self' && /2026-09-(03|24)/.test(r.Date)).length === 2; })());
+check('form import refuses a sheet whose column B is not email', (() => { try { importApFormRows_([['Timestamp', 'Name'], [new Date(), 'x']]); return false; } catch (e) { return /email/.test(e.message); } })());
+check('student sees form start/end on their own chart', (() => { const c = as(S2, 'bootstrap').data.student.combine; return c.apLog.self.some(e => e.date === '2026-09-03') && c.apLog.self.some(e => e.date === '2026-09-24'); })());
+
 console.log('retention');
 FakeSheets.uiAnswer = 'YES';
 clearProfileData();

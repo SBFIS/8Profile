@@ -110,7 +110,8 @@ var CONFIG_DEFAULTS = {
   oauth_client_id: ['701639243214-ud6m1qtmc6ma0pq6v24tk39afbuhcblv.apps.googleusercontent.com', 'The Google sign-in client the page uses. A token is accepted only if it was issued to this client. Public, not a secret.'],
   year_label:      ['26/27', 'Shown on the card header'],
   app_title:       ['My PE Profile', 'App title'],
-  goal_max:        ['140', 'Maximum characters for the student\'s own goal']
+  goal_max:        ['140', 'Maximum characters for the student\'s own goal'],
+  ap_form_sheet:   ['', 'Link to the AP self-rating form responses Sheet (for "Import AP self-ratings from the form"). Stays in this Sheet, never in the page.']
 };
 
 // The six PE Styles. Keys are what the Profile tab stores; the client owns the colours.
@@ -844,6 +845,7 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu('PE Profile')
     .addItem('1. Set up tabs', 'setupTabs')
     .addItem('Import AP grades from Canvas…', 'importApFromCanvas')
+    .addItem('Import AP self-ratings from the form', 'importApFromForm')
     .addItem('Clear config cache', 'clearConfigCache')
     .addSeparator()
     .addItem('End of year: clear student data…', 'clearProfileData')
@@ -957,6 +959,51 @@ function importApFromCanvas() {
   if (res.unmatched.length) msg += '\n\nNot on the Students tab (check spelling):\n' + res.unmatched.join('\n');
   msg += '\n\nDelete the "' + sh.getName() + '" tab now? (Recommended: the grades are in APLog.)';
   if (ui.alert('AP import done', msg, ui.ButtonSet.YES_NO) === ui.Button.YES) ss_().deleteSheet(sh);
+}
+
+// ---------- AP self-ratings: the Google Form responses → APLog (self rows) ----------
+// Form columns (0-based, as the responses sheet lays them out): A Timestamp, B Email,
+// G Active Participation, H Self Management, I Growth Mindset, J Self Awareness, Q Social Skills.
+// Answers are the four rubric bands in words → the 1–7 scale (Consistently 7 · Mostly 5 · Sometimes 3 · else 1).
+var AP_FORM_COL = { time: 0, email: 1, effort: 6, ready: 7, growth: 8, manage: 9, team: 16 };
+function apFormBand_(text) {
+  var t = lower_(text);
+  if (!t) return null;
+  if (/^[1-7]$/.test(t)) return Number(t);
+  if (t.indexOf('consistent') !== -1) return 7;
+  if (t.indexOf('mostly') !== -1) return 5;
+  if (t.indexOf('sometimes') !== -1) return 3;
+  return 1;
+}
+// Pure: rows = the responses sheet values (header first). Only roster students are kept. Returns counts only.
+function importApFormRows_(rows) {
+  if (!rows || rows.length < 2) throw new Error('The form responses are empty');
+  if (!/mail/i.test(str_(rows[0][AP_FORM_COL.email]))) throw new Error('Column B of the responses is not the email column');
+  var onRoster = {};
+  readTab_('Students').forEach(function (st) { var e = lower_(st.Email); if (e) onRoster[e] = true; });
+  var imported = 0, skipped = 0;
+  for (var r = 1; r < rows.length; r++) {
+    var row = rows[r], email = lower_(row[AP_FORM_COL.email]);
+    if (!email || !onRoster[email]) { skipped++; continue; }
+    var date = ymd_(row[AP_FORM_COL.time]); if (!date) { skipped++; continue; }
+    var fields = {}, n = 0;
+    AP_KEYS.forEach(function (k) { var v = apFormBand_(row[AP_FORM_COL[k]]); fields[k] = v === null ? '' : v; if (v !== null) n++; });
+    if (!n) { skipped++; continue; }
+    fields.Updated = new Date();
+    upsert_('APLog', { Email: email, Date: date, Source: 'self' }, fields);
+    imported++;
+  }
+  return { imported: imported, skipped: skipped };
+}
+function importApFromForm() {
+  var ui = SpreadsheetApp.getUi();
+  var link = str_(config_().ap_form_sheet);
+  var m = link.match(/\/d\/([a-zA-Z0-9_-]{20,})/), idv = m ? m[1] : (/^[a-zA-Z0-9_-]{20,}$/.test(link) ? link : '');
+  if (!idv) { ui.alert('Form responses not linked', 'Paste the link to the AP form responses Sheet into the Config tab (Key: ap_form_sheet), then run this again.', ui.ButtonSet.OK); return; }
+  var res;
+  try { var book = SpreadsheetApp.openById(idv), src = book.getSheetByName('Data') || book.getSheets()[0]; res = importApFormRows_(src.getDataRange().getValues()); }
+  catch (e) { ui.alert('Import stopped', e.message, ui.ButtonSet.OK); return; }
+  ui.alert('AP self-ratings imported', res.imported + ' form responses copied into APLog as student self-ratings.\n' + res.skipped + ' rows skipped (not on the Students tab, or no ratings). Safe to run again: it updates, never duplicates.', ui.ButtonSet.OK);
 }
 
 // Retention: wipes every student-written row (styles, goals, predictions). Roster is untouched.
