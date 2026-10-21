@@ -173,10 +173,34 @@ check('a student cannot use setLock', !as(S2, 'setLock', { emails: [S1], checkpo
 check('teacher unlocks the checkpoint', (() => { const r = as(T, 'setLock', { emails: [S1], checkpoint: 'sept', locked: false }); return r.ok && as(S1, 'bootstrap').data.student.locked.sept !== true; })());
 check('unlocked student can edit again', as(S1, 'saveCombine', { checkpoint: 'sept', results: { pushups: 20 } }).ok === true);
 
+console.log('AP log: self-checks + teacher rounds');
+check('student saves an AP self-check', (() => { const r = as(S1, 'saveApSelf', { ratings: { ready: 6, effort: 5, growth: 4, team: 6, manage: 5 } }); return r.ok && r.data.apLog.self.length === 1 && r.data.apLog.self[0].v.effort === 5; })());
+check('same-day self-check replaces, not duplicates', (() => { const r = as(S1, 'saveApSelf', { ratings: { effort: 6 } }); return r.ok && r.data.apLog.self.length === 1 && r.data.apLog.self[0].v.effort === 6 && r.data.apLog.self[0].v.ready === undefined; })());
+check('self-check outside 1-7 refused', (() => { const r = as(S1, 'saveApSelf', { ratings: { effort: 9 } }); return !r.ok && /1 to 7/.test(r.error); })());
+check('empty self-check refused', !as(S1, 'saveApSelf', { ratings: {} }).ok);
+check('a teacher account cannot post a self-check', !as(T, 'saveApSelf', { ratings: { effort: 5 } }).ok);
+check('body cannot smuggle a teacher grade or another email', (() => { as(S2, 'saveApSelf', { email: S1, source: 'teacher', round: 's1-mid', ratings: { team: 7 } }); const rows = readTab_('APLog'); return rows.every(r => r.Source === 'self') && rows.filter(r => r.Email === S2).length === 1 && rows.filter(r => r.Email === S1).length === 1; })());
+const IMPORT = [
+  ['Student name', 'Student ID', 'Student SIS ID', 'Section', 'PE.G6-10.C1: Significance result', 'PE.G6-10.C1: Significance mastery points', 'ATL.SM.manageself result', 'Growthmindset result', 'PE.G6-10.S4 Social skills result', 'ATL.SC.self result', 'PE.G6-10.C10 result'],
+  ['Sample One', '1', 'x', '8A', 6, 5, 5, 6, 7, 4, 1],
+  ['Sample Two', '2', 'y', '8A', 4, 5, 3, 4.4, 5, 5, 1],
+  ['Nobody Here', '3', 'z', '8A', 5, 5, 5, 5, 5, 5, 1],
+  ['Sample Jo T', '4', 'w', '8B', '', 5, '', '', '', '', '']
+];
+const imp = importApRows_(IMPORT, 'S1-mid');
+check('Canvas import maps outcomes by name (not C10, not mastery points)', imp.imported === 2 && imp.missing.length === 0 && imp.blank === 1 && imp.unmatched.length === 1);
+check('import matched "Two, Sample" by name and rounded 4.4', (() => { const t = readTab_('APLog').filter(r => r.Email === S2 && r.Source === 'teacher'); return t.length === 1 && t[0].Round === 's1-mid' && t[0].growth === 4 && t[0].effort === 4; })());
+check('re-importing a round replaces, not duplicates', (() => { importApRows_(IMPORT, 's1-mid'); return readTab_('APLog').filter(r => r.Source === 'teacher').length === 2; })());
+check('unknown round refused', (() => { try { importApRows_(IMPORT, 'term3'); return false; } catch (e) { return /Round/.test(e.message); } })());
+check('student sees own self-checks + teacher round, latest values merged', (() => { const c = as(S1, 'bootstrap').data.student.combine; return c.apLog.teacher.length === 1 && c.apLog.teacher[0].label === 'S1 mid' && c.apLog.teacher[0].v.team === 7 && c.ap.effort.self === 6 && c.ap.effort.tchr === 6; })());
+check('student AP log holds no other student', (() => { const j = JSON.stringify(as(S2, 'bootstrap')); return !j.includes('sample.one') && !j.includes('Sample One'); })());
+check('teacher classStudent includes that student\'s AP log', (() => { const r = as(T, 'classStudent', { email: S2 }); return r.ok && r.data.student.apLog.teacher[0].v.growth === 4; })());
+check('classOverview uses the latest teacher AP', (() => { const r = as(T, 'classOverview'); const s2 = r.data.students.find(s => s.id === S2); return s2 && s2.ap.growth.tchr === 4; })());
+
 console.log('retention');
 FakeSheets.uiAnswer = 'YES';
 clearProfileData();
-check('clearProfileData empties all student data, keeps Students', readTab_('Profile').length === 0 && readTab_('Predictions').length === 0 && readTab_('Combine').length === 0 && readTab_('Skills').length === 0 && readTab_('Goals').length === 0 && readTab_('Plan').length === 0 && readTab_('Reflections').length === 0 && readTab_('Students').length === 4);
+check('clearProfileData empties all student data, keeps Students', readTab_('Profile').length === 0 && readTab_('Predictions').length === 0 && readTab_('Combine').length === 0 && readTab_('Skills').length === 0 && readTab_('Goals').length === 0 && readTab_('Plan').length === 0 && readTab_('Reflections').length === 0 && readTab_('APLog').length === 0 && readTab_('Students').length === 4);
 
 console.log(failed ? `\n${failed} check(s) FAILED` : '\nall checks passed');
 process.exit(failed ? 1 : 0);
