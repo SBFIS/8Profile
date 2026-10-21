@@ -45,6 +45,7 @@
   class Book {
     constructor() { this.sheets = []; this.onChange = null; }
     getSheetByName(n) { return this.sheets.find(s => s.name === n) || null; }
+    getSheets() { return this.sheets.slice(); }
     insertSheet(n) { const s = new Sheet(this, n); this.sheets.push(s); this._touch(); return s; }
     _touch() { if (this.onChange) this.onChange(this); }
     toJSON() { return { sheets: this.sheets.map(s => ({ name: s.name, rows: s.rows })) }; }

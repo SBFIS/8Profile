@@ -931,10 +931,20 @@ function importApRows_(rows, round) {
   }
   return { imported: imported, unmatched: unmatched, blank: blank, missing: overallCol === -1 ? missing : (missing.length === AP_KEYS.length ? [] : missing), overall: overallCol !== -1 };
 }
+// The tab a Canvas CSV landed in, found by its header row (no renaming needed).
+function canvasTab_() {
+  var found = null;
+  ss_().getSheets().forEach(function (t) {
+    if (found || TABS[t.getName()] || t.getLastRow() < 2) return;
+    var h = t.getRange(1, 1, 1, Math.max(1, t.getLastColumn())).getValues()[0].map(lower_).join('|');
+    if (/sis login id|student sis id/.test(h) && /active particip|manageself|growthmindset/.test(h)) found = t;
+  });
+  return found;
+}
 function importApFromCanvas() {
   var ui = SpreadsheetApp.getUi();
-  var sh = tab_('CanvasImport');
-  if (!sh) { ui.alert('No CanvasImport tab', 'Export Learning Mastery from Canvas, then File → Import → Upload → "Insert new sheet(s)", and rename the new tab CanvasImport.', ui.ButtonSet.OK); return; }
+  var sh = tab_('CanvasImport') || canvasTab_();
+  if (!sh) { ui.alert('No Canvas export found', 'In Canvas: Grades → Export → Export entire gradebook (or Learning Mastery → Export). Then here: File → Import → Upload → "Insert new sheet(s)", and run this again.', ui.ButtonSet.OK); return; }
   var ans = ui.prompt('Which AP round is this?', 'Type one of: ' + AP_ROUNDS.join(' · '), ui.ButtonSet.OK_CANCEL);
   if (ans.getSelectedButton() !== ui.Button.OK) return;
   var res;
@@ -945,7 +955,7 @@ function importApFromCanvas() {
   if (res.missing.length) msg += '\n\nNo column found for: ' + res.missing.join(', ') + '.';
   if (res.blank) msg += '\n' + res.blank + ' rows had no AP scores yet.';
   if (res.unmatched.length) msg += '\n\nNot on the Students tab (check spelling):\n' + res.unmatched.join('\n');
-  msg += '\n\nDelete the CanvasImport tab now? (Recommended: the grades are in APLog.)';
+  msg += '\n\nDelete the "' + sh.getName() + '" tab now? (Recommended: the grades are in APLog.)';
   if (ui.alert('AP import done', msg, ui.ButtonSet.YES_NO) === ui.Button.YES) ss_().deleteSheet(sh);
 }
 

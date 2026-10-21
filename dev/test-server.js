@@ -208,6 +208,9 @@ check('Grades export: AP assignment column imported as overall, matched by SIS L
 check('Grades export: Points Possible row skipped, unknown email not imported', g.unmatched.length === 1 && !readTab_('APLog').some(r => /nobody/.test(r.Email)));
 check('overall grade reaches only that student', (() => { const c = as(S3, 'bootstrap').data.student.combine; return c.apLog.teacher[0].v.overall === 6 && !JSON.stringify(as(S1, 'bootstrap')).includes('sample.three'); })());
 
+check('finds an un-renamed Canvas export tab by its headers', (() => { const t = FakeSheets.book.insertSheet('2026-10-21T2014_Grades-Physical_Education_8-Bain'); t.getRange(1, 1, 2, GRADES[0].length).setValues(GRADES.slice(0, 2)); return canvasTab_() === t; })());
+check('does not mistake the app\'s own tabs for an export', (() => { FakeSheets.book.sheets = FakeSheets.book.sheets.filter(t => !/Grades-/.test(t.name)); return canvasTab_() === null; })());
+
 console.log('retention');
 FakeSheets.uiAnswer = 'YES';
 clearProfileData();
