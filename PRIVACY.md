@@ -26,6 +26,7 @@ minors under GDPR, so it is built to keep everything inside the FIS Google Works
 | Teachers | Email, Name | Teacher | Show the teacher screen instead of a student profile |
 | Profile | Email, Style (one of six labels), Goal (≤140 chars, optional, own words), Updated | Written by the student through the app | Persist the student's chosen PE Style / goal |
 | Predictions | Email, Checkpoint (`intro`), Timestamp, and for each of 13 fitness/skill items a rating (strength · neutral · work-on) and a frequency (often · sometimes · rarely) | Entered by the student in the Lesson 1 "Strengths & challenges" activity | The student's own prediction, shown back to them and later lined up against their Combine results. **New data created by the app** (self-perception, low sensitivity), one row per student per checkpoint, no free text |
+| Checkins | Email, Date (server's today), Class (copied from Students), Focus (one of the five AP criteria), Who (`self` · `teacher`), Rating (whole number 1–7), Word (one of eight fixed evidence words, or blank), Updated | **AP Check-out**, entered on the *teacher's* signed-in device at the end of a lesson: the student taps their own name and rating; the teacher rates a few students | Show each student their own self-vs-teacher trend for the last 90 days; give the teacher a per-student average to support the Canvas AP rubric. **New data created by the app**, one row per student per day per criterion per rater, no free text |
 | Config | key/value settings | Teacher | No personal data |
 
 Later phases add data already collected in PE (Active Participation bands, Combine
@@ -102,7 +103,11 @@ with "Please sign in", and the API URL opened in a browser returns a one-line no
 - A single student's data can be removed by deleting their row(s) in the Sheet.
 - No copies exist outside the Sheet: the browser holds only the sign-in token for the tab
   session (about an hour) and a per-tab draft of the prediction until it is saved; no
-  exports, no emails.
+  exports, no emails. The check-out kiosk keeps the chosen class and focus for the tab
+  (no personal data). The teacher's class dashboard and AP summary can download a CSV on
+  the teacher's request.
+- AP check-outs (Checkins tab) are cleared by the same end-of-year menu item. Students see
+  their own check-outs for the last 90 days; the teacher summary averages everything kept.
 
 ## Points to confirm with the data-protection lead before go-live
 
@@ -117,6 +122,16 @@ with "Please sign in", and the API URL opened in a browser returns a one-line no
 5. **Teacher accounts.** Teachers see only a teacher screen in v1. Later phases may add a
    teacher "view a student's profile" function; that is a new access path and should be
    reviewed when designed.
+   **AP Check-out (new, needs review).** A teacher-only screen on the teacher's own
+   signed-in iPad shows one class's names as *first name + last initial* so students can
+   tap their own name. Students see that name grid, but never a rating: the roster call
+   returns no ratings, and once a student has tapped, the grid shows only a ✓. Two
+   residual risks to weigh: (a) a student could tap someone else's name and enter a
+   rating for them (the teacher sees it in the summary and can overwrite it; nothing is
+   graded automatically); (b) the evidence words include "Lost focus", "Gave up a bit" and
+   "Forgot kit", which the next student in the queue could glimpse over a shoulder before
+   the screen clears (about a second). Leaving the kiosk for the teacher screens needs a
+   press-and-hold.
 6. **Self-prediction data.** The Lesson 1 activity is the first thing the app *creates*
    rather than displays: a student's own opinion of their strengths and challenges. It
    is shown only to that student (and, in the Sheet, the PE teacher). Confirm this is

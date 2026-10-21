@@ -173,10 +173,96 @@ check('a student cannot use setLock', !as(S2, 'setLock', { emails: [S1], checkpo
 check('teacher unlocks the checkpoint', (() => { const r = as(T, 'setLock', { emails: [S1], checkpoint: 'sept', locked: false }); return r.ok && as(S1, 'bootstrap').data.student.locked.sept !== true; })());
 check('unlocked student can edit again', as(S1, 'saveCombine', { checkpoint: 'sept', results: { pushups: 20 } }).ok === true);
 
+console.log('AP check-out');
+const TODAY = todayIso_();
+const ago = n => daysAgoIso_(n);
+const errs = [];
+const refused = (r, re) => { if (r && r.error) errs.push(r.error); return !!r && !r.ok && (!re || re.test(r.error)); };
+const ckRows = () => readTab_('Checkins');
+const addCk = (email, date, focus, who, rating, word) => { const sh = ensureTab_('Checkins', TABS.Checkins); sh.getRange(sh.getLastRow() + 1, 1, 1, 8).setValues([[email, date, '', focus, who, rating, word || '', '']]); };
+const ok1 = { email: S1, focus: 'effort', who: 'self', rating: 5, word: 'Tried my best' };
+check('a student cannot load the check-out roster', refused(as(S2, 'checkoutRoster', { klass: '8A' }), /teacher/i));
+check('a student cannot save a check-in (not even their own)', refused(as(S2, 'saveCheckin', Object.assign({}, ok1, { email: S2 })), /teacher/i) && ckRows().length === 0);
+check('wrong domain / no token cannot save a check-in', refused(as('x@gmail.example', 'saveCheckin', ok1), /teacher/i) && authErr(post('saveCheckin', ok1, '')));
+check('teacher saveCheckin for an email not on the roster is refused', refused(as(T, 'saveCheckin', Object.assign({}, ok1, { email: 'ghost@example.edu' })), /class list/));
+check('missing student refused', refused(as(T, 'saveCheckin', Object.assign({}, ok1, { email: '' })), /Missing student/));
+[0, 8, 4.5, 'x', '', null, true, '4.0', -1].forEach(v => check('rating ' + JSON.stringify(v) + ' refused', refused(as(T, 'saveCheckin', Object.assign({}, ok1, { rating: v })), /Rating/)));
+check('word not on the list refused', refused(as(T, 'saveCheckin', Object.assign({}, ok1, { word: 'Was amazing' })), /Unknown word/));
+check('word must match the list exactly (no free text smuggled in)', refused(as(T, 'saveCheckin', Object.assign({}, ok1, { word: 'tried my best ' })), /Unknown word/) && refused(as(T, 'saveCheckin', Object.assign({}, ok1, { word: ['Tried my best'] })), /Unknown word/));
+check('focus not in AP_KEYS refused', refused(as(T, 'saveCheckin', Object.assign({}, ok1, { focus: 'speed' })), /Unknown focus/));
+check('who other than self/teacher refused', refused(as(T, 'saveCheckin', Object.assign({}, ok1, { who: 'peer' })), /Unknown rater/));
+check('nothing written by refused calls', ckRows().length === 0);
+check('teacher saves a student\'s self check-in → {ok, date: server today}', (() => { const r = as(T, 'saveCheckin', Object.assign({}, ok1, { date: '1999-01-01' })); return r.ok && r.data.ok === true && r.data.date === TODAY; })());
+check('row keyed by roster email, server date, class from the Students tab (not the request)', (() => { as(T, 'saveCheckin', { email: S1, focus: 'team', who: 'teacher', rating: '6', word: '', klass: '8Z', Class: '8Z' }); const r = ckRows().find(x => x.Focus === 'team'); return r && r.Email === S1 && r.Date === TODAY && r.Class === '8A' && r.Who === 'teacher' && r.Rating === 6 && r.Word === ''; })());
+check('word may be skipped (missing → blank)', (() => { const r = as(T, 'saveCheckin', { email: S2, focus: 'effort', who: 'self', rating: 3 }); return r.ok && ckRows().find(x => x.Email === S2).Word === ''; })());
+check('re-tap same student/focus/who/day → one row, updated value', (() => {
+  as(T, 'saveCheckin', Object.assign({}, ok1, { rating: 6, word: 'Stayed focused' }));
+  const rows = ckRows().filter(x => x.Email === S1 && x.Focus === 'effort' && x.Who === 'self');
+  return rows.length === 1 && rows[0].Rating === 6 && rows[0].Word === 'Stayed focused';
+})());
+check('self and teacher ratings for the same focus are separate rows', (() => { as(T, 'saveCheckin', { email: S1, focus: 'effort', who: 'teacher', rating: 4, word: '' }); return ckRows().filter(x => x.Email === S1 && x.Focus === 'effort').length === 2; })());
+check('re-tap still one row when Sheets stored the date as a Date', (() => {
+  const sh = FakeSheets.book.getSheetByName('Checkins'), i = sh.rows.findIndex(r => r[0] === S1 && r[3] === 'effort' && r[4] === 'self');
+  sh.rows[i][1] = new Date(TODAY + 'T12:00:00Z');
+  as(T, 'saveCheckin', Object.assign({}, ok1, { rating: 7 }));
+  const rows = ckRows().filter(x => x.Email === S1 && x.Focus === 'effort' && x.Who === 'self');
+  return rows.length === 1 && rows[0].Rating === 7;
+})());
+check('owner (student + teacher) can run the kiosk', as(OWNER, 'saveCheckin', { email: S3, focus: 'growth', who: 'self', rating: 5, word: 'Tried something new' }).ok === true);
+// history for the trend, written straight to the Sheet (the API only ever writes today)
+addCk(S1, ago(3), 'effort', 'self', 5, 'Tried my best'); addCk(S1, ago(3), 'effort', 'teacher', 5, '');
+addCk(S1, ago(120), 'effort', 'self', 2, 'Gave up a bit');
+addCk(S2, ago(2), 'team', 'self', 4, 'Helped set up');
+check('student bootstrap returns their own check-ins only', (() => {
+  const c1 = as(S1, 'bootstrap').data.student.checkins, c2 = as(S2, 'bootstrap').data.student.checkins;
+  return c1.length === 5 && c2.length === 2 && c2.every(c => c.focus === 'effort' || c.focus === 'team') && !c2.some(c => c.rating === 7 || c.rating === 6);
+})());
+check('student check-ins carry {date, focus, who, rating, word} and nothing else', (() => { const c = as(S1, 'bootstrap').data.student.checkins; return c.every(x => Object.keys(x).sort().join() === 'date,focus,rating,who,word'); })());
+check('student check-ins: last 90 days only, oldest first', (() => { const c = as(S1, 'bootstrap').data.student.checkins; return !c.some(x => x.date === ago(120)) && c[0].date === ago(3) && c[c.length - 1].date === TODAY; })());
+check('student bootstrap never carries another student\'s check-in or email', !JSON.stringify(as(S2, 'bootstrap')).includes('sample.one') && !JSON.stringify(as(S1, 'bootstrap')).includes('sample.two'));
+check('student with no check-ins → empty list', JSON.stringify(as(OWNER, 'bootstrap').data.student.checkins) === '[]');
+check('a check-in recorded by the owner shows only on that student', (() => { const c = as(S3, 'bootstrap').data.student.checkins; return c.length === 1 && c[0].focus === 'growth' && c[0].who === 'self' && c[0].rating === 5; })());
+
+// spotlight: a third class with seven students and a known teacher-rating history
+const stTab = FakeSheets.book.getSheetByName('Students');
+const C = n => 'c' + n + '@example.edu';
+stTab.getRange(stTab.getLastRow() + 1, 1, 7, 3).setValues([
+  [C(1), 'Gee, Ann', '8C'], [C(2), 'Fox, Ben', '8C'], [C(3), 'Eve Cole', '8C'], [C(4), 'Dee Dunn', '8C'],
+  [C(5), 'Zed, Ann', '8C'], [C(6), 'Zed, Bob', '8C'], [C(7), 'Alpha, Cy', '8C']
+]);
+const rosterCount = readTab_('Students').length;
+addCk(C(1), ago(2), 'team', 'teacher', 5); addCk(C(1), ago(9), 'ready', 'teacher', 5);
+addCk(C(2), ago(5), 'team', 'teacher', 5);
+addCk(C(3), ago(10), 'team', 'teacher', 5);
+addCk(C(4), ago(40), 'team', 'teacher', 5);
+addCk(C(5), ago(1), 'team', 'self', 6); addCk(C(5), ago(2), 'team', 'self', 6);
+addCk(C(7), ago(1), 'team', 'teacher', 5); addCk(C(7), ago(3), 'team', 'teacher', 5); addCk(C(7), ago(4), 'team', 'teacher', 5);
+const roster = as(T, 'checkoutRoster', { klass: '8c', focus: 'effort' });
+check('checkoutRoster returns the requested class only', roster.ok && roster.data.klass === '8C' && roster.data.students.length === 7 && roster.data.students.every(s => /^c\d@/.test(s.email)), roster);
+check('checkoutRoster never returns ratings or words-given', (() => { const j = JSON.stringify(roster.data); return !/rating|"Rating"|Avg|"word"/i.test(j.replace(/"words":\[[^\]]*\]/, '')); })());
+check('roster rows are {email, first, lastInitial, doneToday:{self,teacher}}', roster.data.students.every(s => Object.keys(s).sort().join() === 'doneToday,email,first,lastInitial' && typeof s.doneToday.self === 'boolean' && typeof s.doneToday.teacher === 'boolean'));
+check('names: "Last, First" and "First Last" → first + last initial', (() => { const by = e => roster.data.students.find(s => s.email === e); return by(C(1)).first === 'Ann' && by(C(1)).lastInitial === 'G' && by(C(3)).first === 'Eve' && by(C(3)).lastInitial === 'C'; })());
+check('checkoutRoster carries the word list and server date', JSON.stringify(roster.data.words) === JSON.stringify(CHECKIN_WORDS) && roster.data.date === TODAY);
+check('spotlight: fewest teacher check-ins (30 d) → oldest last rating → alphabetical; self taps ignored', JSON.stringify(roster.data.spotlight) === JSON.stringify([C(5), C(6), C(4), C(3), C(2)]), roster.data.spotlight);
+check('spotlight is drawn from the requested class only', as(T, 'checkoutRoster', { klass: '8A' }).data.spotlight.every(e => e === S1 || e === S2));
+check('doneToday reflects today for the chosen focus', (() => {
+  const a = as(T, 'checkoutRoster', { klass: '8A', focus: 'effort' }).data.students, b = as(T, 'checkoutRoster', { klass: '8A', focus: 'ready' }).data.students;
+  const s1a = a.find(s => s.email === S1), s2a = a.find(s => s.email === S2), s1b = b.find(s => s.email === S1);
+  return s1a.doneToday.self && s1a.doneToday.teacher && s2a.doneToday.self && !s2a.doneToday.teacher && !s1b.doneToday.self && !s1b.doneToday.teacher;
+})());
+check('checkoutRoster without a class → class list only, no students', (() => { const r = as(T, 'checkoutRoster', {}).data; return r.students.length === 0 && r.spotlight.length === 0 && JSON.stringify(r.classes) === '["8A","8B","8C"]'; })());
+check('checkoutRoster for an unknown class refused', refused(as(T, 'checkoutRoster', { klass: '9Z' }), /No students/));
+check('classOverview: per-student checkinSummary (averages to 1 dp)', (() => {
+  const s = as(T, 'classOverview').data.students.find(x => x.id === S1), e = s.checkinSummary.effort;
+  return e.selfN === 3 && e.selfAvg === 4.7 && e.tchrN === 2 && e.tchrAvg === 4.5 && e.last === TODAY && s.checkinSummary.team.tchrAvg === 6 && s.checkinSummary.team.selfAvg === null && !s.checkinSummary.ready;
+})());
+check('check-out error messages contain no email', errs.length > 10 && errs.every(e => !e.includes('@')), errs.filter(e => e.includes('@')));
+
 console.log('retention');
 FakeSheets.uiAnswer = 'YES';
 clearProfileData();
-check('clearProfileData empties all student data, keeps Students', readTab_('Profile').length === 0 && readTab_('Predictions').length === 0 && readTab_('Combine').length === 0 && readTab_('Skills').length === 0 && readTab_('Goals').length === 0 && readTab_('Plan').length === 0 && readTab_('Reflections').length === 0 && readTab_('Students').length === 4);
+check('clearProfileData empties all student data, keeps Students', readTab_('Profile').length === 0 && readTab_('Predictions').length === 0 && readTab_('Combine').length === 0 && readTab_('Skills').length === 0 && readTab_('Goals').length === 0 && readTab_('Plan').length === 0 && readTab_('Reflections').length === 0 && readTab_('Students').length === rosterCount);
+check('retention clears Checkins', readTab_('Checkins').length === 0 && JSON.stringify(as(S1, 'bootstrap').data.student.checkins) === '[]');
 
 console.log(failed ? `\n${failed} check(s) FAILED` : '\nall checks passed');
 process.exit(failed ? 1 : 0);

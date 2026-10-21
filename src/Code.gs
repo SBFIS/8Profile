@@ -14,12 +14,14 @@
 //   Teachers     Email · Name                     who gets the teacher view
 //   Profile      Email · Style · Goal · Updated   written by the app, one row per student
 //   Predictions  Email · Checkpoint · Timestamp · 13 × (rating, freq)   one row per student per checkpoint
+//   Checkins     Email · Date · Class · Focus · Who · Rating · Word · Updated   AP check-out, one row per student per day per focus per rater
 //
 // Privacy rules baked in (PRIVACY.md is the reviewable version):
 //   • identity_() is the only place an identity is established: from the Google
 //     ID token, verified with Google (audience, verified email, FIS domain, expiry).
 //     Nothing in the request body (email, id) is ever trusted for identity.
-//   • Every handler works on the verified caller's own rows. Nothing returns the roster.
+//   • Every student handler works on the verified caller's own rows. Class data (the
+//     dashboard, the AP check-out kiosk) is returned only behind requireTeacher_().
 //   • Errors returned to the client never contain an email (they reach Stackdriver logs).
 //   • The photo is the picture claim of the student's own token, passed through at
 //     runtime. Nothing is copied or stored.
@@ -85,8 +87,16 @@ var TABS = {
 
   Plan:          ['Email', 'Plan', 'Updated'],                                   // the student's personal workout plan (JSON)
   Locks:         ['Email', 'Checkpoint', 'Locked', 'Updated'],                   // teacher finalize-lock per student per checkpoint
-  Reflections:   ['Email', 'Key', 'Text', 'Updated']                             // student reflections + unit self-assessments, one row per key
+  Reflections:   ['Email', 'Key', 'Text', 'Updated'],                            // student reflections + unit self-assessments, one row per key
+  Checkins:      ['Email', 'Date', 'Class', 'Focus', 'Who', 'Rating', 'Word', 'Updated'] // AP check-out: one row per student · day · focus · who (self/teacher)
 };
+// AP check-out (end of lesson, on the teacher's iPad): one AP key is the focus of the
+// day; each student taps 1–7 and one evidence word, the teacher rates a spotlight group.
+var CHECKIN_WORDS = ['Cheered someone on', 'Tried my best', 'Tried something new', 'Helped set up', 'Stayed focused', 'Lost focus', 'Gave up a bit', 'Forgot kit'];
+var CHECKIN_WHO = ['self', 'teacher'];
+var CHECKIN_DAYS_STUDENT = 90;   // how far back a student's own trend goes
+var CHECKIN_DAYS_SPOTLIGHT = 30; // window for "fewest teacher check-ins"
+var SPOTLIGHT_SIZE = 5;
 // Reflection slots a student may write. Unit keys hold a small JSON self-assessment.
 var REFLECT_KEYS = ['compare-intro', 'unit-badminton'];
 var REFLECT_MAX = 2000;
@@ -267,7 +277,7 @@ function doPost(e) {
 }
 // Opening the API URL in a browser is not the app; say so, with no data.
 // Bump with each server change: opening the /exec link in a browser shows which build is live.
-var BUILD = '2026-10-14 · student demo view';
+var BUILD = '2026-10-21 · AP check-out';
 function doGet() {
   return ContentService.createTextOutput(JSON.stringify({ ok: false, build: BUILD, error: 'This is the data service for My PE Profile. Open the app link your PE teacher shared.' }))
     .setMimeType(ContentService.MimeType.JSON);
@@ -290,6 +300,8 @@ function handle_(body) {
     case 'setLock':         return setLock_(cfg, id, body.emails, body.checkpoint, body.locked);
     case 'classOverview':   return classOverview_(cfg, id);
     case 'classStudent':    return classStudent_(cfg, id, body.email);
+    case 'checkoutRoster':  return checkoutRoster_(cfg, id, body.klass, body.focus);
+    case 'saveCheckin':     return saveCheckin_(cfg, id, body.email, body.focus, body.who, body.rating, body.word);
     default: throw new Error('Unknown action');
   }
 }
@@ -432,7 +444,8 @@ function bootstrap_(cfg, id) {
       predictions: predictionsFor_(id.email),
       combine: measuredFor_(id.email),
       locked: locksFor_(id.email),
-      reflections: reflectionsFor_(id.email)
+      reflections: reflectionsFor_(id.email),
+      checkins: checkinsFor_(id.email)
     };
     out.predict = { items: PREDICT_ITEMS, checkpoints: PREDICT_CHECKPOINTS, ratings: RATINGS, freqs: FREQS };
     out.meta = combineMeta_();
@@ -459,6 +472,8 @@ function combineMeta_() {
 }
 
 // ---------- Writes (always for the caller's own row) ----------
+// Sheets turns a typed "2026-10-21" into a Date; compare it as the day string it was written as.
+function cellKey_(v) { return (v instanceof Date) ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd') : v; }
 // Insert-or-update one row of `name`, matched on the `keys` columns (case-insensitive),
 // under a script lock. Columns not in `fields` keep their value.
 function upsert_(name, keys, fields) {
@@ -473,7 +488,7 @@ function upsert_(name, keys, fields) {
     if (lastRow > 1) {
       var data = s.getRange(2, 1, lastRow - 1, lastCol).getValues();
       for (var i = 0; i < data.length && rowIdx === -1; i++) {
-        var hit = Object.keys(keys).every(function (k, j) { return lower_(data[i][keyCols[j]]) === lower_(keys[k]); });
+        var hit = Object.keys(keys).every(function (k, j) { return lower_(cellKey_(data[i][keyCols[j]])) === lower_(keys[k]); });
         if (hit) rowIdx = i + 2;
       }
     }
@@ -729,13 +744,13 @@ function classOverview_(cfg, id) {
   requireTeacher_(id);
   var combine = indexSeries_('Combine', FIT_KEYS);
   var skills  = indexSeries_('Skills', SKILL_KEYS);
-  var ap = indexAp_(), bands = indexBands_(), locks = locksIndex_();
+  var ap = indexAp_(), bands = indexBands_(), locks = locksIndex_(), checkins = checkinSummaryIndex_();
   var out = [];
   readTab_('Students').forEach(function (r) {
     var email = lower_(r.Email); if (!email) return;
     out.push({ id: email, name: str_(r.Name), klass: str_(r.Class),
       fitness: combine[email] || {}, skills: skills[email] || {}, ap: ap[email] || {},
-      bands: bands[email] || {}, locked: locks[email] || {} });
+      bands: bands[email] || {}, locked: locks[email] || {}, checkinSummary: checkins[email] || {} });
   });
   return { role: 'class', students: out, meta: combineMeta_() };
 }
@@ -746,6 +761,117 @@ function classStudent_(cfg, id, targetEmail) {
   if (!r) throw new Error('That student is not on the class list');
   return { role: 'classStudent', student: { id: email, name: str_(r.Name), klass: str_(r.Class),
     fitness: fitnessFor_(email), skills: skillsFor_(email), ap: apFor_(email), bands: bandsFor_(email) } };
+}
+
+// ---------- AP check-out (end-of-lesson routine on the teacher's iPad) ----------
+// Dates are always the server's today in the script time zone; the client never sends one.
+function dayIso_(d) { return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd'); }
+function todayIso_() { return dayIso_(new Date()); }
+function daysAgoIso_(n) { return dayIso_(new Date(Date.now() - n * 86400000)); }
+function round1_(n) { return Math.round(n * 10) / 10; }
+// Check-in rows, cleaned: only valid focus/who/rating survive, emails and dates normalised.
+function checkinRows_() {
+  var out = [];
+  readTab_('Checkins').forEach(function (r) {
+    var email = lower_(r.Email), focus = lower_(r.Focus), who = lower_(r.Who), rating = numOrNull_(r.Rating), date = str_(r.Date);
+    if (!email || !/^\d{4}-\d{2}-\d{2}$/.test(date) || AP_KEYS.indexOf(focus) === -1 || CHECKIN_WHO.indexOf(who) === -1) return;
+    if (rating === null || rating < 1 || rating > 7) return;
+    out.push({ email: email, date: date, focus: focus, who: who, rating: rating, word: str_(r.Word) });
+  });
+  return out;
+}
+// The caller's own check-ins, last 90 days, oldest first.
+function checkinsFor_(email) {
+  var from = daysAgoIso_(CHECKIN_DAYS_STUDENT);
+  return checkinRows_().filter(function (c) { return c.email === email && c.date >= from; })
+    .sort(function (a, b) { return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); })
+    .map(function (c) { return { date: c.date, focus: c.focus, who: c.who, rating: c.rating, word: c.word }; });
+}
+// Teacher view: per student, per focus { selfAvg, tchrAvg, selfN, tchrN, last }.
+function checkinSummaryIndex_() {
+  var acc = {};
+  checkinRows_().forEach(function (c) {
+    var o = acc[c.email] || (acc[c.email] = {});
+    var f = o[c.focus] || (o[c.focus] = { selfSum: 0, selfN: 0, tchrSum: 0, tchrN: 0, last: '' });
+    if (c.who === 'self') { f.selfSum += c.rating; f.selfN++; } else { f.tchrSum += c.rating; f.tchrN++; }
+    if (c.date > f.last) f.last = c.date;
+  });
+  var idx = {};
+  Object.keys(acc).forEach(function (email) {
+    idx[email] = {};
+    Object.keys(acc[email]).forEach(function (k) {
+      var f = acc[email][k];
+      idx[email][k] = { selfAvg: f.selfN ? round1_(f.selfSum / f.selfN) : null, tchrAvg: f.tchrN ? round1_(f.tchrSum / f.tchrN) : null,
+        selfN: f.selfN, tchrN: f.tchrN, last: f.last };
+    });
+  });
+  return idx;
+}
+// "Last, First" or "First Last" → first name + last initial, for the name buttons.
+function shortName_(raw) {
+  var name = str_(raw).replace(/\s+/g, ' '), first, last;
+  if (name.indexOf(',') !== -1) { last = str_(name.split(',')[0]); first = nameParts_(name).first; }
+  else { var p = name.split(' '); first = p[0] || ''; last = p.length > 1 ? p[p.length - 1] : ''; }
+  return { first: first, lastInitial: last.charAt(0).toUpperCase() };
+}
+// Teacher-only: one class's names for the kiosk, who has checked out today, and the
+// spotlight five. Never returns ratings. Without a class, returns just the class list.
+function checkoutRoster_(cfg, id, klass, focus) {
+  requireTeacher_(id);
+  var students = readTab_('Students').filter(function (r) { return lower_(r.Email); });
+  var classes = {}; students.forEach(function (r) { var c = str_(r.Class); if (c) classes[c] = true; });
+  var out = { classes: Object.keys(classes).sort(), words: CHECKIN_WORDS, focuses: AP_KEYS, date: todayIso_(), klass: '', students: [], spotlight: [] };
+  var want = lower_(klass);
+  if (!want) return out;
+  var mine = students.filter(function (r) { return lower_(r.Class) === want; });
+  if (!mine.length) throw new Error('No students in that class');
+  out.klass = str_(mine[0].Class);
+  var f = lower_(focus); if (AP_KEYS.indexOf(f) === -1) f = '';
+  var today = out.date, from = daysAgoIso_(CHECKIN_DAYS_SPOTLIGHT);
+  var stats = {};
+  mine.forEach(function (r) { stats[lower_(r.Email)] = { self: false, teacher: false, recent: 0, lastTchr: '' }; });
+  checkinRows_().forEach(function (c) {
+    var st = stats[c.email]; if (!st) return;
+    if (c.date === today && (!f || c.focus === f)) st[c.who] = true;
+    if (c.who === 'teacher') {
+      if (c.date >= from) st.recent++;
+      if (c.date > st.lastTchr) st.lastTchr = c.date;
+    }
+  });
+  var rows = mine.map(function (r) {
+    var email = lower_(r.Email), n = shortName_(r.Name);
+    return { email: email, first: n.first, lastInitial: n.lastInitial, sortName: lower_(r.Name), doneToday: { self: stats[email].self, teacher: stats[email].teacher } };
+  });
+  out.spotlight = rows.slice().sort(function (a, b) {
+    var x = stats[a.email], y = stats[b.email];
+    if (x.recent !== y.recent) return x.recent - y.recent;
+    if (x.lastTchr !== y.lastTchr) return x.lastTchr < y.lastTchr ? -1 : 1; // never rated ('') sorts first
+    return a.sortName < b.sortName ? -1 : (a.sortName > b.sortName ? 1 : (a.email < b.email ? -1 : 1));
+  }).slice(0, SPOTLIGHT_SIZE).map(function (r) { return r.email; });
+  out.students = rows.sort(function (a, b) { return a.first.toLowerCase() < b.first.toLowerCase() ? -1 : (a.first.toLowerCase() > b.first.toLowerCase() ? 1 : (a.sortName < b.sortName ? -1 : 1)); })
+    .map(function (r) { return { email: r.email, first: r.first, lastInitial: r.lastInitial, doneToday: r.doneToday }; });
+  return out;
+}
+// Teacher-only: the verified teacher records a check-in for a student on the roster,
+// either the student's own tap (who 'self') or the teacher's rating (who 'teacher').
+// Class comes from the Students tab and the date from the server; re-tapping overwrites.
+function saveCheckin_(cfg, id, targetEmail, focus, who, rating, word) {
+  requireTeacher_(id);
+  var email = lower_(targetEmail);
+  if (!email) throw new Error('Missing student');
+  var st = readTab_('Students').filter(function (r) { return lower_(r.Email) === email; })[0];
+  if (!st) throw new Error('That student is not on the class list');
+  var f = lower_(focus);
+  if (AP_KEYS.indexOf(f) === -1) throw new Error('Unknown focus');
+  var w = lower_(who);
+  if (CHECKIN_WHO.indexOf(w) === -1) throw new Error('Unknown rater');
+  var n = (typeof rating === 'number') ? rating : (typeof rating === 'string' && /^\s*\d+\s*$/.test(rating) ? Number(rating) : NaN);
+  if (!isFinite(n) || n % 1 !== 0 || n < 1 || n > 7) throw new Error('Rating must be a whole number 1–7');
+  var wd = (word === null || word === undefined) ? '' : word;
+  if (typeof wd !== 'string' || (wd !== '' && CHECKIN_WORDS.indexOf(wd) === -1)) throw new Error('Unknown word');
+  var date = todayIso_();
+  upsert_('Checkins', { Email: email, Date: date, Focus: f, Who: w }, { Class: str_(st.Class), Rating: n, Word: wd, Updated: new Date() });
+  return { ok: true, date: date };
 }
 
 // ---------- Sheet menu (teacher, inside the Sheet) ----------
@@ -774,9 +900,9 @@ function setupTabs() {
 // Retention: wipes every student-written row (styles, goals, predictions). Roster is untouched.
 function clearProfileData() {
   var ui = SpreadsheetApp.getUi();
-  var ans = ui.alert('Clear all student data?', 'This deletes every student\'s saved style, goals, self-predictions, Combine, skills, participation, bands and workout plan. The Students roster is not touched. Continue?', ui.ButtonSet.YES_NO);
+  var ans = ui.alert('Clear all student data?', 'This deletes every student\'s saved style, goals, self-predictions, Combine, skills, participation, bands, workout plan and AP check-outs. The Students roster is not touched. Continue?', ui.ButtonSet.YES_NO);
   if (ans !== ui.Button.YES) return;
-  ['Profile', 'Predictions', 'Combine', 'Skills', 'Participation', 'Bands', 'Goals', 'Plan', 'Locks', 'Reflections'].forEach(function (n) {
+  ['Profile', 'Predictions', 'Combine', 'Skills', 'Participation', 'Bands', 'Goals', 'Plan', 'Locks', 'Reflections', 'Checkins'].forEach(function (n) {
     var s = ensureTab_(n, TABS[n]);
     if (s.getLastRow() > 1) s.getRange(2, 1, s.getLastRow() - 1, s.getLastColumn()).clearContent();
   });

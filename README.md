@@ -68,6 +68,7 @@ dev/
   build-rubrics.js builds src/Rubrics.html from the Rubric Bank
   test-server.js   Node checks: token verification, own-row-only reads, refusals, validated writes
   smoke.js         headless Chromium run of the preview (Playwright); screenshots in dev/shots/ (ignored)
+  smoke-checkout.js  the same for the AP check-out: kiosk, spotlight, summary, student trend
 data/dummy/        synthetic test data only
 design/            the mockups the app is built from (fictional sample data)
 docs/              G8_PE_Rubric_Bank.md (data source of truth for v2+), BUILD_BRIEF.md
@@ -82,6 +83,7 @@ npm test                                      # node dev/test-server.js — serv
 npm run preview                               # dev/preview.html — open ?role=student | student2 | teacher | unknown | wrong | anon | expired
                                               #   &fail=1  &latency=800  &reset=1  &nophoto=1  &as=someone@example.edu
 NODE_PATH=$(npm root -g) npm run smoke        # needs playwright + Chromium
+NODE_PATH=$(npm root -g) npm run smoke:checkout   # AP check-out flow only
 npm run build                                 # regenerate index.html and dist/Code.gs — commit both
 ```
 

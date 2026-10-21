@@ -31,7 +31,7 @@ async function rawCall(action, payload) {
 }
 // Apps Script caps simultaneous runs; a whole class tapping at once produces
 // transient errors. Retry those with backoff; permanent ones surface at once.
-const PERMANENT = /Unknown style|Unknown action|Incomplete|class list|not connected|Bad request/i;
+const PERMANENT = /Unknown style|Unknown action|Unknown focus|Unknown word|Unknown rater|Rating must|No students|teacher account|Incomplete|class list|not connected|Bad request/i;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function call(action, payload) {
   if (demo) return demoCall(action, payload || {});
@@ -304,6 +304,7 @@ function profileView(b) {
     '<div class="grid3">' + fund + '</div>' +
     '<h3 class="sec sec-ap"><span class="em">🤝</span> Active participation <span class="tap">· all year</span></h3><p class="seclede">Your biggest all-year story — how you show up, tracked through every unit.</p>' +
     '<div class="grid3">' + apTileV('ap-ready', '✅', 'Be ready', 'ready') + apTileV('ap-effort', '🔥', 'Best effort', 'effort') + apTileV('ap-growth', '🌱', 'Growth mindset', 'growth') + apTileV('ap-team', '🙌', 'Great teammate', 'team') + apTileV('ap-manage', '🧘', 'Manage myself', 'manage') + '</div>' +
+    checkinsSection(st) +
     '<h3 class="sec sec-rep"><span class="em">🧠</span> My report picture <span class="tap">· tap for how it’s built</span></h3><p class="seclede">The three grades on your Canvas report — a best fit across the descriptors.</p>' +
     '<div class="grid3">' + bandV('rp-know', '🧠', 'Knowledge', 'knowledge') + bandV('rp-skill', '🎯', 'Skills', 'skills') + bandV('rp-ct', '🔄', 'Concept transfer', 'concept') + '</div>' +
     '<div class="foot"><span class="arrow">↻</span><div><b>How this grows:</b> September sets the baseline; the same measures repeat in January and May. Always <b>you vs. your past self</b> — and it maps straight to your report.</div></div>' +
@@ -1329,8 +1330,10 @@ let demo = null; // { teacher: <teacher bootstrap>, kind: 'fresh'|'example' }
 const DEMO_PREDICT = { items: ['cv', 'me', 'power', 'speed', 'throw', 'catch', 'strike', 'dribble', 'kick', 'balance', 'agility', 'jump', 'core'], checkpoints: ['intro'], ratings: ['strength', 'neutral', 'work-on'], freqs: ['often', 'sometimes', 'rarely'] };
 function demoBootstrap(t, kind) {
   const ago = d => { const x = new Date(Date.now() - d * 864e5); return x.toISOString().slice(0, 10); };
-  const st = { name: 'Demo Student', first: 'Demo', klass: '8 Demo', initials: 'DS', style: '', goal: '', photoUrl: '', predictions: {}, combine: null, locked: {}, reflections: {} };
+  const st = { name: 'Demo Student', first: 'Demo', klass: '8 Demo', initials: 'DS', style: '', goal: '', photoUrl: '', predictions: {}, combine: null, locked: {}, reflections: {}, checkins: [] };
   if (kind === 'example') {
+    st.checkins = [[16, 'effort', 5, 4, 'Tried my best'], [12, 'team', 6, 5, 'Cheered someone on'], [9, 'effort', 6, null, 'Stayed focused'], [5, 'effort', 6, 5, 'Tried something new'], [2, 'team', 5, 6, 'Helped set up']]
+      .reduce((a, c) => a.concat([{ date: ago(c[0]), focus: c[1], who: 'self', rating: c[2], word: c[4] }], c[3] == null ? [] : [{ date: ago(c[0]), focus: c[1], who: 'teacher', rating: c[3], word: '' }]), []);
     st.style = 'improver';
     const P = t.predict || DEMO_PREDICT, items = {};
     P.items.forEach((k, i) => { items[k] = { rating: P.ratings[i % 3], freq: P.freqs[(i + 1) % 3] }; });
@@ -1399,6 +1402,7 @@ function demoBar() {
 function teacherLanding(b) {
   return '<div class="wrap"><div class="phero"><div class="k">TEACHER</div><h1>G8 PE — class view</h1><p>Signed in as <code>' + esc(b.email) + '</code>. Open the class dashboard to see everyone’s Combine and record the skill-ladder results your classes run.</p></div>' +
     '<div class="done"><button type="button" class="ct-btn" id="toclass">Open class dashboard ↗</button></div>' +
+    '<button type="button" class="co-entry" id="tocheckout"><span class="ce-i">📲</span><span class="ce-t"><b>AP Check-out</b><span>60 seconds at the end of the lesson: students tap 1–7 on today’s AP focus, you rate a spotlight group.</span></span><span class="sg-go">Go ↗</span></button>' +
     '<div class="demobox"><h3>👀 View as a student</h3><p>Show the class what to do, on the board. Uses a <b>made-up student</b>, so no real names or results appear, and nothing is saved.</p>' +
     '<div class="demobtns"><button type="button" class="ct-btn" data-demo="fresh">New student</button><button type="button" class="ct-btn ghost" data-demo="example">Mid-unit example</button></div>' +
     '<p class="small">New student: an empty profile, starting from the Athlete Pack. Mid-unit example: Combine done, goals set and a workout built.</p></div>' +
@@ -1424,6 +1428,7 @@ function classView() {
   const cpBtns = CPS.map(cp => '<button type="button" class="cpbtn' + (cp === teacherCp ? ' on' : '') + '" data-cp="' + cp + '">' + CP_LABEL[cp] + '</button>').join('');
   return '<div class="wrap wide">' +
     '<button type="button" class="back light" id="toprofileT">← Back</button>' + (state.role === 'teacher' ? '<button type="button" class="back light" id="todemo" style="margin-left:8px">👀 View as a student</button>' : '') +
+    '<button type="button" class="co-entry slim" id="tocheckout2">📲 AP Check-out</button><button type="button" class="back light" id="toapsum" style="margin-left:8px">📊 AP check-out summary</button>' +
     '<div class="phero tight"><div class="k">TEACHER · GRADEBOOK</div><h1>Class dashboard</h1><p>' + rows.length + ' student' + (rows.length === 1 ? '' : 's') + (teacherFilter === 'all' ? '' : ' · ' + esc(teacherFilter)) + '. Tap a skill or band cell to set it. 🔒 locks a student so they can’t change their own entries.</p></div>' +
     '<div class="mxbar">' +
       '<label class="mxf">Class <select id="mxclass">' + classOpts + '</select></label>' +
@@ -1549,6 +1554,242 @@ async function saveMySkillsUI() {
     state.student.combine = m;
     toast('Levels saved.'); show(lastHub);
   } catch (e) { btn.disabled = false; btn.textContent = 'Save my levels'; toast('Couldn’t save: ' + e.message, true); }
+}
+
+// ═══════════════ AP check-out: 60-second end-of-lesson routine on the teacher's iPad ═══════════════
+// Teacher picks a class and ONE AP focus; students tap name → 1–7 → one word (or skip).
+// The teacher rates a rotating spotlight group. The roster call never returns ratings,
+// and the kiosk shows nothing but a ✓ once a student has tapped.
+const CO_FOCUS = { effort: ['🔥', 'Best effort'], team: ['🙌', 'Great teammate'], ready: ['✅', 'Be ready'], growth: ['🌱', 'Growth mindset'], manage: ['🧘', 'Manage myself'] };
+const CO_ORDER = ['effort', 'team', 'ready', 'growth', 'manage'];
+const CO_KEY = 'pe_checkout';
+// Students never see numbers: they pick one of four levels (one per rubric band). The level is
+// stored as the top of its band (2 · 4 · 6 · 7) so it lines up with the teacher's 1–7 ratings.
+const CO_LEVELS = [[7, 'Leading', '🚀'], [6, 'Got it', '👍'], [4, 'Almost', '🔜'], [2, 'Not yet', '🌱']];
+function coLevel(v) { if (v == null) return null; const n = Math.round(v); return n >= 7 ? CO_LEVELS[0] : n >= 5 ? CO_LEVELS[1] : n >= 3 ? CO_LEVELS[2] : CO_LEVELS[3]; }
+let co = null; // { from, roster, klass, focus, step, sel, rating, given:{email:{rating,word}}, saving:{email:true} }
+function coBand(key, v) { const a = RUBRICS.ap && RUBRICS.ap[key]; if (!a || v == null) return null; const n = Math.round(v); return a.bands.find(b => n >= b.range[0] && n <= b.range[1]) || null; }
+function coBandCls(v) { if (v == null) return 'lv0'; v = Math.round(v); return v >= 7 ? 'b7' : v >= 5 ? 'b5' : v >= 3 ? 'b3' : 'b1'; }
+function coRemember() { try { sessionStorage.setItem(CO_KEY, JSON.stringify({ date: co.roster && co.roster.date, klass: co.klass, focus: co.focus })); } catch (e) {} }
+function coRecall(date) { try { const j = JSON.parse(sessionStorage.getItem(CO_KEY) || 'null'); return j && j.date === date ? j : null; } catch (e) { return null; } }
+function coName(s) { return s.first + (s.lastInitial ? ' ' + s.lastInitial + '.' : ''); }
+function coStudent(email) { return ((co.roster && co.roster.students) || []).find(s => s.email === email) || null; }
+
+async function openCheckout(from) {
+  co = { from: from || 'landing', roster: null, klass: '', focus: '', step: 'names', sel: null, rating: null, given: {}, saving: {} };
+  $('#app').innerHTML = '<div class="loading"><div class="spinner"></div>Loading classes…</div>';
+  try {
+    co.roster = await call('checkoutRoster', {});
+    const last = coRecall(co.roster.date);
+    if (last && co.roster.classes.indexOf(last.klass) !== -1) { co.focus = CO_FOCUS[last.focus] ? last.focus : ''; await coLoadClass(last.klass, true); return; }
+    show('checkout');
+  } catch (e) { toast('Couldn’t open the check-out: ' + e.message, true); coLeave(); }
+}
+async function coLoadClass(klass, quiet) {
+  try {
+    co.roster = await call('checkoutRoster', { klass: klass, focus: co.focus });
+    co.klass = co.roster.klass; coRemember(); show('checkout');
+  } catch (e) { if (!quiet) toast('Couldn’t load ' + klass + ': ' + e.message, true); co.klass = ''; show('checkout'); }
+}
+function coLeave() { const from = co ? co.from : 'landing'; co = null; if (from === 'class' && classData) show('class'); else if (state.role === 'student') show('profile'); else renderTeacher(state); }
+
+function checkoutSetupView() {
+  const r = co.roster, studs = r.students || [];
+  const doneSelf = studs.filter(s => s.doneToday.self).length, doneT = studs.filter(s => s.doneToday.teacher).length;
+  const classBtns = r.classes.map(c => '<button type="button" class="co-chip' + (c === co.klass ? ' on' : '') + '" data-coclass="' + esc(c) + '">' + esc(c) + '</button>').join('') || '<span class="small">No classes on the Students tab yet.</span>';
+  const focusBtns = CO_ORDER.map(k => { const a = RUBRICS.ap[k], f = CO_FOCUS[k];
+    return '<button type="button" class="co-focus' + (k === co.focus ? ' on' : '') + '" data-cofocus="' + k + '"><span class="cf-e">' + f[0] + '</span><span class="cf-t"><b>' + esc(f[1]) + '</b><span>' + esc(a.name) + ' · ' + esc(a.code) + '</span></span></button>'; }).join('');
+  const ready = co.klass && co.focus;
+  return '<div class="wrap">' +
+    '<button type="button" class="back light" id="coback">← Back</button>' +
+    '<div class="phero tight"><div class="k">AP CHECK-OUT · ' + esc(r.date) + '</div><h1>📲 End-of-lesson check-out</h1><p>Pick the class and today’s <b>one</b> AP focus. At the end of the lesson each student taps their name, a number and one word: about 10 seconds each. Then rate your spotlight group on the same focus.</p></div>' +
+    '<h3 class="sec"><span class="em">👥</span> Class</h3><div class="co-chips">' + classBtns + '</div>' +
+    '<h3 class="sec"><span class="em">🎯</span> AP focus of the day</h3><div class="co-focuses">' + focusBtns + '</div>' +
+    (co.klass ? '<p class="seclede co-count">' + esc(co.klass) + ' · ' + studs.length + ' students' + (co.focus ? ' · today on this focus: <b>' + doneSelf + '</b> checked out, <b>' + doneT + '</b> rated by you' : '') + '</p>' : '') +
+    '<div class="co-go">' +
+      '<button type="button" class="ct-btn" id="cokiosk"' + (ready ? '' : ' disabled') + '>▶ Start student check-out</button>' +
+      '<button type="button" class="ct-btn ghost" id="cospot"' + (ready ? '' : ' disabled') + '>🧑‍🏫 Rate my spotlight group</button>' +
+    '</div>' +
+    '<p class="small">Hand the iPad round, or prop it by the door. To leave the student screen, <b>press and hold</b> “Teacher” for a second, so students can’t wander into your view.</p>' +
+  '</div>';
+}
+
+function kioskTop() {
+  const f = CO_FOCUS[co.focus];
+  return '<div class="ko-top"><span class="ko-f">' + f[0] + ' Today: <b>' + esc(f[1]) + '</b></span><span class="ko-k">' + esc(co.klass) + '</span>' +
+    '<button type="button" class="ko-hold" id="kohold" aria-label="Teacher: press and hold to leave"><i></i>Teacher · hold</button></div>';
+}
+function kioskView() {
+  const studs = co.roster.students, f = CO_FOCUS[co.focus], a = RUBRICS.ap[co.focus];
+  if (co.step === 'rate' || co.step === 'word') {
+    const s = coStudent(co.sel); if (!s) { co.step = 'names'; return kioskView(); }
+    if (co.step === 'rate') {
+      const rows = a.bands.map(b => {
+        const lv = coLevel(b.range[1]);
+        return '<button type="button" class="ko-band ' + coBandCls(b.range[1]) + '" data-rate="' + lv[0] + '"><span class="ko-lv">' + lv[2] + ' ' + esc(lv[1]) + '</span><span class="ko-bt">' + esc(b.student || b.teacher) + '</span></button>';
+      }).join('');
+      return '<div class="wrap kiosk">' + kioskTop() +
+        '<div class="ko-q"><h1>Hi ' + esc(s.first) + ' 👋</h1><p>' + f[0] + ' <b>' + esc(f[1]) + '</b>: how did you do today? Tap the one that fits best.</p></div>' +
+        '<div class="ko-bands">' + rows + '</div>' +
+        '<button type="button" class="back light ko-back" data-kback="1">← Not me</button></div>';
+    }
+    return '<div class="wrap kiosk">' + kioskTop() +
+      '<div class="ko-q"><h1>One word for today?</h1><p>Pick the one that fits, or skip.</p></div>' +
+      '<div class="ko-words">' + co.roster.words.map((w, i) => '<button type="button" class="ko-w" data-word="' + i + '">' + esc(w) + '</button>').join('') + '</div>' +
+      '<div class="ko-row"><button type="button" class="back light" data-kback="1">← Change my answer</button><button type="button" class="ct-btn" data-word="skip">Skip ›</button></div></div>';
+  }
+  if (co.step === 'thanks') {
+    const s = coStudent(co.sel);
+    return '<div class="wrap kiosk">' + kioskTop() + '<div class="ko-thanks"><div class="big">✓</div><h1>Thanks' + (s ? ', ' + esc(s.first) : '') + '!</h1><p>Next person: tap your name.</p></div></div>';
+  }
+  const done = studs.filter(s => s.doneToday.self).length;
+  const btns = studs.map(s => {
+    const busy = co.saving[s.email], tick = s.doneToday.self;
+    return '<button type="button" class="ko-name' + (tick ? ' done' : '') + (busy ? ' busy' : '') + '" data-who="' + esc(s.email) + '">' + esc(coName(s)) + (tick ? '<span class="tick">✓</span>' : (busy ? '<span class="tick">…</span>' : '')) + '</button>';
+  }).join('');
+  return '<div class="wrap kiosk">' + kioskTop() +
+    '<div class="ko-q"><h1>Tap your name</h1><p>' + done + ' of ' + studs.length + ' checked out. Tapped by mistake? Tap your name again to change it.</p></div>' +
+    '<div class="ko-names">' + btns + '</div></div>';
+}
+function kioskSave(email, rating, word) {
+  const s = coStudent(email); if (!s) return;
+  co.saving[email] = true;
+  call('saveCheckin', { email: email, focus: co.focus, who: 'self', rating: rating, word: word })
+    .then(() => { s.doneToday.self = true; })
+    .catch(e => { if (!e.authRequired) toast('Couldn’t save ' + s.first + '’s check-out. Tap your name again (' + e.message + ')', true); })
+    .then(() => { delete co.saving[email]; if (co && view === 'kiosk' && co.step === 'names') show('kiosk'); });
+}
+function kioskWire(app) {
+  const w = app.firstElementChild; if (!w) return;
+  w.addEventListener('click', e => {
+    const nm = e.target.closest('[data-who]'); if (nm) { co.sel = nm.getAttribute('data-who'); co.rating = null; co.step = 'rate'; return show('kiosk'); }
+    const rt = e.target.closest('[data-rate]'); if (rt) { co.rating = +rt.getAttribute('data-rate'); co.step = 'word'; return show('kiosk'); }
+    const wd = e.target.closest('[data-word]'); if (wd) {
+      const i = wd.getAttribute('data-word'), word = i === 'skip' ? '' : co.roster.words[+i];
+      kioskSave(co.sel, co.rating, word);
+      co.rating = null; co.step = 'thanks'; show('kiosk');
+      clearTimeout(kioskWire.t); kioskWire.t = setTimeout(() => { if (co && view === 'kiosk' && co.step === 'thanks') { co.sel = null; co.step = 'names'; show('kiosk'); } }, 1100);
+      return;
+    }
+    if (e.target.closest('[data-kback]')) { if (co.step === 'word') co.step = 'rate'; else { co.sel = null; co.step = 'names'; } return show('kiosk'); }
+  });
+  // press-and-hold to leave, so a student can't open the teacher screens with a stray tap
+  const h = $('#kohold'); if (!h) return;
+  let t = null;
+  const cancel = () => { clearTimeout(t); t = null; h.classList.remove('holding'); };
+  h.addEventListener('pointerdown', e => { e.preventDefault(); h.classList.add('holding'); t = setTimeout(() => { cancel(); co.step = 'names'; co.sel = null; coLoadClass(co.klass, true); }, 900); });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => h.addEventListener(ev, cancel));
+  h.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+function spotlightView() {
+  const r = co.roster, f = CO_FOCUS[co.focus], a = RUBRICS.ap[co.focus];
+  const spot = r.spotlight.map(coStudent).filter(Boolean), rest = r.students.filter(s => r.spotlight.indexOf(s.email) === -1);
+  const row = s => {
+    const g = co.given[s.email] || {}, b = coBand(co.focus, g.rating), busy = co.saving[s.email];
+    const nums = [1, 2, 3, 4, 5, 6, 7].map(n => '<button type="button" class="sp-n ' + coBandCls(n) + (g.rating === n ? ' on' : '') + '" data-sprate="' + n + '" data-em="' + esc(s.email) + '">' + n + '</button>').join('');
+    const words = r.words.map((w, i) => '<button type="button" class="sp-w' + (g.word === w ? ' on' : '') + '" data-spword="' + i + '" data-em="' + esc(s.email) + '">' + esc(w) + '</button>').join('');
+    return '<div class="sp-row' + (g.rating || s.doneToday.teacher ? ' rated' : '') + '"><div class="sp-nm">' + esc(coName(s)) + (busy ? ' <span class="sp-st">saving…</span>' : (g.rating ? ' <span class="sp-st">✓ saved</span>' : (s.doneToday.teacher ? ' <span class="sp-st">✓ rated today</span>' : ''))) + '</div>' +
+      '<div class="sp-nums">' + nums + '</div>' + (b ? '<div class="sp-desc"><b>' + esc(b.word) + '</b> (students see “' + esc(coLevel(g.rating)[1]) + '”) · ' + esc(b.teacher) + '</div>' : '') +
+      '<div class="sp-words">' + words + '</div></div>';
+  };
+  return '<div class="wrap">' +
+    '<button type="button" class="back light" id="spback">← Check-out setup</button>' +
+    '<div class="phero tight"><div class="k">SPOTLIGHT · ' + esc(co.klass) + ' · ' + esc(r.date) + '</div><h1>' + f[0] + ' ' + esc(f[1]) + '</h1><p>' + esc(a.name) + ' · ' + esc(a.code) + '. Tap 1–7 to save; add a word if it helps. Spotlight = the students you’ve rated least in the last 30 days.</p></div>' +
+    '<h3 class="sec"><span class="em">🔦</span> Spotlight today</h3>' + (spot.map(row).join('') || '<p class="seclede">No students in this class.</p>') +
+    (rest.length ? '<details class="sp-more"' + (co.moreOpen ? ' open' : '') + '><summary>Rate someone else in ' + esc(co.klass) + ' (' + rest.length + ')</summary>' + rest.map(row).join('') + '</details>' : '') +
+  '</div>';
+}
+function spotSave(email) {
+  const g = co.given[email], s = coStudent(email); if (!g || !g.rating || !s) return;
+  co.saving[email] = true;
+  call('saveCheckin', { email: email, focus: co.focus, who: 'teacher', rating: g.rating, word: g.word || '' })
+    .then(() => { s.doneToday.teacher = true; })
+    .catch(e => { if (!e.authRequired) { delete g.rating; toast('Couldn’t save ' + s.first + ': ' + e.message, true); } })
+    .then(() => { delete co.saving[email]; if (co && view === 'spotlight') { const y = window.scrollY; show('spotlight'); window.scrollTo(0, y); } });
+}
+function spotWire(app) {
+  const w = app.firstElementChild; if (!w) return;
+  const more = w.querySelector('.sp-more'); if (more) more.addEventListener('toggle', () => { co.moreOpen = more.open; });
+  w.addEventListener('click', e => {
+    const n = e.target.closest('[data-sprate]'), wd = e.target.closest('[data-spword]'); if (!n && !wd) return;
+    const em = (n || wd).getAttribute('data-em'), g = co.given[em] || (co.given[em] = {});
+    if (n) g.rating = +n.getAttribute('data-sprate');
+    else { const word = co.roster.words[+wd.getAttribute('data-spword')]; g.word = g.word === word ? '' : word; }
+    const y = window.scrollY;
+    if (g.rating) spotSave(em);
+    show('spotlight'); window.scrollTo(0, y);
+  });
+}
+
+// Teacher: per-student check-out summary to support the Canvas rubric.
+function apSummaryView() {
+  const rows = mxRows();
+  const head = CO_ORDER.map(k => '<th class="mx-c" title="' + esc(RUBRICS.ap[k].name + ' · ' + RUBRICS.ap[k].code) + '">' + CO_FOCUS[k][0] + ' ' + esc(CO_FOCUS[k][1]) + '</th>').join('');
+  const body = rows.map(s => {
+    const sum = s.checkinSummary || {};
+    const cells = CO_ORDER.map(k => {
+      const c = sum[k]; if (!c) return '<td class="mx-c"><span class="muted">·</span></td>';
+      const basis = c.tchrAvg != null ? c.tchrAvg : c.selfAvg, b = coBand(k, basis);
+      return '<td class="mx-c"><button type="button" class="aps ' + coBandCls(basis) + '" data-aps="' + esc(s.id) + '|' + k + '">' +
+        '<b>' + (b ? esc(b.word) : '—') + '</b><span>T ' + (c.tchrAvg == null ? '–' : c.tchrAvg) + ' (' + c.tchrN + ') · S ' + (c.selfAvg == null ? '–' : c.selfAvg) + ' (' + c.selfN + ')</span></button></td>';
+    }).join('');
+    return '<tr><td class="mx-nm">' + esc(s.name) + '</td><td class="mx-cl">' + esc(s.klass) + '</td>' + cells + '</tr>';
+  }).join('');
+  const classOpts = ['all'].concat(mxClasses()).map(c => '<option value="' + esc(c) + '"' + (c === teacherFilter ? ' selected' : '') + '>' + (c === 'all' ? 'All classes' : esc(c)) + '</option>').join('');
+  return '<div class="wrap wide">' +
+    '<button type="button" class="back light" id="apsback">← Class dashboard</button>' +
+    '<div class="phero tight"><div class="k">TEACHER · AP CHECK-OUT SUMMARY</div><h1>Active Participation</h1><p>Lesson check-outs per student and AP criterion: <b>T</b> = your average (ratings), <b>S</b> = the student’s own average. The band word comes from your average, or the student’s if you haven’t rated them yet. A starting point for the Canvas rubric: the judgement is yours. Tap a cell for the descriptors.</p></div>' +
+    '<div class="mxbar"><label class="mxf">Class <select id="apsclass">' + classOpts + '</select></label><div class="mxact"><button type="button" class="minib" id="apscsv">⬇ CSV</button></div></div>' +
+    '<div class="tablewrap mxwrap"><table class="mx aps-t"><thead><tr><th class="mx-nm">Student</th><th class="mx-cl">Class</th>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>' +
+  '</div>';
+}
+function apsOverlay(id, k) {
+  const s = classData.students.find(x => x.id === id); if (!s) return;
+  const c = (s.checkinSummary || {})[k], a = RUBRICS.ap[k], basis = c ? (c.tchrAvg != null ? c.tchrAvg : c.selfAvg) : null, here = coBand(k, basis);
+  let html = '<button class="x" type="button" data-close="1">✕</button><h4>' + CO_FOCUS[k][0] + ' ' + esc(a.name) + '</h4><div class="om">' + esc(a.code) + ' · ' + esc(s.name) +
+    (c ? ' · you ' + (c.tchrAvg == null ? '–' : c.tchrAvg) + ' over ' + c.tchrN + ', self ' + (c.selfAvg == null ? '–' : c.selfAvg) + ' over ' + c.selfN + ' · last ' + esc(c.last) : '') + '</div>';
+  a.bands.forEach(b => { const on = here === b; html += '<div class="lad' + (on ? ' here' : '') + '"><span class="lv">' + (b.range[0] === b.range[1] ? b.range[0] : b.range[0] + '–' + b.range[1]) + '</span><span><b>' + esc(b.word) + '.</b> ' + esc(b.teacher) + '</span>' + (on ? '<span class="youre">suggested</span>' : '') + '</div>'; });
+  $('#ovcard').innerHTML = html; $('#ov').classList.add('show');
+}
+function apsCsv() {
+  const data = [['Student', 'Class'].concat(...CO_ORDER.map(k => [RUBRICS.ap[k].name + ' band', RUBRICS.ap[k].name + ' teacher avg', 'teacher n', RUBRICS.ap[k].name + ' self avg', 'self n']))];
+  mxRows().forEach(s => { const sum = s.checkinSummary || {};
+    data.push([s.name, s.klass].concat(...CO_ORDER.map(k => { const c = sum[k]; if (!c) return ['', '', 0, '', 0]; const b = coBand(k, c.tchrAvg != null ? c.tchrAvg : c.selfAvg);
+      return [b ? b.word : '', c.tchrAvg == null ? '' : c.tchrAvg, c.tchrN, c.selfAvg == null ? '' : c.selfAvg, c.selfN]; }))); });
+  const csv = data.map(r => r.map(c => { c = String(c); return /[",\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; }).join(',')).join('\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const el = document.createElement('a'); el.href = url; el.download = 'g8-pe-ap-checkout-' + (teacherFilter === 'all' ? 'all' : teacherFilter.replace(/\W+/g, '')) + '.csv';
+  document.body.appendChild(el); el.click(); el.remove(); URL.revokeObjectURL(url);
+}
+
+// Student: my lesson check-outs, self vs teacher, per focus (last 90 days).
+function checkinTrend(list) {
+  const W = 168, H = 40, P = 5, n = list.length;
+  const x = i => n === 1 ? W / 2 : P + i * (W - 2 * P) / (n - 1), y = v => H - P - (v - 1) * (H - 2 * P) / 6;
+  const pts = who => list.map((d, i) => d[who] == null ? null : [x(i), y(d[who])]).filter(Boolean);
+  const self = pts('self'), tchr = pts('teacher');
+  const line = self.length > 1 ? '<polyline points="' + self.map(p => p.join(',')).join(' ') + '" class="ck-self"/>' : '';
+  return '<svg class="ck-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="My level and my teacher’s, oldest lesson to newest"><line x1="0" x2="' + W + '" y1="' + y(5) + '" y2="' + y(5) + '" class="ck-grid"/>' + line +
+    self.map(p => '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3" class="ck-self-d"/>').join('') +
+    tchr.map(p => '<rect x="' + (p[0] - 3.5) + '" y="' + (p[1] - 3.5) + '" width="7" height="7" rx="1.5" class="ck-tchr"/>').join('') + '</svg>';
+}
+function checkinsSection(st) {
+  const all = st.checkins || [];
+  const head = '<h3 class="sec sec-ap"><span class="em">📲</span> My lesson check-outs <span class="tap">· last 90 days</span></h3>';
+  if (!all.length) return head + '<p class="seclede">At the end of lessons you’ll tap how you did on the day’s focus, on your teacher’s iPad. Your trend shows up here.</p>';
+  const rows = CO_ORDER.map(k => {
+    const mine = all.filter(c => c.focus === k); if (!mine.length) return '';
+    const days = {}; mine.forEach(c => { (days[c.date] || (days[c.date] = { date: c.date }))[c.who] = c.rating; if (c.who === 'self' && c.word) days[c.date].word = c.word; });
+    const list = Object.keys(days).sort().map(d => days[d]);
+    const avg = who => { const v = mine.filter(c => c.who === who).map(c => c.rating); return v.length ? Math.round(10 * v.reduce((a, b) => a + b, 0) / v.length) / 10 : null; };
+    const s = coLevel(avg('self')), t = coLevel(avg('teacher')), lastWord = list.slice().reverse().find(d => d.word);
+    const lvTxt = l => l ? l[2] + ' ' + esc(l[1]) : '–';
+    return '<div class="ck-row"><div class="ck-l"><b>' + CO_FOCUS[k][0] + ' ' + esc(CO_FOCUS[k][1]) + '</b><span>' + list.length + ' lesson' + (list.length === 1 ? '' : 's') + '</span></div>' +
+      checkinTrend(list) +
+      '<div class="ck-r"><span class="ck-k"><i class="ck-dot s"></i>me: ' + lvTxt(s) + '</span><span class="ck-k"><i class="ck-dot t"></i>teacher: ' + lvTxt(t) + '</span>' + (lastWord ? '<span class="chip">' + esc(lastWord.word) + '</span>' : '') + '</div></div>';
+  }).join('');
+  return head + '<p class="seclede">How you rated yourself (●) and how your teacher saw it (■), lesson by lesson, higher is stronger. Levels: 🌱 Not yet · 🔜 Almost · 👍 Got it · 🚀 Leading.</p><div class="ck-list">' + rows + '</div>';
 }
 
 function message(big, title, body, extra) {
@@ -1768,6 +2009,7 @@ function show(v, arg) {
     app.innerHTML = classView();
     wire('toprofileT', () => { if (state.role === 'student') show('profile'); else renderTeacher(state); });
     wire('todemo', () => startDemo('fresh'));
+    wire('tocheckout2', () => openCheckout('class')); wire('toapsum', () => show('apsummary'));
     const cl = $('#mxclass'); if (cl) cl.addEventListener('change', () => { teacherFilter = cl.value; show('class'); });
     document.querySelectorAll('.cpbtn').forEach(b => b.addEventListener('click', () => { teacherCp = b.getAttribute('data-cp'); show('class'); }));
     document.querySelectorAll('th[data-sort]').forEach(th => th.addEventListener('click', () => { const c = th.getAttribute('data-sort'); if (teacherSort.col === c) teacherSort.dir *= -1; else teacherSort = { col: c, dir: 1 }; show('class'); }));
@@ -1777,6 +2019,28 @@ function show(v, arg) {
       tbl.addEventListener('click', e => { const lb = e.target.closest('[data-lock]'); if (lb) mxToggleLock(lb.getAttribute('data-lock')); });
     }
     wire('mxlockall', () => mxLockAll(true)); wire('mxunlockall', () => mxLockAll(false)); wire('mxcsv', mxExportCsv);
+  } else if (v === 'checkout') {
+    app.innerHTML = checkoutSetupView();
+    wire('coback', coLeave);
+    wire('cokiosk', () => { co.step = 'names'; co.sel = null; show('kiosk'); });
+    wire('cospot', () => show('spotlight'));
+    onWrap(e => {
+      const c = e.target.closest('[data-coclass]'); if (c) { coLoadClass(c.getAttribute('data-coclass')); return; }
+      const f = e.target.closest('[data-cofocus]'); if (f) { co.focus = f.getAttribute('data-cofocus'); if (co.klass) coLoadClass(co.klass); else { coRemember(); show('checkout'); } }
+    });
+  } else if (v === 'kiosk') {
+    app.innerHTML = kioskView();
+    kioskWire(app);
+  } else if (v === 'spotlight') {
+    app.innerHTML = spotlightView();
+    wire('spback', () => coLoadClass(co.klass, true));
+    spotWire(app);
+    return;
+  } else if (v === 'apsummary') {
+    app.innerHTML = apSummaryView();
+    wire('apsback', () => show('class')); wire('apscsv', apsCsv);
+    const cl = $('#apsclass'); if (cl) cl.addEventListener('change', () => { teacherFilter = cl.value; show('apsummary'); });
+    onWrap(e => { const t = e.target.closest('[data-aps]'); if (t) { const p = t.getAttribute('data-aps').split('|'); apsOverlay(p[0], p[1]); } });
   } else if (v === 'skillentry') {
     currentSid = arg || currentSid;
     app.innerHTML = skillEntryView(currentSid);
@@ -1806,7 +2070,7 @@ function render(b) {
 function renderTeacher(b) {
   document.body.classList.remove('dark');
   $('#app').innerHTML = teacherLanding(b);
-  wire('toclass', loadClass); wire('signout', signOut);
+  wire('toclass', loadClass); wire('signout', signOut); wire('tocheckout', () => openCheckout('landing'));
   document.querySelectorAll('.demobox [data-demo]').forEach(x => x.addEventListener('click', () => startDemo(x.getAttribute('data-demo'))));
 }
 async function loadClass() {
@@ -1823,7 +2087,8 @@ async function boot() {
   try {
     const b = await call('bootstrap'); render(b);
     let pend = null; try { pend = JSON.parse(sessionStorage.getItem('pe_pending') || 'null'); sessionStorage.removeItem('pe_pending'); } catch (x) {}
-    if (pend && b.role === 'student' && /^save/.test(pend.action)) {
+    // A kiosk tap interrupted by an expired sign-in is replayed for the teacher, like a student's own save.
+    if (pend && /^save/.test(pend.action) && (pend.action === 'saveCheckin' ? (b.role === 'teacher' || b.alsoTeacher) : b.role === 'student')) {
       try { await call(pend.action, pend.payload); render(await call('bootstrap')); toast('Saved what you were doing before you signed in ✓'); }
       catch (x) { toast('Couldn’t save your last change: ' + x.message, true); }
     }

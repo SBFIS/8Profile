@@ -11,7 +11,7 @@
 (function () {
   'use strict';
   const q = new URLSearchParams(location.search);
-  const STORE = 'g8pe_fake_book_v2';
+  const STORE = 'g8pe_fake_book_v3';
   const latency = parseInt(q.get('latency') || '200', 10);
   const failWrites = q.get('fail') === '1';
   window.__preview = { fastRetry: true };
@@ -81,6 +81,12 @@
     setRow('Bands', ['sample.one@example.edu', 5, 5, 4, '2026-09-20']);
     callApi({ action: 'saveSkills', token: TT, email: 'sample.one@example.edu', checkpoint: 'jan', levels: { throw: 5, catch: 5, dribble: 5, core: 5 } }); // a January bump → trend arrows
     callApi({ action: 'saveCombine', token: tokenFor('sample.three@example.edu'), checkpoint: 'sept', results: { mile: 545, pushups: 22, broad: 195, sprint: 5.3 } });
+    // AP check-out history (past lessons go straight to the Sheet; the API only ever writes today)
+    const ck = (email, d, focus, who, rating, word) => setRow('Checkins', [email, ago(d), '', focus, who, rating, word || '', '']);
+    [[20, 'effort', 4, 4, 'Gave up a bit'], [15, 'effort', 5, 4, 'Tried my best'], [13, 'team', 5, 5, 'Helped set up'], [8, 'effort', 6, 5, 'Stayed focused'], [6, 'team', 6, null, 'Cheered someone on'], [1, 'effort', 6, 6, 'Tried something new']]
+      .forEach(c => { ck('sample.one@example.edu', c[0], c[1], 'self', c[2], c[4]); if (c[3] != null) ck('sample.one@example.edu', c[0], c[1], 'teacher', c[3]); });
+    ck('sample.two@example.edu', 8, 'effort', 'self', 3, 'Lost focus'); ck('sample.two@example.edu', 8, 'effort', 'teacher', 4);
+    ck('sample.three@example.edu', 6, 'team', 'teacher', 6);
   }
   if (!FakeSheets.book.getSheetByName('Students')) seed();
   FakeSheets.owner = 'teacher@example.edu';
