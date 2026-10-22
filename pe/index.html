@@ -790,7 +790,6 @@ body.demo{padding-top:52px}
 .apc-end{position:absolute;top:-17px;font-size:10.5px;font-style:normal;color:#9a8f91}.apc-end.l{left:-3px}.apc-end.r{right:-3px}
 .apc-row ~ .apc-row .apc-end{display:none}
 .apc-track{position:relative;height:6px;background:#efe9ea;border-radius:3px;margin:0 9px}
-.apc-pro{position:absolute;left:66.7%;top:-7px;bottom:-7px;border-left:2px dashed var(--ap);opacity:.6}
 .apc-gap{position:absolute;top:0;height:6px;background:#e7b64b66;border-radius:3px}
 .apc-me{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid var(--maroon);transform:translate(-50%,-50%);box-sizing:border-box}
 .apc-t{position:absolute;top:50%;width:15px;height:15px;background:var(--gold);border:2px solid #8a6414;transform:translate(-50%,-50%) rotate(45deg);box-sizing:border-box}
@@ -801,6 +800,25 @@ body.demo{padding-top:52px}
 @media(max-width:560px){.apc-row,.apc-scale{grid-template-columns:1fr 92px}.apc-row .apc-track{grid-column:1/-1;grid-row:2;margin:6px 9px 4px}.apc-scale{display:none}.apc-n{font-size:13.5px}}
 .ap-hd2{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
 .apc-cta{align-self:flex-start;margin:6px 0 10px}
+.aplane.b0{fill:#f6efe9}.aplane.b1{fill:#fbf3e6}.aplane.b2{fill:#eaf6ee}.aplane.b3{fill:#fff5d9}
+.apc-track{display:flex;height:30px!important;background:none!important;gap:3px}
+.apc-seg{flex:1;border-radius:7px;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:10.5px;font-weight:700;color:#00000055;letter-spacing:.02em}
+.apc-seg.b0{background:#f3e9e3}.apc-seg.b1{background:#f8ecd6}.apc-seg.b2{background:#dcf1e3}.apc-seg.b3{background:#fdeebd}
+.apc-seg{position:relative;opacity:.5}.apc-seg.me,.apc-seg.t{opacity:1;color:#1d1416}
+.apc-seg.me{box-shadow:0 0 0 2.5px var(--maroon) inset}
+.mk-me,.mk-t{position:absolute;top:-7px;width:14px;height:14px;box-sizing:border-box}
+.mk-me{right:6px;border-radius:50%;background:#fff;border:3px solid var(--maroon)}
+.mk-t{left:6px;background:var(--gold);border:2px solid #8a6414;transform:rotate(45deg)}
+.apc-v{line-height:1.35}
+.apr-b{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.apb{font:inherit;border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:9px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;color:inherit;min-height:74px}
+.apb b{font-family:var(--disp);font-size:13.5px}.apb small{font-size:11px;color:var(--muted)}.apb-e{font-size:20px}
+.apb.on.b0{background:#f3e9e3;border-color:#b98a6c}.apb.on.b1{background:#f8ecd6;border-color:#d39a3a}.apb.on.b2{background:#dcf1e3;border-color:var(--ap)}.apb.on.b3{background:#fdeebd;border-color:#c9971f}
+.apb.on{box-shadow:0 0 0 2px currentColor inset}
+.apr-desc{margin:10px 2px 0;font-size:13px;line-height:1.45}.apr-desc span{color:var(--muted)}
+@media(max-width:560px){.apr-b{grid-template-columns:1fr 1fr}.apc-seg span{display:none}.apc-row{grid-template-columns:1fr auto!important}.apc-v{white-space:nowrap}}
+.agree{color:var(--ap);font-weight:700;font-size:12px}
+.cband{font-size:22px}
 .aptoday{font-size:10px;fill:var(--maroon);font-weight:700}
 .apnext{margin-top:10px;background:var(--ap-t);border-radius:12px;padding:10px 12px}
 .apn-h{font-family:var(--disp);font-weight:800;font-size:13.5px;margin-bottom:3px}
@@ -1107,13 +1125,20 @@ function radar(skin, vals) {
   else g += '<text x="150" y="198" text-anchor="middle" class="rnote">your shape fills in at the Combine</text>';
   return '<svg viewBox="0 0 300 202" width="100%" height="216" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Six-sided fitness and skills chart">' + g + '</svg>';
 }
+// One AP value per key for the card: teacher's grade on that key → teacher's overall Canvas grade → my own check-in.
+function apKeyNow(m, key) {
+  const a = (m && m.ap || {})[key], t = (m && m.apLog && m.apLog.teacher) || [];
+  if (a && a.tchr != null) return a.tchr;
+  for (let i = t.length - 1; i >= 0; i--) if (t[i].v.overall != null) return t[i].v.overall;
+  return a && a.self != null ? a.self : null;
+}
 // Map the student's measured data onto the six card axes (0–1 each). Null until there is anything.
 function cardAxes(m) {
   if (!m) return null;
   const f = m.fitness || {}, sk = m.skills || {}, ap = m.ap || {}, c01 = v => Math.max(0, Math.min(1, v));
   const mile = latestOf(f.mile), push = latestOf(f.pushups), grip = latestOf(f.grip), sprint = latestOf(f.sprint);
   const skVals = SKILL_ORDER.map(k => latestOf(sk[k])).filter(v => v != null);
-  const apv = key => { const a = ap[key]; if (!a) return null; return a.tchr != null ? a.tchr : a.self; };
+  const apv = key => apKeyNow(m, key);
   if (!(mile != null || push != null || grip != null || sprint != null || skVals.length || apv('team') != null || apv('effort') != null)) return null;
   const strength = [push != null ? c01(push / 35) : null, grip != null ? c01(grip / 45) : null].filter(v => v != null);
   return [
@@ -1208,9 +1233,8 @@ function apTeacherOverall() {
 }
 function apOverallNow() {
   const m = measured(); if (!m) return null;
-  const vals = Object.keys(m.ap || {}).map(k => m.ap[k].tchr != null ? m.ap[k].tchr : m.ap[k].self).filter(v => v != null);
-  if (!vals.length) { const o = apTeacherOverall(); return o ? o[0] : null; }
-  return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+  const vals = AP_KEYS_C.map(k => apKeyNow(m, k)).filter(v => v != null);
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
 }
 const FIT_EMOJI = { mile: '🫀', pushups: '💪', sitstand: '🦵', broad: '💥', grip: '✊', sprint: '⚡', illinois: '🔺', stork: '🦩' };
 const FITINFO = {
@@ -1280,7 +1304,7 @@ function profileView(b) {
   const skG = skillsGradeNow(), apO = apOverallNow();
   const goals = (m && m.goals) || [], hasPlan = !!(m && m.plan);
   const glFundAvg = (function () { const vs = SKILL_ORDER.map(key => (m && m.skills) ? latestOf(m.skills[key]) : null).filter(v => v != null); return vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : null; })();
-  const glApAvg = (function () { if (!m || !m.ap) return null; const vs = MX_AP.map(a => { const x = m.ap[a[0]]; return x ? (x.tchr != null ? x.tchr : x.self) : null; }).filter(v => v != null); return vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : null; })();
+  const glApAvg = apOverallNow();
   const fund = FUND.map(([key, em]) => fundTileV(key, em)).join('');
   const stat = (v, lab) => '<div><b>' + v + '</b><span>' + lab + '</span></div>';
   return '<div class="wrap">' +
@@ -1290,7 +1314,7 @@ function profileView(b) {
     '<div class="cardteaser">' + avatar(st, 'ct-av') +
       '<div class="ct-id"><div class="ct-name">' + esc(st.name) + ' <span class="ct-tier">◆ ' + tierOf(earned().length) + '</span></div>' + (st.klass ? '<div class="ct-sub">' + esc(st.klass) + '</div>' : '') +
       '<div class="ct-arch">' + (skin ? skin.e + ' ' + esc(styles[k]).toUpperCase() : '✨ PICK YOUR PE STYLE') + '</div></div>' +
-      '<div class="ct-stats">' + stat(mileStr(mileV), 'Mile') + stat(skG == null ? '—' : skG, 'Skills') + stat(apO == null ? '—' : apO, 'Effort') + '</div>' +
+      '<div class="ct-stats">' + stat(mileStr(mileV), 'Mile') + stat(skG == null ? '—' : skG, 'Skills') + stat(apO == null ? '—' : bandOf(apO).e, 'Effort') + '</div>' +
       '<button type="button" class="ct-btn' + (k ? '' : ' pulse') + '" id="tocard">' + (k ? 'View my card ↗' : 'Build my card ↗') + '</button>' +
     '</div>' +
     '<div class="shelfrow"><span class="sh-l">🏅 My badges <b>' + earned().length + ' / ' + BADGES.length + '</b></span>' + badgeShelf('shelf') + '</div>' +
@@ -1560,7 +1584,17 @@ const AP_ROWS = [['ready', '✅', 'Be ready', 'Kit on, on time, set to learn'], 
   ['growth', '🌱', 'Growth mindset', 'Keep trying, learn from setbacks'], ['team', '🙌', 'Great teammate', 'Include, encourage, communicate'],
   ['manage', '🧘', 'Manage myself', 'Listen, stay calm, take responsibility']];
 const AP_ROUND_POS = { 's1-mid': '10-28', 's1-end': '01-21', 's2-mid': '04-16', 's2-end': '06-18' };
-const AP_HINT = { 7: 'Always — even without reminders', 6: 'Almost always', 5: 'Usually', 4: 'Often, not always', 3: 'Sometimes', 2: 'Rarely', 1: 'Not yet' };
+// Students see the four rubric bands, never the 1–7 number (that lives in Canvas).
+// A self check-in stores the band's floor (1 · 3 · 5 · 7) so it lines up with the teacher's 1–7.
+const AP_BANDS = [
+  { name: 'Beginning',    e: '🌱', tag: 'Getting going',     v: 1, cls: 'b0' },
+  { name: 'Intermediate', e: '🧱', tag: 'Building it',       v: 3, cls: 'b1' },
+  { name: 'Proficient',   e: '💪', tag: 'Strong and steady', v: 5, cls: 'b2' },
+  { name: 'Advanced',     e: '🌟', tag: 'Leading the way',   v: 7, cls: 'b3' }
+];
+const bandIx = v => v == null ? null : (v >= 6.5 ? 3 : v >= 4.5 ? 2 : v >= 2.5 ? 1 : 0);
+const bandOf = v => { const i = bandIx(v); return i == null ? null : AP_BANDS[i]; };
+const rubTxt = t => esc(String(t || '').replace(/\*/g, ''));
 let apKey = 'all', apDraft = null;
 const AP_SHORT = { ready: 'Ready', effort: 'Effort', growth: 'Growth', team: 'Team', manage: 'Self' };
 function apLog() { const m = measured(); return (m && m.apLog) || { self: [], teacher: [] }; }
@@ -1587,18 +1621,20 @@ function apTrend() {
   if (x1 - x0 < 70 * day) x1 = new Date(x0.getTime() + 70 * day);
   const span = x1 - x0;
   const small = window.innerWidth < 560, W = small ? 340 : 620, H = small ? 200 : 210, L = 26, R = 10, T = 16, B = 28;
-  const xOf = d => L + Math.max(0, Math.min(1, (d - x0) / span)) * (W - L - R), yOf = v => T + (7 - v) / 6 * (H - T - B);
+  const LB = small ? 30 : 92, lane = (H - T - B) / 4;
+  const xOf = d => LB + Math.max(0, Math.min(1, (d - x0) / span)) * (W - LB - R), yOf = v => T + (3 - bandIx(v) + 0.5) * lane;
   let g = '';
-  for (let v = 1; v <= 7; v++) g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + yOf(v) + '" y2="' + yOf(v) + '" class="apgrid' + (v === 5 ? ' pro' : '') + '"/><text x="' + (L - 8) + '" y="' + (yOf(v) + 4) + '" class="apax" text-anchor="end">' + v + '</text>';
+  AP_BANDS.forEach((b, i) => { const y = T + (3 - i) * lane; g += '<rect x="' + LB + '" y="' + y + '" width="' + (W - LB - R) + '" height="' + lane + '" class="aplane ' + b.cls + '"/>' +
+    '<text x="' + (LB - 6) + '" y="' + (y + lane / 2 + 4) + '" class="apax" text-anchor="end">' + (small ? b.e : b.e + ' ' + b.name) + '</text>'; });
   const months = []; for (let d = new Date(x0.getFullYear(), x0.getMonth() + 1, 1); d < x1; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) months.push(d);
   const every = Math.max(1, Math.ceil(months.length / (small ? 4 : 7)));
   months.forEach((d, i) => { if (i % every) return; g += '<line x1="' + xOf(d) + '" x2="' + xOf(d) + '" y1="' + T + '" y2="' + (H - B) + '" class="apgrid"/><text x="' + xOf(d) + '" y="' + (H - 9) + '" class="apax" text-anchor="middle">' + d.toLocaleDateString('en-GB', { month: 'short' }) + '</text>'; });
   if (today >= x0 && today <= x1) g += '<text x="' + xOf(today) + '" y="' + (T - 4) + '" class="apax aptoday" text-anchor="middle">today</text>';
   const sp = log.self.map(e => [parse(e.date), apVal(e.v, key)]).filter(p => p[1] != null);
   if (sp.length > 1) g += '<polyline class="apself" points="' + sp.map(p => xOf(p[0]).toFixed(1) + ',' + yOf(p[1]).toFixed(1)).join(' ') + '"/>';
-  sp.forEach(p => { g += '<circle class="apdot" cx="' + xOf(p[0]).toFixed(1) + '" cy="' + yOf(p[1]).toFixed(1) + '" r="3.6"><title>Me · ' + p[0].toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + ' · ' + (Math.round(p[1] * 10) / 10) + '</title></circle>'; });
+  sp.forEach(p => { g += '<circle class="apdot" cx="' + xOf(p[0]).toFixed(1) + '" cy="' + yOf(p[1]).toFixed(1) + '" r="3.6"><title>Me · ' + p[0].toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + ' · ' + bandOf(p[1]).name + '</title></circle>'; });
   log.teacher.forEach(t => { const v = apVal(t.v, key); if (v == null) return; const x = xOf(roundDate(t)), y = yOf(v);
-    g += '<path class="aptchr" d="M' + x + ' ' + (y - 8) + 'L' + (x + 8) + ' ' + y + 'L' + x + ' ' + (y + 8) + 'L' + (x - 8) + ' ' + y + 'Z"><title>Teacher · ' + esc(t.label) + ' · ' + (Math.round(v * 10) / 10) + '</title></path>' +
+    g += '<path class="aptchr" d="M' + x + ' ' + (y - 8) + 'L' + (x + 8) + ' ' + y + 'L' + x + ' ' + (y + 8) + 'L' + (x - 8) + ' ' + y + 'Z"><title>Teacher · ' + esc(t.label) + ' · ' + bandOf(v).name + '</title></path>' +
       '<text x="' + x + '" y="' + (y > H - B - 22 ? y - 13 : y + 22) + '" class="aptl" text-anchor="middle">' + esc(t.label) + '</text>'; });
   // one plain sentence: my latest check against the teacher's latest grade, on the keys both rated
   const lastSelf = log.self.length ? log.self[log.self.length - 1] : null, lastTeach = log.teacher.length ? log.teacher[log.teacher.length - 1] : null;
@@ -1608,16 +1644,17 @@ function apTrend() {
   let lastT = shared.length ? [avgOf(lastTeach.v, shared), lastTeach.label] : null;
   if (!lastT && lastTeach && apVal(lastTeach.v, key) != null) lastT = [apVal(lastTeach.v, key), lastTeach.label]; // e.g. the single Canvas AP grade vs my average
   let say = '';
-  if (lastS != null && lastT) { const d = Math.round((lastS - lastT[0]) * 10) / 10;
-    say = Math.abs(d) < 0.5 ? 'Your latest check matches your teacher’s ' + esc(lastT[1]) + ' grade. Nice self-awareness.' :
-      d > 0 ? 'You rate yourself ' + d + ' higher than your teacher’s ' + esc(lastT[1]) + ' grade. What could your teacher not be seeing yet?' :
-      'You rate yourself ' + (-d) + ' lower than your teacher’s ' + esc(lastT[1]) + ' grade. You’re doing better than you think.'; }
-  else if (lastS != null) say = 'Your teacher’s first grade lands at mid-semester. Keep checking in so you can compare.';
-  else if (lastT) say = 'Your teacher has graded you. Tap ✎ Rate myself to see how your view compares.';
+  if (lastS != null && lastT) {
+    const me = bandIx(lastS), tb = bandIx(lastT[0]), tn = AP_BANDS[tb].name;
+    say = me === tb ? 'You and your teacher agree: <b>' + tn + '</b>. Great self-awareness 👏'
+      : me > tb ? 'You see yourself as <b>' + AP_BANDS[me].name + '</b>; at ' + esc(lastT[1]) + ' your teacher saw <b>' + tn + '</b>. What could you show more of so your teacher sees it too?'
+      : 'Your teacher sees you as <b>' + tn + '</b>, higher than you rate yourself. You’re doing better than you think 💪'; }
+  else if (lastS != null) say = 'Your teacher’s first band arrives at mid-semester. Keep checking in so you can compare.';
+  else if (lastT) say = 'Your teacher has placed you. Tap ✎ Rate myself to see how your view compares.';
   const tail = (say ? '<p class="apsay">' + say + '</p>' : '') + apNextStep(log, key);
   if (!apEnough(log)) return tail + '<p class="apunlock">📈 Your line through the year appears after ' + AP_LINE_MIN + ' check-ins over a few weeks (' + log.self.length + ' so far).</p>';
   return tail + '<div class="ap-hd ap-hd2">📈 My check-ins over time</div>' + chips + '<svg class="apchart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="My active participation self-checks and my teacher’s grades over the year">' + g + '</svg>' +
-    '<div class="aplegend"><span><i class="lg-me"></i>Me (' + log.self.length + ' check' + (log.self.length === 1 ? '' : 's') + ')</span><span><i class="lg-t"></i>My teacher</span><span class="lg-pro">5 = proficient</span></div>';
+    '<div class="aplegend"><span><i class="lg-me"></i>Me (' + log.self.length + ' check' + (log.self.length === 1 ? '' : 's') + ')</span><span><i class="lg-t"></i>My teacher</span></div>';
 }
 const AP_LINE_MIN = 4;
 function apEnough(log) {
@@ -1625,27 +1662,29 @@ function apEnough(log) {
   const d = s => new Date(s).getTime();
   return d(log.self[log.self.length - 1].date) - d(log.self[0].date) >= 21 * 864e5;
 }
-// Now: me vs my teacher on each key, as dots on one 1–7 track (readable from the first check-in).
+// Now: me vs my teacher on each key, as markers on the four bands (readable from the first check-in).
 function apCompare() {
   const log = apLog(), lastT = log.teacher.length ? log.teacher[log.teacher.length - 1] : null;
   const latestSelf = k => { for (let i = log.self.length - 1; i >= 0; i--) if (log.self[i].v[k] != null) return log.self[i].v[k]; return null; };
-  const pos = v => ((v - 1) / 6 * 100).toFixed(1) + '%';
-  const row = (ov, em, name, me, t, meLab) => '<button type="button" class="apc-row' + (ov ? '' : ' apc-all') + '" ' + (ov ? 'data-ov="' + ov + '"' : '') + '>' +
-    '<span class="apc-n">' + em + ' ' + esc(name) + '</span>' +
-    '<span class="apc-track"><i class="apc-end l">1</i><i class="apc-end r">7</i><i class="apc-pro"></i>' +
-      (me != null && t != null ? '<i class="apc-gap" style="left:' + pos(Math.min(me, t)) + ';width:' + ((Math.abs(me - t)) / 6 * 100).toFixed(1) + '%"></i>' : '') +
-      (t != null ? '<i class="apc-t" style="left:' + pos(t) + '" title="Teacher ' + t + '"></i>' : '') +
-      (me != null ? '<i class="apc-me" style="left:' + pos(me) + '" title="Me ' + me + '"></i>' : '') + '</span>' +
-    '<span class="apc-v">' + [me != null ? (meLab || 'me') + ' <b>' + me + '</b>' : '', t != null ? 'teacher <b>' + t + '</b>' : ''].filter(Boolean).join(' · ') + (me == null && t == null ? '<span class="apc-none">not rated yet</span>' : '') + '</span></button>';
+  const row = (ov, em, name, me, t, meLab) => {
+    const mb = bandOf(me), tb = bandOf(t), same = mb && tb && mb === tb, mi = bandIx(me), ti = bandIx(t);
+    return '<button type="button" class="apc-row' + (ov ? '' : ' apc-all') + '" ' + (ov ? 'data-ov="' + ov + '"' : '') + '>' +
+      '<span class="apc-n">' + em + ' ' + esc(name) + '</span>' +
+      '<span class="apc-track">' + AP_BANDS.map((b, i) => '<i class="apc-seg ' + b.cls + (i === mi ? ' me' : '') + (i === ti ? ' t' : '') + '"><span>' + b.name + '</span>' +
+        (i === ti ? '<em class="mk-t" title="Teacher"></em>' : '') + (i === mi ? '<em class="mk-me" title="Me"></em>' : '') + '</i>').join('') + '</span>' +
+      '<span class="apc-v">' + (same ? '<b>' + mb.e + ' ' + mb.name + '</b><br><span class="agree">✓ we agree</span>'
+        : [mb ? (meLab || 'me') + ' <b>' + mb.name + '</b>' : '', tb ? 'teacher <b>' + tb.name + '</b>' : ''].filter(Boolean).join('<br>')) +
+        (me == null && t == null ? '<span class="apc-none">not rated yet</span>' : '') + '</span></button>';
+  };
   let out = '';
   if (lastT && lastT.v.overall != null) {
     const mine = AP_KEYS_C.map(latestSelf).filter(v => v != null);
-    out += row('', '🏅', 'Overall · ' + lastT.label, mine.length ? Math.round(mine.reduce((a, b) => a + b, 0) / mine.length * 10) / 10 : null, lastT.v.overall, 'my average');
+    out += row('', '🏅', 'Overall · ' + lastT.label, mine.length ? mine.reduce((a, b) => a + b, 0) / mine.length : null, lastT.v.overall, 'me');
   }
   if (!log.self.length) out += '<button type="button" class="ct-btn apc-cta" id="toapself2">✎ Rate myself on the five keys</button>';
   out += AP_ROWS.map(r => row('ap-' + r[0], r[1], r[2], latestSelf(r[0]), lastT && lastT.v[r[0]] != null ? lastT.v[r[0]] : null)).join('');
   return '<div class="apcompare">' + out +
-    '<div class="aplegend"><span><i class="lg-me2"></i>Me (latest check-in)</span><span><i class="lg-t"></i>My teacher' + (lastT ? ' (' + esc(lastT.label) + ')' : '') + '</span><span class="lg-pro">┆ 5 = proficient</span></div></div>';
+    '<div class="aplegend"><span><i class="lg-me2"></i>Me (latest check-in)</span><span><i class="lg-t"></i>My teacher' + (lastT ? ' (' + esc(lastT.label) + ')' : '') + '</span></div></div>';
 }
 // The next band up, worded from the rubric bank, for the chosen key (or the lowest-graded key on "All five").
 function apNextStep(log, key) {
@@ -1659,20 +1698,22 @@ function apNextStep(log, key) {
     else { const o = apTeacherOverall(); if (!o) return ''; k = 'effort'; cur = [o[0], 'teacher']; } // only an overall grade: Active Participation is the headline criterion
   } else cur = latest(k);
   if (!cur || !R[k]) return '';
-  const band = cur[0] >= 7 ? 3 : cur[0] >= 5 ? 2 : cur[0] >= 3 ? 1 : 0, row = AP_ROWS.find(r => r[0] === k);
-  const txt = t => esc(String(t).replace(/\*/g, ''));
-  const lab = ['1–2', '3–4', '5–6', '7'];
+  const band = bandIx(cur[0]), row = AP_ROWS.find(r => r[0] === k), now = AP_BANDS[band], nx = AP_BANDS[band + 1];
   return '<div class="apnext"><div class="apn-h">🎯 ' + (key === 'all' ? 'Your focus: ' : 'Next step: ') + row[1] + ' ' + esc(row[2]) + '</div>' +
-    (band === 3 ? '<p>You’re in the top band. Keep showing it: <b>' + txt(R[k].levels[3]) + '</b>.</p>'
-      : '<p>To reach <b>' + lab[band + 1] + '</b>, it looks like this: <b>' + txt(R[k].levels[band + 1]) + '</b>.</p>') + '</div>';
+    (band === 3 ? '<p>You’re at <b>🌟 Advanced</b>. Keep it going: ' + rubTxt(R[k].levels[3]) + '.</p>'
+      : '<p>' + (cur[1] === 'teacher' ? 'Your teacher sees ' : 'You see yourself at ') + '<b>' + now.e + ' ' + now.name + '</b>. To reach <b>' + nx.e + ' ' + nx.name + '</b>: ' + rubTxt(R[k].levels[band + 1]) + '.</p>') + '</div>';
 }
 function apSelfView() {
-  const d = apDraft || (apDraft = {});
-  const rows = AP_ROWS.map(([k, em, name, sub]) => '<div class="aprow"><div class="apr-h"><span class="em">' + em + '</span><span><b>' + esc(name) + '</b><small>' + esc(sub) + '</small></span><span class="apr-v">' + (d[k] ? esc(AP_HINT[d[k]]) : '') + '</span></div>' +
-    '<div class="apr-n">' + [1, 2, 3, 4, 5, 6, 7].map(n => '<button type="button" class="apn' + (d[k] === n ? ' on' : '') + '" data-k="' + k + '" data-n="' + n + '" aria-label="' + esc(name) + ' ' + n + '">' + n + '</button>').join('') + '</div></div>').join('');
+  const d = apDraft || (apDraft = {}), R = (window.RUBRICS || {}).ap || {};
+  const rows = AP_ROWS.map(([k, em, name, sub]) => {
+    const pick = d[k] != null ? bandIx(d[k]) : null;
+    return '<div class="aprow"><div class="apr-h"><span class="em">' + em + '</span><span><b>' + esc(name) + '</b><small>' + esc(sub) + '</small></span></div>' +
+      '<div class="apr-b">' + AP_BANDS.map((b, i) => '<button type="button" class="apb ' + b.cls + (pick === i ? ' on' : '') + '" data-k="' + k + '" data-n="' + b.v + '"><span class="apb-e">' + b.e + '</span><b>' + b.name + '</b><small>' + b.tag + '</small></button>').join('') + '</div>' +
+      (pick != null && R[k] ? '<p class="apr-desc">' + AP_BANDS[pick].e + ' <b>' + AP_BANDS[pick].name + '</b> looks like: ' + rubTxt(R[k].levels[pick]) + '.' + (pick < 3 ? '<br><span>Next: ' + AP_BANDS[pick + 1].e + ' ' + rubTxt(R[k].levels[pick + 1]) + '.</span>' : '') + '</p>' : '') + '</div>';
+  }).join('');
   const n = Object.keys(d).length;
   return '<div class="wrap">' + backBtn() +
-    '<div class="phero"><div class="k">ACTIVE PARTICIPATION CHECK-IN</div><h1>How did you show up, ' + esc(state.student.first) + '?</h1><p>Be honest: 7 means always, even with no reminders. Your teacher grades the same five keys, so you can compare.</p></div>' +
+    '<div class="phero"><div class="k">ACTIVE PARTICIPATION CHECK-IN</div><h1>How did you show up, ' + esc(state.student.first) + '?</h1><p>Pick the band that fits you right now. Be honest: it’s how you grow. Your teacher uses the same bands, so you can compare.</p></div>' +
     '<div class="apself-form">' + rows + '</div>' +
     '<button type="button" class="ct-btn" id="apsave"' + (n ? '' : ' disabled') + '>Save my check-in' + (n && n < 5 ? ' (' + n + ' of 5)' : '') + '</button></div>';
 }
@@ -1803,7 +1844,7 @@ function cardView(b) {
         '<div class="cwho">' + avatar(st, 'cav') + '<div><div class="cname">' + esc(st.name) + '</div>' + (st.klass ? '<div class="cclass">' + esc(st.klass) + '</div>' : '') + '</div></div>' +
         '<div class="crib"><span id="archt">' + (chosen ? esc(styles[chosen]).toUpperCase() : 'PICK A STYLE') + '</span><span id="arche">' + (chosen ? SKINS[chosen].e : '✨') + '</span></div>' +
         '<div class="crad" id="rad">' + radar(SKINS[chosen] || DEFAULT_SKIN, ax) + '</div>' +
-        '<div class="cstat"><div><b>' + (m && m.fitness && latestOf(m.fitness.mile) != null ? mileStr(latestOf(m.fitness.mile)) : '—') + '</b><span>Mile</span>' + (m && m.fitness && latestOf(m.fitness.mile) != null ? '<em>min : sec</em>' : '') + '</div>' + cardStat(skillsGradeNow(), 'Skills') + cardStat(apOverallNow(), 'Effort') + '</div>' +
+        '<div class="cstat"><div><b>' + (m && m.fitness && latestOf(m.fitness.mile) != null ? mileStr(latestOf(m.fitness.mile)) : '—') + '</b><span>Mile</span>' + (m && m.fitness && latestOf(m.fitness.mile) != null ? '<em>min : sec</em>' : '') + '</div>' + cardStat(skillsGradeNow(), 'Skills') + (function () { const b = bandOf(apOverallNow()); return '<div><b class="cband">' + (b ? b.e : '—') + '</b><span>Effort</span>' + (b ? '<em>' + b.name + '</em>' : '') + '</div>'; })() + '</div>' +
         cardBadges() +
         '<div class="cfoot">' + tierNext() + '</div>' +
       '</div></div><div class="cardhint">Your style is your choice. None is "better": it sets your card’s colour and identity.</div></div>';
@@ -2949,7 +2990,7 @@ function show(v, arg) {
   } else if (v === 'apself') {
     app.innerHTML = apSelfView();
     wire('toprofile', () => show(lastHub)); wire('apsave', saveApSelfUI);
-    onWrap(e => { const b = e.target.closest('.apn'); if (!b) return; apDraft[b.dataset.k] = Number(b.dataset.n); const y = window.scrollY; show('apself'); window.scrollTo(0, y); });
+    onWrap(e => { const b = e.target.closest('.apb'); if (!b) return; apDraft[b.dataset.k] = Number(b.dataset.n); const y = window.scrollY; show('apself'); window.scrollTo(0, y); });
   } else {
     app.innerHTML = profileView(state);
     $('#tocard').addEventListener('click', () => show('card'));
