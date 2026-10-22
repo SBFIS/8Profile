@@ -84,6 +84,7 @@
       setRow('APLog', ['sample.one@example.edu', ago(r[0]), 'self', '', r[1], r[2], r[3], r[4], r[5], new Date()]));
     importApRows_([['Student name', 'PE.G6-10.C1 result', 'ATL.SM.manageself result', 'Growthmindset result', 'PE.G6-10.S4 result', 'ATL.SC.self result'],
       ['Sample One', 4, 5, 5, 5, 4], ['Sample Two', 5, 5, 4, 5, 5]], 's1-mid');
+    importApRows_([['Student', 'SIS Login ID', 'Assignment -  Am I an Active Participant in PE? (139255)'], ['    Points Possible', '', 7], ['Sample Four', 'sample.four@example.edu', 6]], 's1-mid'); // overall only, like the Grades export
     callApi({ action: 'saveSkills', token: TT, email: 'sample.one@example.edu', checkpoint: 'jan', levels: { throw: 5, catch: 5, dribble: 5, core: 5 } }); // a January bump → trend arrows
     callApi({ action: 'saveCombine', token: tokenFor('sample.three@example.edu'), checkpoint: 'sept', results: { mile: 545, pushups: 22, broad: 195, sprint: 5.3 } });
   }

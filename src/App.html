@@ -205,10 +205,16 @@ function skillsGradeNow() {
   if (!gs.length) return null;
   return Math.round(gs.reduce((a, b) => a + b, 0) / gs.length);
 }
+// The teacher's single overall AP grade (Canvas Grades export), latest round: [value, label] or null.
+function apTeacherOverall() {
+  const m = measured(), t = (m && m.apLog && m.apLog.teacher) || [];
+  for (let i = t.length - 1; i >= 0; i--) if (t[i].v.overall != null) return [t[i].v.overall, t[i].label];
+  return null;
+}
 function apOverallNow() {
-  const m = measured(); if (!m || !m.ap) return null;
-  const vals = Object.keys(m.ap).map(k => m.ap[k].tchr != null ? m.ap[k].tchr : m.ap[k].self).filter(v => v != null);
-  if (!vals.length) return null;
+  const m = measured(); if (!m) return null;
+  const vals = Object.keys(m.ap || {}).map(k => m.ap[k].tchr != null ? m.ap[k].tchr : m.ap[k].self).filter(v => v != null);
+  if (!vals.length) { const o = apTeacherOverall(); return o ? o[0] : null; }
   return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
 }
 const FIT_EMOJI = { mile: '🫀', pushups: '💪', sitstand: '🦵', broad: '💥', grip: '✊', sprint: '⚡', illinois: '🔺', stork: '🦩' };
@@ -303,6 +309,9 @@ function profileView(b) {
     '<h3 class="sec sec-fund"><span class="em">🧩</span> Fundamental skills <span class="tap">· self → peer → teacher · tap a skill</span><button type="button" class="secbtn" id="tomyskills">✎ Record my levels</button></h3><p class="seclede">Seven building blocks, each a 6-level ladder. Same test every Combine, so your level climbs over the year.</p>' +
     '<div class="grid3">' + fund + '</div>' +
     '<h3 class="sec sec-ap"><span class="em">🤝</span> Active participation <span class="tap">· all year</span><button type="button" class="secbtn" id="toapself">✎ Rate myself</button></h3><p class="seclede">Your biggest all-year story — how you show up, tracked through every unit.</p>' +
+    (function () { const o = apTeacherOverall(); if (!o) return ''; const m = measured(), anySelf = !!(m && m.apLog && m.apLog.self.length);
+      return '<div class="apgrade"><span class="apg-l">🏅 My teacher’s AP grade <small>' + esc(o[1]) + '</small></span><span class="apg-v"><b>' + o[0] + '</b>/7</span>' +
+        '<span class="apg-s">' + (anySelf ? 'Compare it with your own check-ins in the chart below.' : 'Now rate yourself on the five keys below to see where you and your teacher agree.') + '</span></div>'; })() +
     '<div class="grid3">' + apTileV('ap-ready', '✅', 'Be ready', 'ready') + apTileV('ap-effort', '🔥', 'Best effort', 'effort') + apTileV('ap-growth', '🌱', 'Growth mindset', 'growth') + apTileV('ap-team', '🙌', 'Great teammate', 'team') + apTileV('ap-manage', '🧘', 'Manage myself', 'manage') + '</div>' +
     '<div class="aptrend" id="aptrend"><div class="ap-hd">📈 Me vs my teacher</div>' + apTrend() + '</div>' +
     '<h3 class="sec sec-rep"><span class="em">🧠</span> My report picture <span class="tap">· tap for how it’s built</span></h3><p class="seclede">The three grades on your Canvas report — a best fit across the descriptors.</p>' +
@@ -623,8 +632,13 @@ function apNextStep(log, key) {
   const R = (window.RUBRICS || {}).ap; if (!R) return '';
   const latest = k => { for (let i = log.teacher.length - 1; i >= 0; i--) if (log.teacher[i].v[k] != null) return [log.teacher[i].v[k], 'teacher']; for (let i = log.self.length - 1; i >= 0; i--) if (log.self[i].v[k] != null) return [log.self[i].v[k], 'me']; return null; };
   let k = key;
-  if (k === 'all') { const ranked = AP_KEYS_C.map(x => [x, latest(x)]).filter(x => x[1]).sort((a, b) => a[1][0] - b[1][0]); if (!ranked.length) return ''; k = ranked[0][0]; }
-  const cur = latest(k); if (!cur || !R[k]) return '';
+  let cur = null;
+  if (k === 'all') {
+    const ranked = AP_KEYS_C.map(x => [x, latest(x)]).filter(x => x[1]).sort((a, b) => a[1][0] - b[1][0]);
+    if (ranked.length) { k = ranked[0][0]; cur = ranked[0][1]; }
+    else { const o = apTeacherOverall(); if (!o) return ''; k = 'effort'; cur = [o[0], 'teacher']; } // only an overall grade: Active Participation is the headline criterion
+  } else cur = latest(k);
+  if (!cur || !R[k]) return '';
   const band = cur[0] >= 7 ? 3 : cur[0] >= 5 ? 2 : cur[0] >= 3 ? 1 : 0, row = AP_ROWS.find(r => r[0] === k);
   const txt = t => esc(String(t).replace(/\*/g, ''));
   const lab = ['1–2', '3–4', '5–6', '7'];
