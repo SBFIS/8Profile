@@ -227,10 +227,18 @@ check('re-running the form import does not duplicate', (() => { importApFormRows
 check('form import refuses a sheet whose column B is not email', (() => { try { importApFormRows_([['Timestamp', 'Name'], [new Date(), 'x']]); return false; } catch (e) { return /email/.test(e.message); } })());
 check('student sees form start/end on their own chart', (() => { const c = as(S2, 'bootstrap').data.student.combine; return c.apLog.self.some(e => e.date === '2026-09-03') && c.apLog.self.some(e => e.date === '2026-09-24'); })());
 
+console.log('unit outcomes from Learning Mastery');
+const LM = [['Student name', 'Student SIS ID', 'PE.G6-10.K4: Fitness concepts result', 'PE.G6-10.K4: Fitness concepts mastery points', 'PE.G6-10.S3 Strategy result', 'PE.G6-10.C1 result', 'PE.G6-10.S1 result'],
+  ['Sample One', 'x', 5, 5, 6.2, 5, 7], ['Sample Two', 'y', 3, 5, '', '', '']];
+const lm = importApRows_(LM, 's1-end');
+check('Learning Mastery outcome columns import per standard (not mastery points)', (() => { const o = readTab_('Outcomes').filter(r => r.Email === 'sample.one@example.edu'); const by = {}; o.forEach(r => by[r.Outcome] = r.Value); return lm.outcomes.join() === 'K4,S3,C1,S1' && by.K4 === 5 && by.S3 === 6 && by.S1 === 7 && lm.outcomesImported === 2; })());
+check('re-import updates outcomes, never duplicates', (() => { importApRows_(LM, 's1-end'); return readTab_('Outcomes').filter(r => r.Email === 'sample.one@example.edu' && r.Outcome === 'K4').length === 1; })());
+check('student sees own outcomes only', (() => { const a = as(S1, 'bootstrap').data.student.combine.outcomes, b = as(S2, 'bootstrap').data.student.combine.outcomes; return a.S3 === 6 && b.K4 === 3 && b.S3 === undefined && !JSON.stringify(as(S2, 'bootstrap')).includes('sample.one'); })());
+
 console.log('retention');
 FakeSheets.uiAnswer = 'YES';
 clearProfileData();
-check('clearProfileData empties all student data, keeps Students', readTab_('Profile').length === 0 && readTab_('Predictions').length === 0 && readTab_('Combine').length === 0 && readTab_('Skills').length === 0 && readTab_('Goals').length === 0 && readTab_('Plan').length === 0 && readTab_('Reflections').length === 0 && readTab_('APLog').length === 0 && readTab_('Students').length === 4);
+check('clearProfileData empties all student data, keeps Students', readTab_('Profile').length === 0 && readTab_('Predictions').length === 0 && readTab_('Combine').length === 0 && readTab_('Skills').length === 0 && readTab_('Goals').length === 0 && readTab_('Plan').length === 0 && readTab_('Reflections').length === 0 && readTab_('APLog').length === 0 && readTab_('Outcomes').length === 0 && readTab_('Students').length === 4);
 
 console.log(failed ? `\n${failed} check(s) FAILED` : '\nall checks passed');
 process.exit(failed ? 1 : 0);

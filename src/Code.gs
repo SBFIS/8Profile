@@ -94,6 +94,7 @@ var TABS = {
   Participation: apHeaders_(),                                                   // teacher-reported, self + teacher per key
   APLog:         ['Email', 'Date', 'Source', 'Round'].concat(AP_KEYS).concat(['Updated', 'overall']), // every AP rating: student self-checks (often) + teacher grades (4 rounds); overall = the single Canvas AP grade
   Bands:         ['Email'].concat(BAND_KEYS).concat(['Updated']),                // the three report bands
+  Outcomes:      ['Email', 'Outcome', 'Value', 'Updated'],                       // latest 1–7 per standard (K1…C3), imported from Canvas Learning Mastery
   Goals:         ['Email', 'Component', 'Goal', 'Updated', 'Target'],            // focus goals: Target added last so it appends cleanly onto an existing Goals tab; plus one '_note' row
 
   Plan:          ['Email', 'Plan', 'Updated'],                                   // the student's personal workout plan (JSON)
@@ -413,6 +414,17 @@ function apFor_(email) {
   var row = readTab_('Participation').filter(function (r) { return lower_(r.Email) === email; })[0];
   return apLatest_(apLogFor_(email), row || null);
 }
+// The student's latest grade per standard, e.g. { K4: 5, S1: 6, C1: 5 }.
+var OUTCOME_CODES = ['K1', 'K2', 'K3', 'K4', 'K5', 'S1', 'S2', 'S3', 'S4', 'C1', 'C2', 'C3'];
+function outcomesFor_(email) {
+  var out = {};
+  readTab_('Outcomes').forEach(function (r) {
+    if (lower_(r.Email) !== email) return;
+    var code = str_(r.Outcome).toUpperCase(), n = numOrNull_(r.Value);
+    if (OUTCOME_CODES.indexOf(code) !== -1 && n !== null && n >= 1 && n <= 7) out[code] = n;
+  });
+  return out;
+}
 function bandsFor_(email) {
   var row = readTab_('Bands').filter(function (r) { return lower_(r.Email) === email; })[0];
   if (!row) return {};
@@ -469,14 +481,14 @@ function reflectionsFor_(email) {
 // the profile in its "fills in at the Combine" state until there is real data).
 function measuredFor_(email) {
   var fitness = fitnessFor_(email), skills = skillsFor_(email),
-      apLog = apLogFor_(email), bands = bandsFor_(email),
+      apLog = apLogFor_(email), bands = bandsFor_(email), outcomes = outcomesFor_(email),
       g = goalsFor_(email), plan = planFor_(email);
   var row = readTab_('Participation').filter(function (r) { return lower_(r.Email) === email; })[0] || null;
   var ap = apLatest_(apLog, row);
   var any = Object.keys(fitness).length || Object.keys(skills).length ||
-            Object.keys(ap).length || apLog.self.length || apLog.teacher.length || Object.keys(bands).length || g.items.length || g.note || plan;
+            Object.keys(ap).length || apLog.self.length || apLog.teacher.length || Object.keys(bands).length || Object.keys(outcomes).length || g.items.length || g.note || plan;
   if (!any) return null;
-  return { fitness: fitness, skills: skills, ap: ap, apLog: apLog, bands: bands, goals: g.items, goalNote: g.note, plan: plan };
+  return { fitness: fitness, skills: skills, ap: ap, apLog: apLog, bands: bands, outcomes: outcomes, goals: g.items, goalNote: g.note, plan: plan };
 }
 
 // Everything the page needs, for the caller only.
@@ -848,7 +860,7 @@ function classStudent_(cfg, id, targetEmail) {
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('PE Profile')
     .addItem('1. Set up tabs', 'setupTabs')
-    .addItem('Import AP grades from Canvas…', 'importApFromCanvas')
+    .addItem('Import grades from Canvas (AP + unit outcomes)…', 'importApFromCanvas')
     .addItem('Import AP self-ratings from the form', 'importApFromForm')
     .addItem('Clear config cache', 'clearConfigCache')
     .addSeparator()
@@ -905,7 +917,15 @@ function importApRows_(rows, round) {
     var t = lower_(h);
     if (overallCol === -1 && /active particip/.test(t) && !/\b(points|score|grade)\b.*\(semester/.test(t)) overallCol = i;
   });
-  if (missing.length === AP_KEYS.length && overallCol === -1) throw new Error('No AP columns found: export Grades (with the AP assignment) or Learning Mastery from Canvas');
+  // Every PE standard column in a Learning Mastery export (e.g. "PE.G6-10.S3 … result") → Outcomes.
+  var outcomeCols = {};
+  headers.forEach(function (h, i) {
+    var t = lower_(h); if (/mastery points/.test(t)) return;
+    var m = t.match(/pe\.g6-10\.([ksc][1-5])(?![0-9])/); if (!m) return;
+    var code = m[1].toUpperCase(); if (OUTCOME_CODES.indexOf(code) !== -1 && outcomeCols[code] === undefined) outcomeCols[code] = i;
+  });
+  var hasOutcomes = Object.keys(outcomeCols).length > 0;
+  if (missing.length === AP_KEYS.length && overallCol === -1 && !hasOutcomes) throw new Error('No AP or outcome columns found: export Grades (with the AP assignment) or Learning Mastery from Canvas');
   // Who is who: an email-looking column first, else match the Canvas name to the Students tab.
   var emailCol = -1;
   headers.forEach(function (h, i) {
@@ -916,7 +936,7 @@ function importApRows_(rows, round) {
   var nameCol = apHeaderCol_(headers, ['student name', 'name', 'student']);
   var roster = readTab_('Students'), byEmail = {}, byName = {};
   roster.forEach(function (st) { var e = lower_(st.Email); if (!e) return; byEmail[e] = e; byName[apNameKey_(st.Name)] = e; });
-  var today = ymd_(new Date()), imported = 0, unmatched = [], blank = 0;
+  var today = ymd_(new Date()), imported = 0, unmatched = [], blank = 0, outcomesImported = 0;
   for (var r = 1; r < rows.length; r++) {
     var row = rows[r];
     if (/^\s*points possible/i.test(str_(row[0]))) continue;
@@ -930,12 +950,20 @@ function importApRows_(rows, round) {
     });
     var ov = overallCol === -1 ? null : numOrNull_(row[overallCol]);
     if (ov !== null && ov >= 1 && ov <= 7) { fields.overall = Math.round(ov); n++; } else fields.overall = '';
-    if (!n) { blank++; continue; }
+    var nOut = 0;
+    Object.keys(outcomeCols).forEach(function (code) {
+      var v = numOrNull_(row[outcomeCols[code]]);
+      if (v === null || v < 1 || v > 7) return;
+      upsert_('Outcomes', { Email: email, Outcome: code }, { Value: Math.round(v), Updated: new Date() }); nOut++;
+    });
+    if (nOut) outcomesImported++;
+    if (!n) { if (!nOut) blank++; continue; }
     fields.Date = today; fields.Updated = new Date();
     upsert_('APLog', { Email: email, Source: 'teacher', Round: round }, fields);
     imported++;
   }
-  return { imported: imported, unmatched: unmatched, blank: blank, missing: overallCol === -1 ? missing : (missing.length === AP_KEYS.length ? [] : missing), overall: overallCol !== -1 };
+  return { imported: imported, unmatched: unmatched, blank: blank, missing: (overallCol !== -1 || hasOutcomes) && missing.length === AP_KEYS.length ? [] : missing,
+           overall: overallCol !== -1, outcomes: Object.keys(outcomeCols), outcomesImported: outcomesImported };
 }
 // The tab a Canvas CSV landed in, found by its header row (no renaming needed).
 function canvasTab_() {
@@ -958,6 +986,7 @@ function importApFromCanvas() {
   catch (e) { ui.alert('Import stopped', e.message, ui.ButtonSet.OK); return; }
   var msg = res.imported + ' students imported into APLog (' + lower_(ans.getResponseText()) + ').';
   if (res.overall) msg += '\nUsed the overall AP grade from the Grades export.';
+  if (res.outcomes.length) msg += '\nUnit outcomes (' + res.outcomes.join(', ') + ') saved for ' + res.outcomesImported + ' students: they feed the Athlete Card.';
   if (res.missing.length) msg += '\n\nNo column found for: ' + res.missing.join(', ') + '.';
   if (res.blank) msg += '\n' + res.blank + ' rows had no AP scores yet.';
   if (res.unmatched.length) msg += '\n\nNot on the Students tab (check spelling):\n' + res.unmatched.join('\n');
@@ -1016,7 +1045,7 @@ function clearProfileData() {
   var ui = SpreadsheetApp.getUi();
   var ans = ui.alert('Clear all student data?', 'This deletes every student\'s saved style, goals, self-predictions, Combine, skills, participation (incl. the AP log), bands and workout plan. The Students roster is not touched. Continue?', ui.ButtonSet.YES_NO);
   if (ans !== ui.Button.YES) return;
-  ['Profile', 'Predictions', 'Combine', 'Skills', 'Participation', 'APLog', 'Bands', 'Goals', 'Plan', 'Locks', 'Reflections'].forEach(function (n) {
+  ['Profile', 'Predictions', 'Combine', 'Skills', 'Participation', 'APLog', 'Outcomes', 'Bands', 'Goals', 'Plan', 'Locks', 'Reflections'].forEach(function (n) {
     var s = ensureTab_(n, TABS[n]);
     if (s.getLastRow() > 1) s.getRange(2, 1, s.getLastRow() - 1, s.getLastColumn()).clearContent();
   });

@@ -147,6 +147,18 @@ h3.sec .em{font-size:16px;width:31px;height:31px;border-radius:9px;display:inlin
 .crib{background:linear-gradient(90deg,var(--acc),var(--accs));border-radius:9px;padding:6px 13px;font-family:var(--disp);font-weight:700;color:var(--rib);margin:11px 0;display:flex;justify-content:space-between;align-items:center;font-size:18px;position:relative;z-index:2}
 .crad{position:relative;z-index:2;margin:2px 0}
 .rlabel{font-family:var(--disp);font-size:11px;letter-spacing:.04em;fill:rgba(255,255,255,.82);font-weight:600}
+.rleg{position:absolute;right:4px;top:-2px;font-size:10px;color:rgba(255,255,255,.7);z-index:3}
+.rlabel-off{fill:rgba(255,255,255,.45)}.rq{font-family:var(--disp);font-size:8px;font-weight:800;fill:rgba(255,255,255,.75)}
+.cbuilds{margin:26px auto 6px;max-width:860px;background:#2a2124;border:1px solid #3a2e31;border-radius:18px;padding:18px 18px 12px;color:#f3ecec}
+.cbuilds h3{margin:0 0 4px;font-family:var(--disp);font-size:18px}.cb-lede{margin:0 0 12px;font-size:13px;color:#c8bcbe}
+.cb-row{padding:11px 0;border-top:1px solid #3a2e31}
+.cb-h{display:flex;justify-content:space-between;gap:10px;align-items:baseline}.cb-n{font-family:var(--disp);font-weight:800;font-size:15px}.cb-n small{font-weight:700;color:#e7b64b;margin-left:4px;font-size:11px}
+.cb-b{font-weight:700;font-size:13.5px;white-space:nowrap}.cb-b i{font-weight:600;color:#c8bcbe}
+.cb-w{margin:3px 0 7px;font-size:12.5px;color:#c8bcbe}
+.cb-chips{display:flex;flex-wrap:wrap;gap:6px}
+.cb-chip{font-size:11.5px;font-weight:700;border-radius:999px;padding:3px 9px;border:1px solid #4a3c40;color:#c8bcbe}.cb-chip small{font-weight:600;opacity:.8}
+.cb-chip.cbc-done{background:#1f9d5733;border-color:#1f9d57;color:#bfeccf}.cb-chip.cbc-now{background:#e7b64b33;border-color:#e7b64b;color:#f5dc9c}
+.cb-key{display:flex;gap:8px;margin:10px 0 0}
 .rnote{font-family:var(--body);font-size:10px;fill:rgba(255,255,255,.6)}
 .cstat{display:flex;gap:7px;margin-top:6px;position:relative;z-index:2}
 .cstat div{flex:1;background:rgba(0,0,0,.24);border:1px solid rgba(255,255,255,.18);border-radius:9px;padding:8px;text-align:center}
@@ -1110,45 +1122,105 @@ function setSkin(k) {
   r.setProperty('--acc', s.acc); r.setProperty('--accs', s.accs); r.setProperty('--rib', s.rib);
 }
 
-// ═══════════════ radar (placeholder shape until Combine data exists — v3) ═══════════════
-const AX = ['STAMINA', 'STRENGTH', 'SPEED', 'SKILLS', 'TEAM', 'EFFORT'], PLACE = [.62, .55, .6, .55, .7, .72];
-const cx = 150, cy = 101, R = 68;
-function pt(i, v) { const a = (-90 + i * 60) * Math.PI / 180; return [cx + R * v * Math.cos(a), cy + R * v * Math.sin(a)]; }
-function radar(skin, vals) {
-  let g = '';
-  for (let r = 1; r <= 4; r++) { const p = []; for (let i = 0; i < 6; i++) p.push(pt(i, r / 4).join(',')); g += '<polygon points="' + p.join(' ') + '" fill="none" stroke="rgba(255,255,255,.14)"/>'; }
-  for (let i = 0; i < 6; i++) { const [x, y] = pt(i, 1.3); const an = Math.abs(x - cx) < 5 ? 'middle' : (x > cx ? 'start' : 'end'); g += '<text x="' + x.toFixed(1) + '" y="' + (y + 3).toFixed(1) + '" text-anchor="' + an + '" class="rlabel">' + AX[i] + '</text>'; }
-  const shape = (vals && vals.length === 6) ? vals.map(v => Math.max(0.12, Math.min(1, v))) : null;
-  const poly = shape || PLACE;
-  g += '<polygon points="' + poly.map((v, i) => pt(i, v).map(n => n.toFixed(1)).join(',')).join(' ') + '" fill="' + hexA(skin.acc, .3) + '" stroke="' + skin.accs + '" stroke-width="2.2"/>';
-  if (shape) { for (let i = 0; i < 6; i++) { const [x, y] = pt(i, poly[i]); g += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="2.6" fill="' + skin.accs + '"/>'; } }
-  else g += '<text x="150" y="198" text-anchor="middle" class="rnote">your shape fills in at the Combine</text>';
-  return '<svg viewBox="0 0 300 202" width="100%" height="216" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Six-sided fitness and skills chart">' + g + '</svg>';
+// ═══════════════ Athlete Card radar: six outcome axes, each placed in one of the four bands ═══════════════
+// Every axis says where its evidence comes from (standards + units), so students can see what will fill it.
+const CARD_AXES = [
+  { k: 'fitness',  label: 'FITNESS',    e: '🏃', std: '',        what: 'Your Combine tests: mile, push-ups, sit-to-stand, broad jump, grip, sprint, Illinois agility, stork balance.',
+    feeds: [['combine', 'Combine tests']] },
+  { k: 'movement', label: 'MOVEMENT',   e: '🤸', std: 'S1',      what: 'Moving with skill and control: your skill ladders, then the skills you show in each unit.',
+    feeds: [['combine', 'Skill ladders'], ['badminton', 'Badminton skills'], ['parkour', 'Parkour flow'], ['tchouk', 'Tchoukball throw & catch']] },
+  { k: 'game',     label: 'GAME SENSE', e: '🧠', std: 'S3 · C2', what: 'Reading the game, using tactics, and taking ideas from one sport into another.',
+    feeds: [['badminton', 'Badminton tactics'], ['tactics', 'Tactics Cup'], ['tchouk', 'Tchoukball strategy']] },
+  { k: 'know',     label: 'KNOW-HOW',   e: '📘', std: 'K4 · K5', what: 'Knowing how fitness works and how to keep yourself and others safe.',
+    feeds: [['fitness', 'Fitness concepts'], ['parkour', 'Safe landings']] },
+  { k: 'team',     label: 'TEAM',       e: '🙌', std: 'S4',      what: 'Communicating, encouraging and helping your team work.',
+    feeds: [['ap', 'Active participation'], ['tactics', 'Tactics Cup teams'], ['tchouk', 'Tchoukball roles']] },
+  { k: 'drive',    label: 'DRIVE',      e: '🔥', std: 'C1 · S2', what: 'Giving your best and working out how to improve yourself.',
+    feeds: [['ap', 'Active participation'], ['fitness', 'Your own workout']] }
+];
+const FEED_UNITS = { ap: { name: 'AP & Cooperation', from: '2026-08-24', to: '2026-09-24', when: 'Aug – Sep' }, combine: { name: 'Combine', from: '2026-09-25', to: '2027-05-31', when: 'Sep · Jan · May' } };
+function feedUnit(key) { return FEED_UNITS[key] || UNITS.find(u => u.key === key) || { name: key, when: '' }; }
+// 1–7 grade → band index 0–3; skill ladder level 1–6 → grade first.
+const ixOf7 = v => bandIx(v);
+const ixOfLevel = l => l == null ? null : bandIx(lvlGrade(l));
+// A fitness result against the Grade 8 guide: needs work 0 · between 1 · good 2 · well beyond good 3.
+function fitIx(key, v) {
+  const meta = fitMeta(key); if (!meta || !meta.ref || v == null) return null;
+  const a = meta.ref[0], b = meta.ref[1], gap = Math.abs(a - b) * 0.5;
+  if (meta.dir === 'down') return v <= a - gap ? 3 : v <= a ? 2 : v <= b ? 1 : 0;
+  return v >= a + gap ? 3 : v >= a ? 2 : v >= b ? 1 : 0;
 }
-// One AP value per key for the card: teacher's grade on that key → teacher's overall Canvas grade → my own check-in.
-function apKeyNow(m, key) {
-  const a = (m && m.ap || {})[key], t = (m && m.apLog && m.apLog.teacher) || [];
-  if (a && a.tchr != null) return a.tchr;
-  for (let i = t.length - 1; i >= 0; i--) if (t[i].v.overall != null) return t[i].v.overall;
-  return a && a.self != null ? a.self : null;
+const avgIx = xs => { const v = xs.filter(x => x != null); return v.length ? v.reduce((p, q) => p + q, 0) / v.length : null; };
+// Teacher-graded AP only (never the student's own rating): that key's grade, else the overall Canvas grade.
+function apTeacher(m, key, first) {
+  const t = (m && m.apLog && m.apLog.teacher) || [], seq = first ? t : t.slice().reverse();
+  for (const r of seq) { if (r.v[key] != null) return r.v[key]; if (r.v.overall != null) return r.v.overall; }
+  const a = (m && m.ap || {})[key]; return a && a.tchr != null ? a.tchr : null;
 }
-// Map the student's measured data onto the six card axes (0–1 each). Null until there is anything.
+// Band index per axis (or null = no evidence yet). first=true → the earliest evidence (for the "September me" outline).
+function axisIx(m, k, first) {
+  const o = (m && m.outcomes) || {}, pick = first ? firstOf : latestOf, f = (m && m.fitness) || {}, sk = (m && m.skills) || {};
+  switch (k) {
+    case 'fitness':  return avgIx(FITMETA().map(t => fitIx(t.key, pick(f[t.key]))));
+    case 'movement': { const lv = avgIx(SKILL_ORDER.map(x => pick(sk[x]))); return avgIx([lv == null ? null : ixOfLevel(Math.round(lv)), first ? null : ixOf7(o.S1)]); }
+    case 'game':     return first ? null : avgIx([ixOf7(o.S3), ixOf7(o.C2)]);
+    case 'know':     return first ? null : avgIx([ixOf7(o.K4), ixOf7(o.K5)]) ?? ixOf7((m && m.bands || {}).knowledge);
+    case 'team':     return !first && o.S4 != null ? ixOf7(o.S4) : ixOf7(apTeacher(m, 'team', first));
+    case 'drive': {  // C1 from Canvas outcomes when present, else the AP effort grade; plus S2 (improving myself)
+      const c1 = !first && o.C1 != null ? ixOf7(o.C1) : ixOf7(apTeacher(m, 'effort', first));
+      return avgIx([c1, first ? null : ixOf7(o.S2)]); }
+  }
+  return null;
+}
+// One AP value per key for the stats line: teacher's grade on that key → teacher's overall Canvas grade → my own check-in.
+function apKeyNow(m, key) { const t = apTeacher(m, key, false); if (t != null) return t; const a = (m && m.ap || {})[key]; return a && a.self != null ? a.self : null; }
+// Radius on the card: band centres at ¼ · ½ · ¾ · full.
+const ixR = ix => ix == null ? null : (ix + 1) / 4;
 function cardAxes(m) {
   if (!m) return null;
-  const f = m.fitness || {}, sk = m.skills || {}, ap = m.ap || {}, c01 = v => Math.max(0, Math.min(1, v));
-  const mile = latestOf(f.mile), push = latestOf(f.pushups), grip = latestOf(f.grip), sprint = latestOf(f.sprint);
-  const skVals = SKILL_ORDER.map(k => latestOf(sk[k])).filter(v => v != null);
-  const apv = key => apKeyNow(m, key);
-  if (!(mile != null || push != null || grip != null || sprint != null || skVals.length || apv('team') != null || apv('effort') != null)) return null;
-  const strength = [push != null ? c01(push / 35) : null, grip != null ? c01(grip / 45) : null].filter(v => v != null);
-  return [
-    mile != null ? c01(1 - (mile - 360) / 360) : 0.12,                 // STAMINA (mile: 6:00→1, 12:00→0)
-    strength.length ? strength.reduce((a, b) => a + b, 0) / strength.length : 0.12, // STRENGTH
-    sprint != null ? c01(1 - (sprint - 4.5) / 3) : 0.12,               // SPEED (4.5s→1, 7.5s→0)
-    skVals.length ? (skVals.reduce((a, b) => a + b, 0) / skVals.length) / 6 : 0.12, // SKILLS
-    apv('team') != null ? apv('team') / 7 : 0.12,                      // TEAM
-    apv('effort') != null ? apv('effort') / 7 : 0.12                   // EFFORT
-  ];
+  const now = CARD_AXES.map(a => ixR(axisIx(m, a.k, false)));
+  if (!now.some(v => v != null)) return null;
+  const then = CARD_AXES.map(a => ixR(axisIx(m, a.k, true)));
+  const grew = then.some((v, i) => v != null && now[i] != null && Math.abs(v - now[i]) > 0.01);
+  return { now, then: grew ? then : null };
+}
+const AX = CARD_AXES.map(a => a.label), PLACE = [.62, .55, .6, .55, .7, .72];
+const cx = 150, cy = 101, R = 68;
+function pt(i, v) { const a = (-90 + i * 60) * Math.PI / 180; return [cx + R * v * Math.cos(a), cy + R * v * Math.sin(a)]; }
+function radar(skin, data) {
+  let g = '';
+  for (let r = 1; r <= 4; r++) { const p = []; for (let i = 0; i < 6; i++) p.push(pt(i, r / 4).join(',')); g += '<polygon points="' + p.join(' ') + '" fill="none" stroke="rgba(255,255,255,' + (r === 3 ? '.32' : '.14') + ')"' + (r === 3 ? ' stroke-dasharray="3 3"' : '') + '/>'; }
+  for (let i = 0; i < 6; i++) { const [x, y] = pt(i, 1.3); const an = Math.abs(x - cx) < 5 ? 'middle' : (x > cx ? 'start' : 'end'); g += '<text x="' + x.toFixed(1) + '" y="' + (y + 3).toFixed(1) + '" text-anchor="' + an + '" class="rlabel' + (data && data.now[i] == null ? ' rlabel-off' : '') + '">' + AX[i] + '</text>'; }
+  if (!data) {
+    g += '<polygon points="' + PLACE.map((v, i) => pt(i, v).map(n => n.toFixed(1)).join(',')).join(' ') + '" fill="' + hexA(skin.acc, .3) + '" stroke="' + skin.accs + '" stroke-width="2.2"/>';
+    g += '<text x="150" y="198" text-anchor="middle" class="rnote">your shape fills in at the Combine</text>';
+  } else {
+    const poly = vals => vals.map((v, i) => v == null ? null : pt(i, v)).filter(Boolean);
+    if (data.then) { const p = poly(data.then); if (p.length > 2) g += '<polygon points="' + p.map(q => q.map(n => n.toFixed(1)).join(',')).join(' ') + '" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.4" stroke-dasharray="4 3"/>'; }
+    const p = poly(data.now);
+    if (p.length > 2) g += '<polygon points="' + p.map(q => q.map(n => n.toFixed(1)).join(',')).join(' ') + '" fill="' + hexA(skin.acc, .3) + '" stroke="' + skin.accs + '" stroke-width="2.2"/>';
+    else if (p.length === 2) g += '<line x1="' + p[0][0] + '" y1="' + p[0][1] + '" x2="' + p[1][0] + '" y2="' + p[1][1] + '" stroke="' + skin.accs + '" stroke-width="2.2"/>';
+    data.now.forEach((v, i) => {
+      if (v == null) { const [x, y] = pt(i, 0.5); g += '<line x1="' + cx + '" y1="' + cy + '" x2="' + pt(i, 1)[0].toFixed(1) + '" y2="' + pt(i, 1)[1].toFixed(1) + '" stroke="rgba(255,255,255,.22)" stroke-dasharray="2 3"/><circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="6" fill="none" stroke="rgba(255,255,255,.5)" stroke-dasharray="2 2"/><text x="' + x.toFixed(1) + '" y="' + (y + 3.5).toFixed(1) + '" text-anchor="middle" class="rq">?</text>'; }
+      else { const [x, y] = pt(i, v); g += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="2.8" fill="' + skin.accs + '"/>'; }
+    });
+  }
+  return (data && data.then ? '<div class="rleg">┄ where you started</div>' : '') + '<svg viewBox="-24 0 348 202" width="100%" height="216" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Athlete card: six areas, each placed in a band">' + g + '</svg>';
+}
+// "What builds my card": each axis, its band now, and the units still to come.
+function cardBuilds(m) {
+  const t = todayIso();
+  const rows = CARD_AXES.map(a => {
+    const ix = axisIx(m, a.k, false), b = ix == null ? null : AP_BANDS[Math.round(ix)];
+    const chips = a.feeds.map(([u, lab]) => { const fu = feedUnit(u), st = !fu.to ? 'later' : (t > fu.to ? 'done' : (t >= fu.from ? 'now' : 'later'));
+      return '<span class="cb-chip cbc-' + st + '" title="' + esc(fu.name + (fu.when ? ' · ' + fu.when : '')) + '">' + (st === 'done' ? '✓ ' : st === 'now' ? '● ' : '○ ') + esc(lab) + (st === 'later' && fu.when ? ' <small>' + esc(fu.when.split('–')[0].trim()) + '</small>' : '') + '</span>'; }).join('');
+    const next = a.feeds.map(f => feedUnit(f[0])).find(fu => fu.from && fu.from > t);
+    return '<div class="cb-row"><div class="cb-h"><span class="cb-n">' + a.e + ' ' + esc(a.label.charAt(0) + a.label.slice(1).toLowerCase()) + (a.std ? ' <small>' + a.std + '</small>' : '') + '</span>' +
+      '<span class="cb-b">' + (b ? b.e + ' ' + b.name : '<i>coming' + (next ? ' in ' + esc(next.name) + ' · ' + esc(next.when.split('–')[0].trim()) : ' soon') + '</i>') + '</span></div>' +
+      '<p class="cb-w">' + esc(a.what) + '</p><div class="cb-chips">' + chips + '</div></div>';
+  }).join('');
+  return '<div class="cbuilds"><h3>🧩 What builds my card</h3><p class="cb-lede">Each corner fills in as your units are assessed. Rings show the bands: 🌱 Not yet · 🧗 Approaching · ✅ Got it (dashed) · 🌟 Leading.</p>' + rows +
+    '<p class="cb-key"><span class="cb-chip cbc-done">✓ assessed</span><span class="cb-chip cbc-now">● happening now</span><span class="cb-chip cbc-later">○ coming up</span></p></div>';
 }
 
 // ═══════════════ profile content (v1: everything is "coming"; data arrives in v2–v4) ═══════════════
@@ -1314,7 +1386,7 @@ function profileView(b) {
     '<div class="cardteaser">' + avatar(st, 'ct-av') +
       '<div class="ct-id"><div class="ct-name">' + esc(st.name) + ' <span class="ct-tier">◆ ' + tierOf(earned().length) + '</span></div>' + (st.klass ? '<div class="ct-sub">' + esc(st.klass) + '</div>' : '') +
       '<div class="ct-arch">' + (skin ? skin.e + ' ' + esc(styles[k]).toUpperCase() : '✨ PICK YOUR PE STYLE') + '</div></div>' +
-      '<div class="ct-stats">' + stat(mileStr(mileV), 'Mile') + stat(skG == null ? '—' : skG, 'Skills') + stat(apO == null ? '—' : bandOf(apO).e, 'Effort') + '</div>' +
+      '<div class="ct-stats">' + stat(mileStr(mileV), 'Mile') + stat(skG == null ? '—' : bandOf(skG).e, 'Skills') + stat(apO == null ? '—' : bandOf(apO).e, 'Effort') + '</div>' +
       '<button type="button" class="ct-btn' + (k ? '' : ' pulse') + '" id="tocard">' + (k ? 'View my card ↗' : 'Build my card ↗') + '</button>' +
     '</div>' +
     '<div class="shelfrow"><span class="sh-l">🏅 My badges <b>' + earned().length + ' / ' + BADGES.length + '</b></span>' + badgeShelf('shelf') + '</div>' +
@@ -1845,17 +1917,18 @@ function cardView(b) {
         '<div class="cwho">' + avatar(st, 'cav') + '<div><div class="cname">' + esc(st.name) + '</div>' + (st.klass ? '<div class="cclass">' + esc(st.klass) + '</div>' : '') + '</div></div>' +
         '<div class="crib"><span id="archt">' + (chosen ? esc(styles[chosen]).toUpperCase() : 'PICK A STYLE') + '</span><span id="arche">' + (chosen ? SKINS[chosen].e : '✨') + '</span></div>' +
         '<div class="crad" id="rad">' + radar(SKINS[chosen] || DEFAULT_SKIN, ax) + '</div>' +
-        '<div class="cstat"><div><b>' + (m && m.fitness && latestOf(m.fitness.mile) != null ? mileStr(latestOf(m.fitness.mile)) : '—') + '</b><span>Mile</span>' + (m && m.fitness && latestOf(m.fitness.mile) != null ? '<em>min : sec</em>' : '') + '</div>' + cardStat(skillsGradeNow(), 'Skills') + (function () { const b = bandOf(apOverallNow()); return '<div><b class="cband">' + (b ? b.e : '—') + '</b><span>Effort</span>' + (b ? '<em>' + b.name + '</em>' : '') + '</div>'; })() + '</div>' +
+        '<div class="cstat"><div><b>' + (m && m.fitness && latestOf(m.fitness.mile) != null ? mileStr(latestOf(m.fitness.mile)) : '—') + '</b><span>Mile</span>' + (m && m.fitness && latestOf(m.fitness.mile) != null ? '<em>min : sec</em>' : '') + '</div>' + (function () { const b = bandOf(skillsGradeNow()); return '<div><b class="cband">' + (b ? b.e : '—') + '</b><span>Skills</span>' + (b ? '<em>' + b.name + '</em>' : '') + '</div>'; })() + (function () { const b = bandOf(apOverallNow()); return '<div><b class="cband">' + (b ? b.e : '—') + '</b><span>Effort</span>' + (b ? '<em>' + b.name + '</em>' : '') + '</div>'; })() + '</div>' +
         cardBadges() +
         '<div class="cfoot">' + tierNext() + '</div>' +
       '</div></div><div class="cardhint">Your style is your choice. None is "better": it sets your card’s colour and identity.</div></div>';
   const picker = '<div class="styles" id="styles">' + pick + '</div>';
   return '<div class="wrap">' +
     '<button type="button" class="back" id="toprofile">← Back to my profile</button>' +
-    '<div class="hero"><div class="k">GRADE 8 PE · ' + esc(b.config.yearLabel) + '</div><h1>' + (chosen ? 'Your Athlete Card, ' + esc(st.first) : 'Hi ' + esc(st.first) + ', build your Athlete Card') + '</h1><p>' + (chosen ? 'Your card grows all year — every badge and every Combine changes it.' : 'Choose your PE Style and make it yours. Your card grows all year.') + '</p></div>' +
+    '<div class="hero"><div class="k">GRADE 8 PE · ' + esc(b.config.yearLabel) + '</div><h1>' + (chosen ? 'Your Athlete Card, ' + esc(st.first) : 'Hi ' + esc(st.first) + ', build your Athlete Card') + '</h1><p>' + (chosen ? 'Your card grows all year: every Combine, every unit and every badge changes it.' : 'Choose your PE Style and make it yours. Your card grows all year.') + '</p></div>' +
     (chosen
       ? '<div class="grid gchosen">' + stage + '<details class="stylepick"><summary>🎨 Change my style <span class="saved" id="saved">✓ saved</span></summary>' + picker + '<button type="button" class="repack" id="repack">🎁 Rip open a fresh pack</button></details></div>'
       : '<div class="grid"><div><div class="step">Choose your style <span class="saved" id="saved"></span></div>' + picker + '</div>' + stage + '</div>') +
+    cardBuilds(m) +
     '<div class="done"><button type="button" class="ct-btn" id="toprofile2">Done · back to my profile ↗</button></div>' +
   '</div>';
 }
