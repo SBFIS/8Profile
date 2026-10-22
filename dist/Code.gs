@@ -874,7 +874,7 @@ function apHeaderCol_(headers, words) {
     if (res !== -1) return;
     var t = ' ' + lower_(h).replace(/[^a-z0-9.]+/g, ' ') + ' ';
     var hit = words.some(function (w) {
-      var esc = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      var esc = w.replace(/[.*+?^${}()|[\]\\]/g, function (c) { return '\\' + c; });
       return new RegExp('(^|[^a-z0-9])' + esc + '([^a-z0-9]|$)').test(t);
     });
     if (hit && !/mastery points|mastery_points/.test(lower_(h))) res = i;

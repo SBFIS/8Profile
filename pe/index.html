@@ -773,6 +773,10 @@ body.demo{padding-top:52px}
 .apn{font:inherit;font-family:var(--disp);font-weight:800;font-size:17px;min-height:44px;border:1.5px solid var(--line);background:#fff;border-radius:10px;cursor:pointer;color:var(--ink,#1d1416)}
 .apn.on{background:var(--ap);border-color:var(--ap);color:#fff}
 #apsave[disabled]{opacity:.45;cursor:default}
+.aptoday{font-size:10px;fill:var(--maroon);font-weight:700}
+.apnext{margin-top:10px;background:var(--ap-t);border-radius:12px;padding:10px 12px}
+.apn-h{font-family:var(--disp);font-weight:800;font-size:13.5px;margin-bottom:3px}
+.apnext p{margin:0;font-size:13px;line-height:1.45}.apnext b{font-weight:700}
 </style>
 
 </head>
@@ -908,6 +912,53 @@ window.RUBRICS = {
       "Fully engaged and encouraging others"
      ]
     }
+   ]
+  }
+ },
+ "ap": {
+  "effort": {
+   "name": "Active Participation",
+   "levels": [
+    "Minimal effort; often disengaged. Reflections missing, very brief, or unrelated to participation",
+    "Effort and focus vary; sometimes distracted or off-task. Reflections describe *what* they did rather than why it matters",
+    "Usually works hard and stays engaged; occasional lapses. Reflections show an understanding of why participation matters, though examples are general",
+    "Always gives full effort and stays engaged the whole lesson, including in activities they do not naturally enjoy. Reflections explain *why* regular participation matters, using specific examples from their own experience"
+   ]
+  },
+  "team": {
+   "name": "Social Skills",
+   "levels": [
+    "Rarely communicates positively or contributes to the team",
+    "Contribution and communication are inconsistent",
+    "Communicates respectfully and helps the team most of the time",
+    "Consistently communicates positively, encourages others, and actively helps teammates take part"
+   ]
+  },
+  "ready": {
+   "name": "Self Management",
+   "levels": [
+    "Often unprepared, late, or missing kit",
+    "Sometimes unprepared or late to start; occasionally missing kit",
+    "Usually prepared and on time; may need rare reminders",
+    "Always prepared with full kit, on time, ready to start without reminders"
+   ]
+  },
+  "growth": {
+   "name": "Growth Mindset",
+   "levels": [
+    "Avoids challenges, refuses tasks, or gives up quickly",
+    "Sometimes avoids challenges or gives up when frustrated",
+    "Open to challenges and generally keeps trying after mistakes",
+    "Embraces challenges, tries new things, stays positive even after setbacks"
+   ]
+  },
+  "manage": {
+   "name": "Self Awareness",
+   "levels": [
+    "Disruptive or unable to manage behaviour despite reminders",
+    "Needs frequent reminders to stay on track",
+    "Usually self-manages well; responds to reminders",
+    "Consistently manages behaviour and emotions positively without reminders"
    ]
   }
  }
@@ -1468,7 +1519,7 @@ function apTileV(ovKey, em, name, key) {
   const v = rec ? (rec.tchr != null ? rec.tchr : rec.self) : null;
   const bar = '<div class="btrack ap">' + [1, 2, 3, 4, 5, 6, 7].map(i => '<i class="' + (v && i <= v ? 'on' : '') + '"></i>').join('') + '</div>';
   const cls = v == null ? '' : (v >= 5 ? 'ok' : v >= 4 ? 'meet' : 'below');
-  return '<button type="button" class="tile a-ap ' + cls + '" data-ov="' + ovKey + '"><span class="plus">⊕</span><div class="tnrow"><span class="em">' + em + '</span><span class="tn">' + esc(name) + '</span></div>' + bar + '<div class="rung">' + (v == null ? 'all year' : (rec.self != null ? 'me ' + rec.self : '') + (rec.tchr != null ? ' · teacher ' + rec.tchr : '')) + '</div></button>';
+  return '<button type="button" class="tile a-ap ' + cls + '" data-ov="' + ovKey + '"><span class="plus">⊕</span><div class="tnrow"><span class="em">' + em + '</span><span class="tn">' + esc(name) + '</span></div>' + bar + '<div class="rung">' + (v == null ? 'all year' : [rec.self != null ? 'me ' + rec.self : '', rec.tchr != null ? 'teacher ' + rec.tchr : ''].filter(Boolean).join(' · ')) + '</div></button>';
 }
 
 // ---- AP: my self-checks vs my teacher's graded rounds ----
@@ -1493,37 +1544,60 @@ function apTrend() {
   const chips = '<div class="apchips">' + [['all', '⭐', 'All five']].concat(AP_ROWS).map(r =>
     '<button type="button" class="apchip' + (key === r[0] ? ' on' : '') + '" data-apkey="' + r[0] + '">' + r[1] + ' ' + esc(r[0] === 'all' ? r[2] : AP_SHORT[r[0]]) + '</button>').join('') + '</div>';
   if (!log.self.length && !log.teacher.length) return chips + '<div class="apempty">Rate yourself to start your line. Your teacher’s grade appears here at mid-semester and the end of each semester.</div>';
-  const y0 = apYearStart(), y1 = new Date(y0.getFullYear() + 1, 5, 28), span = y1 - y0;
-  const small = window.innerWidth < 560, W = small ? 340 : 620, H = small ? 200 : 210, L = 26, R = 10, T = 16, B = 28;
-  const xOf = d => L + Math.max(0, Math.min(1, (d - y0) / span)) * (W - L - R), yOf = v => T + (7 - v) / 6 * (H - T - B);
   const parse = s => { const p = String(s).split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); };
-  const roundDate = t => { if (t.date) return parse(t.date); const md = AP_ROUND_POS[t.round].split('-').map(Number); return new Date(md[0] >= 8 ? y0.getFullYear() : y0.getFullYear() + 1, md[0] - 1, md[1]); };
+  const y0y = apYearStart().getFullYear();
+  const roundDate = t => { if (t.date) return parse(t.date); const md = AP_ROUND_POS[t.round].split('-').map(Number); return new Date(md[0] >= 8 ? y0y : y0y + 1, md[0] - 1, md[1]); };
+  // Zoom to the data: first point − 10 days → max(last point, today) + 3 weeks, at least ~10 weeks wide.
+  const pts = log.self.map(e => parse(e.date)).concat(log.teacher.map(roundDate));
+  const day = 864e5, today = new Date();
+  let x0 = new Date(Math.min.apply(null, pts) - 10 * day), x1 = new Date(Math.max(Math.max.apply(null, pts), today.getTime()) + 21 * day);
+  if (x1 - x0 < 70 * day) x1 = new Date(x0.getTime() + 70 * day);
+  const span = x1 - x0;
+  const small = window.innerWidth < 560, W = small ? 340 : 620, H = small ? 200 : 210, L = 26, R = 10, T = 16, B = 28;
+  const xOf = d => L + Math.max(0, Math.min(1, (d - x0) / span)) * (W - L - R), yOf = v => T + (7 - v) / 6 * (H - T - B);
   let g = '';
   for (let v = 1; v <= 7; v++) g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + yOf(v) + '" y2="' + yOf(v) + '" class="apgrid' + (v === 5 ? ' pro' : '') + '"/><text x="' + (L - 8) + '" y="' + (yOf(v) + 4) + '" class="apax" text-anchor="end">' + v + '</text>';
-  (small ? ['Sep', 'Jan', 'May'] : ['Sep', 'Nov', 'Jan', 'Mar', 'May']).forEach((mth) => { const mo = { Sep: 8, Nov: 10, Jan: 0, Mar: 2, May: 4 }[mth], d = new Date(y0.getFullYear() + (mo < 7 ? 1 : 0), mo, 1); g += '<text x="' + xOf(d) + '" y="' + (H - 9) + '" class="apax" text-anchor="middle">' + mth + '</text>'; });
+  const months = []; for (let d = new Date(x0.getFullYear(), x0.getMonth() + 1, 1); d < x1; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) months.push(d);
+  const every = Math.max(1, Math.ceil(months.length / (small ? 4 : 7)));
+  months.forEach((d, i) => { if (i % every) return; g += '<line x1="' + xOf(d) + '" x2="' + xOf(d) + '" y1="' + T + '" y2="' + (H - B) + '" class="apgrid"/><text x="' + xOf(d) + '" y="' + (H - 9) + '" class="apax" text-anchor="middle">' + d.toLocaleDateString('en-GB', { month: 'short' }) + '</text>'; });
+  if (today >= x0 && today <= x1) g += '<text x="' + xOf(today) + '" y="' + (T - 4) + '" class="apax aptoday" text-anchor="middle">today</text>';
   const sp = log.self.map(e => [parse(e.date), apVal(e.v, key)]).filter(p => p[1] != null);
   if (sp.length > 1) g += '<polyline class="apself" points="' + sp.map(p => xOf(p[0]).toFixed(1) + ',' + yOf(p[1]).toFixed(1)).join(' ') + '"/>';
   sp.forEach(p => { g += '<circle class="apdot" cx="' + xOf(p[0]).toFixed(1) + '" cy="' + yOf(p[1]).toFixed(1) + '" r="3.6"><title>Me · ' + p[0].toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + ' · ' + (Math.round(p[1] * 10) / 10) + '</title></circle>'; });
   log.teacher.forEach(t => { const v = apVal(t.v, key); if (v == null) return; const x = xOf(roundDate(t)), y = yOf(v);
     g += '<path class="aptchr" d="M' + x + ' ' + (y - 8) + 'L' + (x + 8) + ' ' + y + 'L' + x + ' ' + (y + 8) + 'L' + (x - 8) + ' ' + y + 'Z"><title>Teacher · ' + esc(t.label) + ' · ' + (Math.round(v * 10) / 10) + '</title></path>' +
-      '<text x="' + x + '" y="' + (y - 12) + '" class="aptl" text-anchor="middle">' + esc(t.label) + '</text>'; });
+      '<text x="' + x + '" y="' + (y > H - B - 22 ? y - 13 : y + 22) + '" class="aptl" text-anchor="middle">' + esc(t.label) + '</text>'; });
   // one plain sentence: my latest check against the teacher's latest grade, on the keys both rated
   const lastSelf = log.self.length ? log.self[log.self.length - 1] : null, lastTeach = log.teacher.length ? log.teacher[log.teacher.length - 1] : null;
   const shared = (key === 'all' ? AP_KEYS_C : [key]).filter(k => lastSelf && lastTeach && lastSelf.v[k] != null && lastTeach.v[k] != null);
   const avgOf = (v, ks) => ks.reduce((a, k) => a + v[k], 0) / ks.length;
   let lastS = shared.length ? avgOf(lastSelf.v, shared) : (sp.length ? sp[sp.length - 1][1] : null);
   let lastT = shared.length ? [avgOf(lastTeach.v, shared), lastTeach.label] : null;
-  if (!lastT && key === 'all' && lastTeach && lastTeach.v.overall != null) lastT = [lastTeach.v.overall, lastTeach.label]; // single Canvas AP grade vs my average
+  if (!lastT && lastTeach && apVal(lastTeach.v, key) != null) lastT = [apVal(lastTeach.v, key), lastTeach.label]; // e.g. the single Canvas AP grade vs my average
   let say = '';
   if (lastS != null && lastT) { const d = Math.round((lastS - lastT[0]) * 10) / 10;
     say = Math.abs(d) < 0.5 ? 'Your latest check matches your teacher’s ' + esc(lastT[1]) + ' grade. Nice self-awareness.' :
       d > 0 ? 'You rate yourself ' + d + ' higher than your teacher’s ' + esc(lastT[1]) + ' grade. What could your teacher not be seeing yet?' :
       'You rate yourself ' + (-d) + ' lower than your teacher’s ' + esc(lastT[1]) + ' grade. You’re doing better than you think.'; }
   else if (lastS != null) say = 'Your teacher’s first grade lands at mid-semester. Keep checking in so you can compare.';
-  else if (lastT) say = 'Rate yourself to compare with your teacher’s ' + esc(lastT[1]) + ' grade.';
+  else if (lastT) say = 'Your teacher has graded you. Tap ✎ Rate myself to see how your view compares.';
   return chips + '<svg class="apchart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="My active participation self-checks and my teacher’s grades over the year">' + g + '</svg>' +
     '<div class="aplegend"><span><i class="lg-me"></i>Me (' + log.self.length + ' check' + (log.self.length === 1 ? '' : 's') + ')</span><span><i class="lg-t"></i>My teacher</span><span class="lg-pro">5 = proficient</span></div>' +
-    (say ? '<p class="apsay">' + say + '</p>' : '');
+    (say ? '<p class="apsay">' + say + '</p>' : '') + apNextStep(log, key);
+}
+// The next band up, worded from the rubric bank, for the chosen key (or the lowest-graded key on "All five").
+function apNextStep(log, key) {
+  const R = (window.RUBRICS || {}).ap; if (!R) return '';
+  const latest = k => { for (let i = log.teacher.length - 1; i >= 0; i--) if (log.teacher[i].v[k] != null) return [log.teacher[i].v[k], 'teacher']; for (let i = log.self.length - 1; i >= 0; i--) if (log.self[i].v[k] != null) return [log.self[i].v[k], 'me']; return null; };
+  let k = key;
+  if (k === 'all') { const ranked = AP_KEYS_C.map(x => [x, latest(x)]).filter(x => x[1]).sort((a, b) => a[1][0] - b[1][0]); if (!ranked.length) return ''; k = ranked[0][0]; }
+  const cur = latest(k); if (!cur || !R[k]) return '';
+  const band = cur[0] >= 7 ? 3 : cur[0] >= 5 ? 2 : cur[0] >= 3 ? 1 : 0, row = AP_ROWS.find(r => r[0] === k);
+  const txt = t => esc(String(t).replace(/\*/g, ''));
+  const lab = ['1–2', '3–4', '5–6', '7'];
+  return '<div class="apnext"><div class="apn-h">🎯 ' + (key === 'all' ? 'Your focus: ' : 'Next step: ') + row[1] + ' ' + esc(row[2]) + '</div>' +
+    (band === 3 ? '<p>You’re in the top band. Keep showing it: <b>' + txt(R[k].levels[3]) + '</b>.</p>'
+      : '<p>To reach <b>' + lab[band + 1] + '</b>, it looks like this: <b>' + txt(R[k].levels[band + 1]) + '</b>.</p>') + '</div>';
 }
 function apSelfView() {
   const d = apDraft || (apDraft = {});

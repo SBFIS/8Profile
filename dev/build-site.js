@@ -10,11 +10,11 @@ require('child_process').execFileSync(process.execPath, [path.join(__dirname, 'b
 const cfg = JSON.parse(read('site.config.json'));
 const pub = { apiUrl: cfg.apiUrl, clientId: cfg.clientId, domain: cfg.domain };
 const html = read('src/Index.html')
-  .replace('<!--STYLES-->', read('src/Styles.html'))
-  .replace('<!--GSI-->', '<script src="https://accounts.google.com/gsi/client" async defer></script>')
-  .replace('<!--CONFIG-->', '<script>window.PE_CONFIG = ' + JSON.stringify(pub) + ';</script>')
-  .replace('<!--RUBRICS-->', read('src/Rubrics.html'))
-  .replace('<!--APP-->', read('src/App.html'));
+  .replace('<!--STYLES-->', () => read('src/Styles.html'))
+  .replace('<!--GSI-->', () => '<script src="https://accounts.google.com/gsi/client" async defer></script>')
+  .replace('<!--CONFIG-->', () => '<script>window.PE_CONFIG = ' + JSON.stringify(pub) + ';</script>')
+  .replace('<!--RUBRICS-->', () => read('src/Rubrics.html'))
+  .replace('<!--APP-->', () => read('src/App.html'));
 fs.writeFileSync(path.join(root, 'index.html'), html);
 // Same page at a second path: the root URL was mis-classified by the school web
 // filter while it was a redirect page, and the tag stuck to that URL.

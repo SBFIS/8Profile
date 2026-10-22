@@ -11,11 +11,11 @@ require('child_process').execFileSync(process.execPath, [path.join(__dirname, 'b
 const wrap = js => `<script>\n${js}\n</script>`;
 const html = read('src/Index.html')
   .replace('<title>My PE Profile · Grade 8</title>', '<title>My PE Profile (preview)</title>')
-  .replace('<!--STYLES-->', read('src/Styles.html'))
-  .replace('<!--GSI-->', '')
-  .replace('<!--CONFIG-->', [wrap(read('dev/fake-sheets.js')), wrap(read('src/Code.gs')), wrap(read('dev/mock-runtime.js'))].join('\n'))
-  .replace('<!--RUBRICS-->', read('src/Rubrics.html'))
-  .replace('<!--APP-->', read('src/App.html'));
+  .replace('<!--STYLES-->', () => read('src/Styles.html'))
+  .replace('<!--GSI-->', () => '')
+  .replace('<!--CONFIG-->', () => [wrap(read('dev/fake-sheets.js')), wrap(read('src/Code.gs')), wrap(read('dev/mock-runtime.js'))].join('\n'))
+  .replace('<!--RUBRICS-->', () => read('src/Rubrics.html'))
+  .replace('<!--APP-->', () => read('src/App.html'));
 const out = path.join(__dirname, 'preview.html');
 fs.writeFileSync(out, html);
 console.log('Wrote', path.relative(root, out), `(${(html.length / 1024).toFixed(0)} KB)`);
