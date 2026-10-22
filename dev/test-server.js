@@ -173,6 +173,10 @@ check('a student cannot use setLock', !as(S2, 'setLock', { emails: [S1], checkpo
 check('teacher unlocks the checkpoint', (() => { const r = as(T, 'setLock', { emails: [S1], checkpoint: 'sept', locked: false }); return r.ok && as(S1, 'bootstrap').data.student.locked.sept !== true; })());
 check('unlocked student can edit again', as(S1, 'saveCombine', { checkpoint: 'sept', results: { pushups: 20 } }).ok === true);
 
+console.log('fitness save: one bad number does not block the rest');
+check('valid results save, out-of-range one is reported', (() => { const r = as(S2, 'saveCombine', { checkpoint: 'jan', results: { pushups: 18, broad: 1.9, sprint: 5.4 } }); return r.ok && r.data.results.pushups === 18 && r.data.results.sprint === 5.4 && r.data.rejected.length === 1 && r.data.rejected[0].key === 'broad'; })());
+check('only-bad results still refused', (() => { const r = as(S2, 'saveCombine', { checkpoint: 'jan', results: { broad: 1.9 } }); return !r.ok && /Broad jump/.test(r.error); })());
+
 console.log('AP log: self-checks + teacher rounds');
 check('student saves an AP self-check', (() => { const r = as(S1, 'saveApSelf', { ratings: { ready: 6, effort: 5, growth: 4, team: 6, manage: 5 } }); return r.ok && r.data.apLog.self.length === 1 && r.data.apLog.self[0].v.effort === 5; })());
 check('same-day self-check replaces, not duplicates', (() => { const r = as(S1, 'saveApSelf', { ratings: { effort: 6 } }); return r.ok && r.data.apLog.self.length === 1 && r.data.apLog.self[0].v.effort === 6 && r.data.apLog.self[0].v.ready === undefined; })());

@@ -608,16 +608,21 @@ function saveCombine_(cfg, id, checkpoint, results) {
   if (COMBINE_CHECKPOINTS.indexOf(cp) === -1) throw new Error('Unknown checkpoint');
   if (isLocked_(id.email, cp)) throw new Error('Your teacher has locked this checkpoint — ask them to unlock it to make changes');
   if (!results || typeof results !== 'object') throw new Error('Missing results');
-  var fields = { Updated: new Date() }, saved = {};
+  // Save every valid number; report the others instead of rejecting the whole set.
+  var fields = { Updated: new Date() }, saved = {}, rejected = [];
   FIT_KEYS.forEach(function (k) {
     if (!(k in results) || results[k] === '' || results[k] === null) return;
     var meta = FIT_BY_KEY[k], n = Number(results[k]);
-    if (!isFinite(n)) throw new Error('Not a number for ' + meta.label);
-    if (n < meta.min || n > meta.max) throw new Error(meta.label + ' is out of range (' + meta.min + '–' + meta.max + ' ' + meta.unit + ')');
+    if (!isFinite(n)) { rejected.push({ key: k, error: 'Not a number' }); return; }
+    if (n < meta.min || n > meta.max) { rejected.push({ key: k, error: 'Out of range (' + meta.min + '–' + meta.max + ' ' + meta.unit + ')' }); return; }
     fields[k] = n; saved[k] = n;
   });
+  if (!Object.keys(saved).length) {
+    if (rejected.length) throw new Error(FIT_BY_KEY[rejected[0].key].label + ': ' + rejected[0].error);
+    throw new Error('Missing results');
+  }
   upsert_('Combine', { Email: id.email, Checkpoint: cp }, fields);
-  return { ok: true, checkpoint: cp, results: saved };
+  return { ok: true, checkpoint: cp, results: saved, rejected: rejected };
 }
 
 // The student's component goals (which parts they want to improve). Replaces the

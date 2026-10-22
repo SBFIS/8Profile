@@ -773,6 +773,9 @@ body.demo{padding-top:52px}
 .apn{font:inherit;font-family:var(--disp);font-weight:800;font-size:17px;min-height:44px;border:1.5px solid var(--line);background:#fff;border-radius:10px;cursor:pointer;color:var(--ink,#1d1416)}
 .apn.on{background:var(--ap);border-color:var(--ap);color:#fff}
 #apsave[disabled]{opacity:.45;cursor:default}
+.enrow.bad{flex-wrap:wrap}
+.enform .bad input{border-color:#c0392b!important;background:#fdecea}
+.en-bad{display:block;flex-basis:100%;color:#a5281b;font-size:12.5px;font-weight:700;margin-top:5px}
 .aptoday{font-size:10px;fill:var(--maroon);font-weight:700}
 .apnext{margin-top:10px;background:var(--ap-t);border-radius:12px;padding:10px 12px}
 .apn-h{font-family:var(--disp);font-weight:800;font-size:13.5px;margin-bottom:3px}
@@ -998,7 +1001,7 @@ async function rawCall(action, payload) {
 }
 // Apps Script caps simultaneous runs; a whole class tapping at once produces
 // transient errors. Retry those with backoff; permanent ones surface at once.
-const PERMANENT = /Unknown style|Unknown action|Incomplete|class list|not connected|Bad request/i;
+const PERMANENT = /Unknown style|Unknown action|Incomplete|class list|not connected|Bad request|out of range|not a number|locked|missing|whole numbers|rate at least|too long|unknown checkpoint|teacher/i;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function call(action, payload) {
   if (demo) return demoCall(action, payload || {});
@@ -1881,13 +1884,40 @@ async function saveEntry() {
     }
     const el = $('#en-' + f.key); const v = el ? el.value.trim() : ''; if (v !== '') results[f.key] = Number(v);
   });
+  // Check every number here first, so a typo is fixed in seconds instead of failing the whole save.
+  document.querySelectorAll('.en-bad').forEach(x => x.remove());
+  document.querySelectorAll('.enform .bad').forEach(x => x.classList.remove('bad'));
+  const bad = [];
+  FITMETA().forEach(function (f) {
+    if (!(f.key in results)) return;
+    const n = results[f.key], lo = f.min, hi = f.max;
+    if (!isFinite(n) || (lo != null && n < lo) || (hi != null && n > hi)) {
+      let hint = f.key === 'mile' ? 'Between ' + mileStr(lo) + ' and ' + mileStr(hi) + ' (minutes : seconds).' : 'Between ' + lo + ' and ' + hi + ' ' + f.unit + '.';
+      if (f.key === 'broad' && n > 0 && n < 4) hint = 'Broad jump is in cm: ' + n + ' m = ' + Math.round(n * 100) + ' cm.';
+      if (f.key === 'grip' && n > hi) hint = 'Grip is in kg (' + lo + '–' + hi + '). Check the dial.';
+      bad.push([f.key, hint]);
+    }
+  });
+  if (bad.length) {
+    bad.forEach(function (b) {
+      const inp = $(b[0] === 'mile' ? '#en-mile-min' : '#en-' + b[0]); if (!inp) return;
+      const lab = inp.closest('label') || inp.parentElement; lab.classList.add('bad');
+      lab.insertAdjacentHTML('beforeend', '<span class="en-bad">⚠️ ' + esc(b[1]) + '</span>');
+    });
+    const first = document.querySelector('.enform .bad'); if (first) first.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    btn.disabled = false; btn.textContent = 'Save my results';
+    toast(bad.length === 1 ? 'One number needs checking (highlighted).' : bad.length + ' numbers need checking (highlighted).', true);
+    return;
+  }
   try {
     const res = await call('saveCombine', { checkpoint: entryCp, results: results });
     const m = state.student.combine || { fitness: {}, skills: {}, ap: {}, bands: {}, goals: [], plan: null };
     m.fitness = m.fitness || {};
     Object.keys(res.results).forEach(function (k) { m.fitness[k] = m.fitness[k] || {}; m.fitness[k][entryCp] = res.results[k]; });
     state.student.combine = m;
-    toast('Results saved.'); show(lastHub);
+    if (res.rejected && res.rejected.length) toast('Saved ' + Object.keys(res.results).length + '. Not saved: ' + res.rejected.map(r => (FITMETA().find(f => f.key === r.key) || {}).label || r.key).join(', ') + '.', true);
+    else toast('Results saved.');
+    show(lastHub);
   } catch (e) { btn.disabled = false; btn.textContent = 'Save my results'; toast('Couldn’t save: ' + e.message, true); }
 }
 
