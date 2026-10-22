@@ -309,11 +309,7 @@ function profileView(b) {
     '<h3 class="sec sec-fund"><span class="em">🧩</span> Fundamental skills <span class="tap">· self → peer → teacher · tap a skill</span><button type="button" class="secbtn" id="tomyskills">✎ Record my levels</button></h3><p class="seclede">Seven building blocks, each a 6-level ladder. Same test every Combine, so your level climbs over the year.</p>' +
     '<div class="grid3">' + fund + '</div>' +
     '<h3 class="sec sec-ap"><span class="em">🤝</span> Active participation <span class="tap">· all year</span><button type="button" class="secbtn" id="toapself">✎ Rate myself</button></h3><p class="seclede">Your biggest all-year story — how you show up, tracked through every unit.</p>' +
-    (function () { const o = apTeacherOverall(); if (!o) return ''; const m = measured(), anySelf = !!(m && m.apLog && m.apLog.self.length);
-      return '<div class="apgrade"><span class="apg-l">🏅 My teacher’s AP grade <small>' + esc(o[1]) + '</small></span><span class="apg-v"><b>' + o[0] + '</b>/7</span>' +
-        '<span class="apg-s">' + (anySelf ? 'Compare it with your own check-ins in the chart below.' : 'Now rate yourself on the five keys below to see where you and your teacher agree.') + '</span></div>'; })() +
-    '<div class="grid3">' + apTileV('ap-ready', '✅', 'Be ready', 'ready') + apTileV('ap-effort', '🔥', 'Best effort', 'effort') + apTileV('ap-growth', '🌱', 'Growth mindset', 'growth') + apTileV('ap-team', '🙌', 'Great teammate', 'team') + apTileV('ap-manage', '🧘', 'Manage myself', 'manage') + '</div>' +
-    '<div class="aptrend" id="aptrend"><div class="ap-hd">📈 Me vs my teacher</div>' + apTrend() + '</div>' +
+    '<div class="aptrend" id="aptrend">' + apCompare() + apTrend() + '</div>' +
     '<h3 class="sec sec-rep"><span class="em">🧠</span> My report picture <span class="tap">· tap for how it’s built</span></h3><p class="seclede">The three grades on your Canvas report — a best fit across the descriptors.</p>' +
     '<div class="grid3">' + bandV('rp-know', '🧠', 'Knowledge', 'knowledge') + bandV('rp-skill', '🎯', 'Skills', 'skills') + bandV('rp-ct', '🔄', 'Concept transfer', 'concept') + '</div>' +
     '<div class="foot"><span class="arrow">↻</span><div><b>How this grows:</b> September sets the baseline; the same measures repeat in January and May. Always <b>you vs. your past self</b> — and it maps straight to your report.</div></div>' +
@@ -585,7 +581,7 @@ function apTrend() {
   const log = apLog(), key = apKey;
   const chips = '<div class="apchips">' + [['all', '⭐', 'All five']].concat(AP_ROWS).map(r =>
     '<button type="button" class="apchip' + (key === r[0] ? ' on' : '') + '" data-apkey="' + r[0] + '">' + r[1] + ' ' + esc(r[0] === 'all' ? r[2] : AP_SHORT[r[0]]) + '</button>').join('') + '</div>';
-  if (!log.self.length && !log.teacher.length) return chips + '<div class="apempty">Rate yourself to start your line. Your teacher’s grade appears here at mid-semester and the end of each semester.</div>';
+  if (!log.self.length && !log.teacher.length) return '<div class="apempty">Rate yourself to start your line. Your teacher’s grade appears here at mid-semester and the end of each semester.</div>';
   const parse = s => { const p = String(s).split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); };
   const y0y = apYearStart().getFullYear();
   const roundDate = t => { if (t.date) return parse(t.date); const md = AP_ROUND_POS[t.round].split('-').map(Number); return new Date(md[0] >= 8 ? y0y : y0y + 1, md[0] - 1, md[1]); };
@@ -623,9 +619,38 @@ function apTrend() {
       'You rate yourself ' + (-d) + ' lower than your teacher’s ' + esc(lastT[1]) + ' grade. You’re doing better than you think.'; }
   else if (lastS != null) say = 'Your teacher’s first grade lands at mid-semester. Keep checking in so you can compare.';
   else if (lastT) say = 'Your teacher has graded you. Tap ✎ Rate myself to see how your view compares.';
-  return chips + '<svg class="apchart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="My active participation self-checks and my teacher’s grades over the year">' + g + '</svg>' +
-    '<div class="aplegend"><span><i class="lg-me"></i>Me (' + log.self.length + ' check' + (log.self.length === 1 ? '' : 's') + ')</span><span><i class="lg-t"></i>My teacher</span><span class="lg-pro">5 = proficient</span></div>' +
-    (say ? '<p class="apsay">' + say + '</p>' : '') + apNextStep(log, key);
+  const tail = (say ? '<p class="apsay">' + say + '</p>' : '') + apNextStep(log, key);
+  if (!apEnough(log)) return tail + '<p class="apunlock">📈 Your line through the year appears after ' + AP_LINE_MIN + ' check-ins over a few weeks (' + log.self.length + ' so far).</p>';
+  return tail + '<div class="ap-hd ap-hd2">📈 My check-ins over time</div>' + chips + '<svg class="apchart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="My active participation self-checks and my teacher’s grades over the year">' + g + '</svg>' +
+    '<div class="aplegend"><span><i class="lg-me"></i>Me (' + log.self.length + ' check' + (log.self.length === 1 ? '' : 's') + ')</span><span><i class="lg-t"></i>My teacher</span><span class="lg-pro">5 = proficient</span></div>';
+}
+const AP_LINE_MIN = 4;
+function apEnough(log) {
+  if (log.self.length < AP_LINE_MIN) return false;
+  const d = s => new Date(s).getTime();
+  return d(log.self[log.self.length - 1].date) - d(log.self[0].date) >= 21 * 864e5;
+}
+// Now: me vs my teacher on each key, as dots on one 1–7 track (readable from the first check-in).
+function apCompare() {
+  const log = apLog(), lastT = log.teacher.length ? log.teacher[log.teacher.length - 1] : null;
+  const latestSelf = k => { for (let i = log.self.length - 1; i >= 0; i--) if (log.self[i].v[k] != null) return log.self[i].v[k]; return null; };
+  const pos = v => ((v - 1) / 6 * 100).toFixed(1) + '%';
+  const row = (ov, em, name, me, t, meLab) => '<button type="button" class="apc-row' + (ov ? '' : ' apc-all') + '" ' + (ov ? 'data-ov="' + ov + '"' : '') + '>' +
+    '<span class="apc-n">' + em + ' ' + esc(name) + '</span>' +
+    '<span class="apc-track"><i class="apc-end l">1</i><i class="apc-end r">7</i><i class="apc-pro"></i>' +
+      (me != null && t != null ? '<i class="apc-gap" style="left:' + pos(Math.min(me, t)) + ';width:' + ((Math.abs(me - t)) / 6 * 100).toFixed(1) + '%"></i>' : '') +
+      (t != null ? '<i class="apc-t" style="left:' + pos(t) + '" title="Teacher ' + t + '"></i>' : '') +
+      (me != null ? '<i class="apc-me" style="left:' + pos(me) + '" title="Me ' + me + '"></i>' : '') + '</span>' +
+    '<span class="apc-v">' + [me != null ? (meLab || 'me') + ' <b>' + me + '</b>' : '', t != null ? 'teacher <b>' + t + '</b>' : ''].filter(Boolean).join(' · ') + (me == null && t == null ? '<span class="apc-none">not rated yet</span>' : '') + '</span></button>';
+  let out = '';
+  if (lastT && lastT.v.overall != null) {
+    const mine = AP_KEYS_C.map(latestSelf).filter(v => v != null);
+    out += row('', '🏅', 'Overall · ' + lastT.label, mine.length ? Math.round(mine.reduce((a, b) => a + b, 0) / mine.length * 10) / 10 : null, lastT.v.overall, 'my average');
+  }
+  if (!log.self.length) out += '<button type="button" class="ct-btn apc-cta" id="toapself2">✎ Rate myself on the five keys</button>';
+  out += AP_ROWS.map(r => row('ap-' + r[0], r[1], r[2], latestSelf(r[0]), lastT && lastT.v[r[0]] != null ? lastT.v[r[0]] : null)).join('');
+  return '<div class="apcompare">' + out +
+    '<div class="aplegend"><span><i class="lg-me2"></i>Me (latest check-in)</span><span><i class="lg-t"></i>My teacher' + (lastT ? ' (' + esc(lastT.label) + ')' : '') + '</span><span class="lg-pro">┆ 5 = proficient</span></div></div>';
 }
 // The next band up, worded from the rubric bank, for the chosen key (or the lowest-graded key on "All five").
 function apNextStep(log, key) {
@@ -1937,8 +1962,8 @@ function show(v, arg) {
     wire('togoals2', () => show('goals')); wire('togoals3', () => show('goals'));
     wire('tomyskills', () => show('myskills')); wire('toteacher', () => demo ? exitDemo() : loadClass()); wire('toarchive', () => show('archive'));
     wire('towo', () => { woStart('profile'); show('workout'); });
-    wire('toapself', () => { apDraft = null; show('apself'); });
-    const apt = $('#aptrend'); if (apt) apt.addEventListener('click', e => { const c = e.target.closest('[data-apkey]'); if (!c) return; e.stopPropagation(); apKey = c.dataset.apkey; apt.innerHTML = '<div class="ap-hd">📈 Me vs my teacher</div>' + apTrend(); });
+    wire('toapself', () => { apDraft = null; show('apself'); }); wire('toapself2', () => { apDraft = null; show('apself'); });
+    const apt = $('#aptrend'); if (apt) apt.addEventListener('click', e => { const c = e.target.closest('[data-apkey]'); if (!c) return; e.stopPropagation(); apKey = c.dataset.apkey; apt.innerHTML = apCompare() + apTrend(); });
     wire('hubnext', () => { const g = $('#hubnext').dataset.go, to = { topredict: 'predict', toentry: 'entry', tocompare: 'compare', togoals: 'goals', toplan: 'plan' }[g];
       if (g === 'towo') { woStart('profile'); return show('workout'); } lastHub = 'fitness'; show(to); });
     onWrap(e => { if (openUnit(e)) return; const t = e.target.closest('[data-ov]'); if (t) openOv(t.dataset.ov); });
