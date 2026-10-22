@@ -1272,7 +1272,7 @@ function ladderBar(lv) {
   for (let i = 1; i <= 6; i++) s += '<i class="' + (lv && i <= lv ? 'on' : '') + (i === G8_BAND ? ' mk' : '') + '"></i>';
   return s + '</div>';
 }
-const LBL = { 1: 'Beginning', 2: 'Beginning', 3: 'Intermediate', 4: 'Intermediate', 5: 'Proficient', 6: 'Proficient', 7: 'Advanced' };
+const LBL = { 1: 'Not yet', 2: 'Not yet', 3: 'Approaching', 4: 'Approaching', 5: 'Got it', 6: 'Got it', 7: 'Leading' };
 function bandV(ovKey, em, name, repKey) {
   const m = measured(), v = m && m.bands && m.bands[repKey] != null ? m.bands[repKey] : null;
   const cls = v == null ? '' : (v >= 5 ? 'ok' : v >= 4 ? 'meet' : 'below');
@@ -1349,7 +1349,7 @@ const UNITS = [
   { key: 'tchouk',    e: '🤾', name: 'Tchoukball',  from: '2027-04-14', to: '2027-05-20', when: 'Apr – May', blurb: 'Throw, catch and team roles in a season', found: ['throw', 'catch'] }
 ];
 // The school's 1–7 scale (rubric bank): four bands, each holding its numbers.
-const BANDS7 = [['Beginning', [1, 2]], ['Intermediate', [3, 4]], ['Proficient', [5, 6]], ['Advanced', [7]]];
+const BANDS7 = [['Not yet', [1, 2]], ['Approaching', [3, 4]], ['Got it', [5, 6]], ['Leading', [7]]];
 function band7(v) { const b = BANDS7.find(x => x[1].indexOf(v) !== -1); return b ? b[0] : ''; }
 function todayIso() { return isoDay(new Date()); }
 function unitStatus(u) {
@@ -1587,10 +1587,10 @@ const AP_ROUND_POS = { 's1-mid': '10-28', 's1-end': '01-21', 's2-mid': '04-16', 
 // Students see the four rubric bands, never the 1–7 number (that lives in Canvas).
 // A self check-in stores the band's floor (1 · 3 · 5 · 7) so it lines up with the teacher's 1–7.
 const AP_BANDS = [
-  { name: 'Beginning',    e: '🌱', tag: 'Getting going',     v: 1, cls: 'b0' },
-  { name: 'Intermediate', e: '🧱', tag: 'Building it',       v: 3, cls: 'b1' },
-  { name: 'Proficient',   e: '💪', tag: 'Strong and steady', v: 5, cls: 'b2' },
-  { name: 'Advanced',     e: '🌟', tag: 'Leading the way',   v: 7, cls: 'b3' }
+  { name: 'Not yet',     e: '🌱', tag: 'Still growing',   v: 1, cls: 'b0' },
+  { name: 'Approaching', e: '🧗', tag: 'Nearly there',    v: 3, cls: 'b1' },
+  { name: 'Got it',      e: '✅', tag: 'Doing it well',   v: 5, cls: 'b2' },
+  { name: 'Leading',     e: '🌟', tag: 'Lifting others', v: 7, cls: 'b3' }
 ];
 const bandIx = v => v == null ? null : (v >= 6.5 ? 3 : v >= 4.5 ? 2 : v >= 2.5 ? 1 : 0);
 const bandOf = v => { const i = bandIx(v); return i == null ? null : AP_BANDS[i]; };
@@ -1646,9 +1646,10 @@ function apTrend() {
   let say = '';
   if (lastS != null && lastT) {
     const me = bandIx(lastS), tb = bandIx(lastT[0]), tn = AP_BANDS[tb].name;
-    say = me === tb ? 'You and your teacher agree: <b>' + tn + '</b>. Great self-awareness 👏'
-      : me > tb ? 'You see yourself as <b>' + AP_BANDS[me].name + '</b>; at ' + esc(lastT[1]) + ' your teacher saw <b>' + tn + '</b>. What could you show more of so your teacher sees it too?'
-      : 'Your teacher sees you as <b>' + tn + '</b>, higher than you rate yourself. You’re doing better than you think 💪'; }
+    const T = AP_BANDS[tb].e + ' ' + tn, M = AP_BANDS[me].e + ' ' + AP_BANDS[me].name;
+    say = me === tb ? 'You and your teacher agree: <b>' + T + '</b>. Great self-awareness 👏'
+      : me > tb ? 'You put yourself at <b>' + M + '</b>; at ' + esc(lastT[1]) + ' your teacher had you at <b>' + T + '</b>. What could you show more of so your teacher sees it too?'
+      : 'Your teacher has you at <b>' + T + '</b>, higher than you rate yourself. You’re doing better than you think 💪'; }
   else if (lastS != null) say = 'Your teacher’s first band arrives at mid-semester. Keep checking in so you can compare.';
   else if (lastT) say = 'Your teacher has placed you. Tap ✎ Rate myself to see how your view compares.';
   const tail = (say ? '<p class="apsay">' + say + '</p>' : '') + apNextStep(log, key);
@@ -1700,8 +1701,8 @@ function apNextStep(log, key) {
   if (!cur || !R[k]) return '';
   const band = bandIx(cur[0]), row = AP_ROWS.find(r => r[0] === k), now = AP_BANDS[band], nx = AP_BANDS[band + 1];
   return '<div class="apnext"><div class="apn-h">🎯 ' + (key === 'all' ? 'Your focus: ' : 'Next step: ') + row[1] + ' ' + esc(row[2]) + '</div>' +
-    (band === 3 ? '<p>You’re at <b>🌟 Advanced</b>. Keep it going: ' + rubTxt(R[k].levels[3]) + '.</p>'
-      : '<p>' + (cur[1] === 'teacher' ? 'Your teacher sees ' : 'You see yourself at ') + '<b>' + now.e + ' ' + now.name + '</b>. To reach <b>' + nx.e + ' ' + nx.name + '</b>: ' + rubTxt(R[k].levels[band + 1]) + '.</p>') + '</div>';
+    (band === 3 ? '<p>You’re <b>🌟 Leading</b>. Keep it going: ' + rubTxt(R[k].levels[3]) + '.</p>'
+      : '<p>' + (cur[1] === 'teacher' ? 'Your teacher has you at ' : 'You put yourself at ') + '<b>' + now.e + ' ' + now.name + '</b>. To reach <b>' + nx.e + ' ' + nx.name + '</b>: ' + rubTxt(R[k].levels[band + 1]) + '.</p>') + '</div>';
 }
 function apSelfView() {
   const d = apDraft || (apDraft = {}), R = (window.RUBRICS || {}).ap || {};
