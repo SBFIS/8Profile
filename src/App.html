@@ -289,7 +289,7 @@ function profileView(b) {
     '<div class="cardteaser">' + avatar(st, 'ct-av') +
       '<div class="ct-id"><div class="ct-name">' + esc(st.name) + ' <span class="ct-tier">◆ ' + tierOf(earned().length) + '</span></div>' + (st.klass ? '<div class="ct-sub">' + esc(st.klass) + '</div>' : '') +
       '<div class="ct-arch">' + (skin ? skin.e + ' ' + esc(styles[k]).toUpperCase() : '✨ PICK YOUR PE STYLE') + '</div></div>' +
-      '<div class="ct-stats">' + stat(mileStr(mileV), 'Mile') + stat(skG == null ? '—' : skG, 'Skills') + stat(apO == null ? '—' : apO, 'Effort') + '</div>' +
+      '<div class="ct-stats">' + stat(mileStr(mileV), 'Mile') + stat(skG == null ? '—' : skG, 'Skills') + stat(apO == null ? '—' : coLevel(apO)[2], 'Effort') + '</div>' +
       '<button type="button" class="ct-btn' + (k ? '' : ' pulse') + '" id="tocard">' + (k ? 'View my card ↗' : 'Build my card ↗') + '</button>' +
     '</div>' +
     '<div class="shelfrow"><span class="sh-l">🏅 My badges <b>' + earned().length + ' / ' + BADGES.length + '</b></span>' + badgeShelf('shelf') + '</div>' +
@@ -503,6 +503,7 @@ function tierNext() {
 function cardStat(v, label) {
   return '<div><b>' + (v == null ? '—' : v + '<small>/7</small>') + '</b><span>' + label + '</span>' + (v == null ? '' : '<em>' + LBL[v] + '</em>') + '</div>';
 }
+function apCardStat(v) { const lv = coLevel(v); return '<div><b>' + (lv ? lv[2] : '—') + '</b><span>Effort</span>' + (lv ? '<em>' + esc(lv[1]) + '</em>' : '') + '</div>'; }
 function badgeShelf(cls) {
   const got = earned().map(b => b[0]);
   return '<div class="' + cls + '">' + BADGES.map(b => '<button type="button" class="bdg' + (got.indexOf(b[0]) !== -1 ? ' got' : '') + '" data-ov="badge-' + b[0] + '" title="' + esc(b[2]) + '" aria-label="' + esc(b[2]) + (got.indexOf(b[0]) !== -1 ? ' — earned' : ' — not yet') + '">' + b[1] + '</button>').join('') + '</div>';
@@ -550,9 +551,11 @@ function trendWord(series, dir) { const t = improved(series, dir); return t > 0 
 function apTileV(ovKey, em, name, key) {
   const m = measured(), rec = m && m.ap ? m.ap[key] : null;
   const v = rec ? (rec.tchr != null ? rec.tchr : rec.self) : null;
-  const bar = '<div class="btrack ap">' + [1, 2, 3, 4, 5, 6, 7].map(i => '<i class="' + (v && i <= v ? 'on' : '') + '"></i>').join('') + '</div>';
+  // students see levels in words, never the 1–7 number behind them
+  const lv = coLevel(v), step = lv ? 4 - CO_LEVELS.indexOf(lv) : 0, word = x => x == null ? '' : coLevel(x)[1];
+  const bar = '<div class="btrack ap">' + [1, 2, 3, 4].map(i => '<i class="' + (i <= step ? 'on' : '') + '"></i>').join('') + '</div>';
   const cls = v == null ? '' : (v >= 5 ? 'ok' : v >= 4 ? 'meet' : 'below');
-  return '<button type="button" class="tile a-ap ' + cls + '" data-ov="' + ovKey + '"><span class="plus">⊕</span><div class="tnrow"><span class="em">' + em + '</span><span class="tn">' + esc(name) + '</span></div>' + bar + '<div class="rung">' + (v == null ? 'all year' : (rec.self != null ? 'me ' + rec.self : '') + (rec.tchr != null ? ' · teacher ' + rec.tchr : '')) + '</div></button>';
+  return '<button type="button" class="tile a-ap ' + cls + '" data-ov="' + ovKey + '"><span class="plus">⊕</span><div class="tnrow"><span class="em">' + em + '</span><span class="tn">' + esc(name) + '</span></div>' + bar + '<div class="rung">' + (v == null ? 'all year' : [rec.self != null ? 'me: ' + word(rec.self) : '', rec.tchr != null ? 'teacher: ' + word(rec.tchr) : ''].filter(Boolean).join(' · ')) + '</div></button>';
 }
 
 function lesson1Panel() {
@@ -672,7 +675,7 @@ function cardView(b) {
         '<div class="cwho">' + avatar(st, 'cav') + '<div><div class="cname">' + esc(st.name) + '</div>' + (st.klass ? '<div class="cclass">' + esc(st.klass) + '</div>' : '') + '</div></div>' +
         '<div class="crib"><span id="archt">' + (chosen ? esc(styles[chosen]).toUpperCase() : 'PICK A STYLE') + '</span><span id="arche">' + (chosen ? SKINS[chosen].e : '✨') + '</span></div>' +
         '<div class="crad" id="rad">' + radar(SKINS[chosen] || DEFAULT_SKIN, ax) + '</div>' +
-        '<div class="cstat"><div><b>' + (m && m.fitness && latestOf(m.fitness.mile) != null ? mileStr(latestOf(m.fitness.mile)) : '—') + '</b><span>Mile</span>' + (m && m.fitness && latestOf(m.fitness.mile) != null ? '<em>min : sec</em>' : '') + '</div>' + cardStat(skillsGradeNow(), 'Skills') + cardStat(apOverallNow(), 'Effort') + '</div>' +
+        '<div class="cstat"><div><b>' + (m && m.fitness && latestOf(m.fitness.mile) != null ? mileStr(latestOf(m.fitness.mile)) : '—') + '</b><span>Mile</span>' + (m && m.fitness && latestOf(m.fitness.mile) != null ? '<em>min : sec</em>' : '') + '</div>' + cardStat(skillsGradeNow(), 'Skills') + apCardStat(apOverallNow()) + '</div>' +
         cardBadges() +
         '<div class="cfoot">' + tierNext() + '</div>' +
       '</div></div><div class="cardhint">Your style is your choice. None is "better": it sets your card’s colour and identity.</div></div>';
@@ -1565,7 +1568,7 @@ const CO_ORDER = ['effort', 'team', 'ready', 'growth', 'manage'];
 const CO_KEY = 'pe_checkout';
 // Students never see numbers: they pick one of four levels (one per rubric band). The level is
 // stored as the top of its band (2 · 4 · 6 · 7) so it lines up with the teacher's 1–7 ratings.
-const CO_LEVELS = [[7, 'Leading', '🚀'], [6, 'Got it', '👍'], [4, 'Almost', '🔜'], [2, 'Not yet', '🌱']];
+const CO_LEVELS = [[7, 'Leading', '🚀'], [6, 'Got it', '👍'], [4, 'Approaching', '🔜'], [2, 'Not yet', '🌱']];
 function coLevel(v) { if (v == null) return null; const n = Math.round(v); return n >= 7 ? CO_LEVELS[0] : n >= 5 ? CO_LEVELS[1] : n >= 3 ? CO_LEVELS[2] : CO_LEVELS[3]; }
 let co = null; // { from, roster, klass, focus, step, sel, rating, given:{email:{rating,word}}, saving:{email:true} }
 function coBand(key, v) { const a = RUBRICS.ap && RUBRICS.ap[key]; if (!a || v == null) return null; const n = Math.round(v); return a.bands.find(b => n >= b.range[0] && n <= b.range[1]) || null; }
@@ -1789,7 +1792,7 @@ function checkinsSection(st) {
       checkinTrend(list) +
       '<div class="ck-r"><span class="ck-k"><i class="ck-dot s"></i>me: ' + lvTxt(s) + '</span><span class="ck-k"><i class="ck-dot t"></i>teacher: ' + lvTxt(t) + '</span>' + (lastWord ? '<span class="chip">' + esc(lastWord.word) + '</span>' : '') + '</div></div>';
   }).join('');
-  return head + '<p class="seclede">How you rated yourself (●) and how your teacher saw it (■), lesson by lesson, higher is stronger. Levels: 🌱 Not yet · 🔜 Almost · 👍 Got it · 🚀 Leading.</p><div class="ck-list">' + rows + '</div>';
+  return head + '<p class="seclede">How you rated yourself (●) and how your teacher saw it (■), lesson by lesson, higher is stronger. Levels: 🌱 Not yet · 🔜 Approaching · 👍 Got it · 🚀 Leading.</p><div class="ck-list">' + rows + '</div>';
 }
 
 function message(big, title, body, extra) {

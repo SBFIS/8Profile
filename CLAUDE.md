@@ -16,9 +16,11 @@ bound to an FIS-owned Sheet. Read `PRIVACY.md` and `PLAN.md` first.
 - **Identity is established in one place**: `verifyToken_()` / `identity_()` in
   `src/Code.gs`, from the Google ID token verified with Google (aud, email_verified, hd,
   exp). Never accept an email (or any identifier) from the request body as identity.
-- **Every read/write is for the caller's own row.** No server function may return the
-  roster or another student's data. Keep `dev/test-server.js` green; add a check when you
-  add a function.
+- **A student only ever gets their own rows.** No function a student can call may return
+  the roster or another student's data. Class-level reads and writes (class dashboard, AP
+  check-out kiosk) exist only behind `requireTeacher_()`, return the minimum the screen
+  needs (the kiosk: first name + last initial, never ratings), and each has a test proving
+  a student is refused. Keep `dev/test-server.js` green; add a check when you add a function.
 - **No third-party requests** beyond GitHub serving the page and Google (sign-in library,
   sign-in, API). No CDN scripts, analytics, or fonts. Vendor libraries into the repo instead.
 - **No emails or tokens in thrown errors or logs** (they reach Stackdriver).

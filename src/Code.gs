@@ -96,6 +96,8 @@ var CHECKIN_WORDS = ['Cheered someone on', 'Tried my best', 'Tried something new
 var CHECKIN_WHO = ['self', 'teacher'];
 var CHECKIN_DAYS_STUDENT = 90;   // how far back a student's own trend goes
 var CHECKIN_DAYS_SPOTLIGHT = 30; // window for "fewest teacher check-ins"
+var CHECKIN_DAYS_LASTSEEN = 90;  // spotlight tie-break: older teacher ratings count as "never"
+var CHECKIN_CHUNK = 400;         // rows read per step when scanning Checkins from the bottom
 var SPOTLIGHT_SIZE = 5;
 // Reflection slots a student may write. Unit keys hold a small JSON self-assessment.
 var REFLECT_KEYS = ['compare-intro', 'unit-badminton'];
@@ -769,22 +771,59 @@ function dayIso_(d) { return Utilities.formatDate(d, Session.getScriptTimeZone()
 function todayIso_() { return dayIso_(new Date()); }
 function daysAgoIso_(n) { return dayIso_(new Date(Date.now() - n * 86400000)); }
 function round1_(n) { return Math.round(n * 10) / 10; }
-// Check-in rows, cleaned: only valid focus/who/rating survive, emails and dates normalised.
-function checkinRows_() {
-  var out = [];
-  readTab_('Checkins').forEach(function (r) {
-    var email = lower_(r.Email), focus = lower_(r.Focus), who = lower_(r.Who), rating = numOrNull_(r.Rating), date = str_(r.Date);
-    if (!email || !/^\d{4}-\d{2}-\d{2}$/.test(date) || AP_KEYS.indexOf(focus) === -1 || CHECKIN_WHO.indexOf(who) === -1) return;
-    if (rating === null || rating < 1 || rating > 7) return;
-    out.push({ email: email, date: date, focus: focus, who: who, rating: rating, word: str_(r.Word) });
-  });
-  return out;
+// Check-ins are appended in date order (the server stamps today), so recent rows sit at the
+// bottom. Reads start there and go up in chunks, stopping at the first chunk that reaches
+// rows older than `from`: a tap or a roster reads a few hundred rows, not the whole year.
+// `from` = '' reads everything (the teacher summary). Rows come back cleaned (only valid
+// focus/who/rating), oldest first, one per student·day·focus·who (the lowest row wins if
+// a hand edit ever duplicated a key), each with its sheet row number.
+function checkinClean_(r, col) {
+  var get = function (h) { return col[h] === undefined ? '' : r[col[h]]; };
+  var email = lower_(get('Email')), focus = lower_(get('Focus')), who = lower_(get('Who')), rating = numOrNull_(get('Rating')), date = str_(cellKey_(get('Date')));
+  if (!email || !/^\d{4}-\d{2}-\d{2}$/.test(date) || AP_KEYS.indexOf(focus) === -1 || CHECKIN_WHO.indexOf(who) === -1) return null;
+  if (rating === null || rating < 1 || rating > 7) return null;
+  return { email: email, date: date, focus: focus, who: who, rating: rating, word: str_(get('Word')) };
+}
+function checkinScan_(from) {
+  var s = tab_('Checkins');
+  if (!s || s.getLastRow() < 2) return [];
+  var lastCol = s.getLastColumn(), col = {};
+  s.getRange(1, 1, 1, lastCol).getValues()[0].forEach(function (h, i) { col[str_(h)] = i; });
+  var newestFirst = [], seen = {}, end = s.getLastRow();
+  while (end >= 2) {
+    var start = Math.max(2, end - CHECKIN_CHUNK + 1), data = s.getRange(start, 1, end - start + 1, lastCol).getValues(), older = false;
+    for (var i = data.length - 1; i >= 0; i--) {
+      var c = checkinClean_(data[i], col); if (!c) continue;
+      if (from && c.date < from) { older = true; continue; }
+      var key = c.email + '|' + c.date + '|' + c.focus + '|' + c.who;
+      if (seen[key]) continue;
+      seen[key] = true; c.row = start + i; newestFirst.push(c);
+    }
+    if (older) break;
+    end = start - 1;
+  }
+  return newestFirst.reverse();
+}
+function checkinRows_() { return checkinScan_(''); }
+// Insert-or-update one check-in under the script lock, looking only at today's rows.
+function upsertCheckin_(fields) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var s = ensureTab_('Checkins', TABS.Checkins);
+    var hit = checkinScan_(fields.Date).filter(function (c) { return c.email === fields.Email && c.date === fields.Date && c.focus === fields.Focus && c.who === fields.Who; })[0];
+    var lastCol = s.getLastColumn(), headers = s.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) { return str_(h); });
+    var rowIdx = hit ? hit.row : s.getLastRow() + 1;
+    var row = hit ? s.getRange(rowIdx, 1, 1, lastCol).getValues()[0] : headers.map(function () { return ''; });
+    Object.keys(fields).forEach(function (k) { var c = headers.indexOf(k); if (c !== -1) row[c] = fields[k]; });
+    s.getRange(rowIdx, 1, 1, lastCol).setValues([row]);
+  } finally { lock.releaseLock(); }
 }
 // The caller's own check-ins, last 90 days, oldest first.
 function checkinsFor_(email) {
   var from = daysAgoIso_(CHECKIN_DAYS_STUDENT);
-  return checkinRows_().filter(function (c) { return c.email === email && c.date >= from; })
-    .sort(function (a, b) { return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); })
+  return checkinScan_(from).filter(function (c) { return c.email === email; })
+    .sort(function (a, b) { return a.date < b.date ? -1 : (a.date > b.date ? 1 : a.row - b.row); })
     .map(function (c) { return { date: c.date, focus: c.focus, who: c.who, rating: c.rating, word: c.word }; });
 }
 // Teacher view: per student, per focus { selfAvg, tchrAvg, selfN, tchrN, last }.
@@ -830,7 +869,7 @@ function checkoutRoster_(cfg, id, klass, focus) {
   var today = out.date, from = daysAgoIso_(CHECKIN_DAYS_SPOTLIGHT);
   var stats = {};
   mine.forEach(function (r) { stats[lower_(r.Email)] = { self: false, teacher: false, recent: 0, lastTchr: '' }; });
-  checkinRows_().forEach(function (c) {
+  checkinScan_(daysAgoIso_(CHECKIN_DAYS_LASTSEEN)).forEach(function (c) {
     var st = stats[c.email]; if (!st) return;
     if (c.date === today && (!f || c.focus === f)) st[c.who] = true;
     if (c.who === 'teacher') {
@@ -870,7 +909,7 @@ function saveCheckin_(cfg, id, targetEmail, focus, who, rating, word) {
   var wd = (word === null || word === undefined) ? '' : word;
   if (typeof wd !== 'string' || (wd !== '' && CHECKIN_WORDS.indexOf(wd) === -1)) throw new Error('Unknown word');
   var date = todayIso_();
-  upsert_('Checkins', { Email: email, Date: date, Focus: f, Who: w }, { Class: str_(st.Class), Rating: n, Word: wd, Updated: new Date() });
+  upsertCheckin_({ Email: email, Date: date, Focus: f, Who: w, Class: str_(st.Class), Rating: n, Word: wd, Updated: new Date() });
   return { ok: true, date: date };
 }
 

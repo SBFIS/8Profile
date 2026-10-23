@@ -74,7 +74,9 @@ const shots = path.join(root, 'dev/shots'); fs.mkdirSync(shots, { recursive: tru
   await page.goto(url('role=student').replace('reset=1&', ''));
   await page.waitForSelector('.ck-row');
   check('student sees their own check-out trend', (await page.textContent('.ck-list')).includes('Best effort') && (await page.$$('.ck-svg')).length >= 1);
-  check('student trend shows level words, no numbers', /Got it|Almost|Leading|Not yet/.test(await page.textContent('.ck-list')) && !/\d\.\d|me \d|teacher \d/.test(await page.textContent('.ck-list')));
+  check('student trend shows level words, no numbers', /Got it|Approaching|Leading|Not yet/.test(await page.textContent('.ck-list')) && !/\d\.\d|me \d|teacher \d/.test(await page.textContent('.ck-list')));
+  check('AP tiles show levels in words, no numbers', (await page.$$eval('.tile.a-ap .rung', r => r.map(x => x.textContent))).every(t => !/\d/.test(t)) && /Got it|Approaching|Leading|Not yet/.test(await page.textContent('.grid3 .tile.a-ap')));
+  check('card teaser Effort stat has no number', !/\d/.test(await page.$$eval('.ct-stats > div', d => d[2].textContent)));
   await (await page.$('.ck-list')).screenshot({ path: path.join(shots, 'checkout-student.png') });
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -85,7 +87,7 @@ const shots = path.join(root, 'dev/shots'); fs.mkdirSync(shots, { recursive: tru
   await page.click('[data-cofocus="team"]'); await page.waitForSelector('#cokiosk:not([disabled])');
   await page.click('#cokiosk'); await page.click('.ko-name >> nth=0'); await page.waitForSelector('.ko-band');
   check('no horizontal scroll on phone (kiosk)', await noHScroll());
-  check('criteria without a student column fall back to the teacher descriptor', (await page.textContent('.ko-bands')).includes('Communicates respectfully'));
+  check('every criterion shows the student "I…" line', (await page.textContent('.ko-bands')).includes('I communicate respectfully'));
 
   check('no page errors', errors.length === 0, errors.join(' | '));
   await browser.close();

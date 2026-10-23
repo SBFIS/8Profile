@@ -14,7 +14,7 @@ minors under GDPR, so it is built to keep everything inside the FIS Google Works
 | Where data lives | One Google Sheet owned by the PE teacher's FIS account, inside the FIS Workspace |
 | Where code runs | The page is static HTML served by GitHub Pages (no data on it). All data handling runs in Google Apps Script bound to that Sheet, in the FIS Workspace. |
 | Who can use the app | Only verified `@fis.edu` Google accounts: every request carries a Google sign-in token that the server verifies with Google before answering |
-| What a student sees | Their own rows only. The class list never reaches a browser. |
+| What a student sees | Their own rows only. The class list never reaches a student's account. It reaches only a verified teacher's browser: the class dashboard, and the AP check-out on the teacher's iPad, which shows first names + last initials and no ratings. |
 | Third parties | GitHub serves the page code (no data). Google provides sign-in and hosts the data. No analytics, trackers, or cookies beyond Google's session. |
 | This repository | Code only. No data, no secrets. Test data is synthetic (`example.edu`). |
 
@@ -52,9 +52,10 @@ already held by the school).
    only place an identity is established. Nothing else in the request (an email, an ID) is
    ever used as identity.
 5. **Read.** `bootstrap_()` matches the verified address against the Students tab and
-   returns that one row plus that student's Profile and Predictions rows. No function
+   returns that one row plus that student's own data. No function a student can call
    returns the roster or any other student's data. The response does not contain the
-   student's own email.
+   student's own email. Teacher-only functions (class dashboard, AP check-out) are refused
+   unless the verified account is on the Teachers tab or owns the Sheet.
 6. **Write.** `saveStyle_()` / `saveGoal_()` / `savePrediction_()` validate the values and
    upsert one row keyed by the *verified* address (plus checkpoint for predictions). An
    incomplete or malformed prediction is rejected whole.

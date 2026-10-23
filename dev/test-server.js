@@ -258,6 +258,40 @@ check('classOverview: per-student checkinSummary (averages to 1 dp)', (() => {
 })());
 check('check-out error messages contain no email', errs.length > 10 && errs.every(e => !e.includes('@')), errs.filter(e => e.includes('@')));
 
+console.log('AP check-out at year scale (reads only the recent rows)');
+(() => {
+  const sh = FakeSheets.book.getSheetByName('Checkins');
+  sh.rows = [sh.rows[0]];
+  const people = [S1, S2, C(1), C(2), C(3), C(4), C(5), C(6), C(7)];
+  for (let d = 200; d >= 1; d--) for (let k = 0; k < 150; k++) {
+    const email = people[k % people.length], focus = AP_KEYS[k % 5], who = k % 2 ? 'teacher' : 'self';
+    sh.rows.push([email, ago(d), '', focus, who, 1 + (k % 7), '', '']);
+  }
+  const total = sh.rows.length - 1, cols = TABS.Checkins.length;
+  let cells = 0, whole = 0;
+  const getRange = sh.getRange.bind(sh), getDataRange = sh.getDataRange.bind(sh);
+  sh.getRange = (r, c, nr, nc) => { cells += (nr || 1) * (nc || 1); return getRange(r, c, nr, nc); };
+  sh.getDataRange = () => { whole++; return getDataRange(); };
+  const measure = fn => { cells = 0; whole = 0; const out = fn(); return { out, rows: cells / cols, whole }; };
+  check('fixture: a year of check-outs (' + total + ' rows)', total === 30000);
+  const save = measure(() => as(T, 'saveCheckin', { email: C(5), focus: 'ready', who: 'self', rating: 6, word: 'Forgot kit' }));
+  check('a tap reads a few hundred rows, not the whole tab', save.out.ok && save.whole === 0 && save.rows < 1000, save);
+  const retap = measure(() => as(T, 'saveCheckin', { email: C(5), focus: 'ready', who: 'self', rating: 4, word: '' }));
+  check('a re-tap still finds and overwrites today\'s row', retap.out.ok && retap.rows < 1000 && readTab_('Checkins').filter(r => r.Email === C(5) && r.Date === TODAY && r.Focus === 'ready').length === 1);
+  const ros = measure(() => as(T, 'checkoutRoster', { klass: '8C', focus: 'ready' }));
+  check('the roster reads only the last ~90 days', ros.out.ok && ros.whole === 0 && ros.rows < total * 0.6, ros.rows);
+  check('…and still sees today\'s tap', ros.out.data.students.find(x => x.email === C(5)).doneToday.self === true);
+  const boot = measure(() => as(S1, 'bootstrap'));
+  check('a student bootstrap reads only the last ~90 days', boot.whole === 0 && boot.rows < total * 0.6 && boot.out.data.student.checkins.length > 0 && boot.out.data.student.checkins.every(c => c.date >= ago(90)), boot.rows);
+  const sum = measure(() => as(T, 'classOverview'));
+  const s1Rows = 200 * new Set(Array.from({ length: 150 }, (_, k) => k).filter(k => k % people.length === 0).map(k => AP_KEYS[k % 5] + (k % 2))).size; // one per day·focus·who
+  check('the teacher summary still counts the whole year', (() => { const st = sum.out.data.students.find(x => x.id === S1); return Object.keys(st.checkinSummary).reduce((a, k) => a + st.checkinSummary[k].selfN + st.checkinSummary[k].tchrN, 0) === s1Rows; })(), s1Rows);
+  sh.getRange = getRange; sh.getDataRange = getDataRange;
+  sh.rows.push([C(5), TODAY, '8C', 'ready', 'self', 7, '', '']); // a hand edit that duplicated today's key
+  const dup = as(T, 'checkoutRoster', { klass: '8C' });
+  check('a duplicated key is read once', dup.ok && checkinScan_(TODAY).filter(c => c.email === C(5) && c.focus === 'ready' && c.who === 'self').length === 1);
+})();
+
 console.log('retention');
 FakeSheets.uiAnswer = 'YES';
 clearProfileData();

@@ -74,9 +74,12 @@ Earlier status (v1): rebuilt as GitHub Pages + token-verified API after the stud
 ### v2.1 — AP Check-out (end-of-lesson routine)  ✅ built on `claude/ap-checkout`
 - [x] `Checkins` tab (Email · Date · Class · Focus · Who · Rating · Word · Updated), server date, upsert per student/day/focus/rater; cleared at year end
 - [x] Teacher-only `checkoutRoster` (one class, first name + last initial, done-today flags, spotlight five; never ratings) and `saveCheckin` (roster email, AP key, self/teacher, 1–7, fixed word list)
-- [x] Kiosk on the teacher iPad (class + focus → name → one of four word levels (Not yet · Almost · Got it · Leading, stored as 2·4·6·7) → word/skip → ✓; students never see numbers), press-and-hold to leave; spotlight rating screen; AP summary with suggested band + CSV
+- [x] Kiosk on the teacher iPad (class + focus → name → one of four word levels (Not yet · Approaching · Got it · Leading, stored as 2·4·6·7) → word/skip → ✓; students never see numbers), press-and-hold to leave; spotlight rating screen; AP summary with suggested band + CSV
 - [x] `RUBRICS.ap` generated from the Rubric Bank §1; student trend (self vs teacher, 90 days) on the profile
-- [ ] Student "I…" wording for Social Skills, Self Management, Growth Mindset and Self Awareness (the bank has it only for Active Participation; the kiosk shows the teacher descriptor for the others)
+- [x] Student "I…" wording for Social Skills, Self Management, Growth Mindset and Self Awareness: drafted in the Rubric Bank from the teacher descriptors
+- [ ] Check those four drafted "I…" sets against the G8 student rubric
+- [x] No numbers for students anywhere in AP: kiosk, trend, AP tiles and the card's Effort stat show level words (teacher views keep 1–7)
+- [x] Check-in reads scan from the bottom of the tab (a tap reads ~today's rows; roster and student view ~90 days), not the whole year
 - [ ] DP lead review of the kiosk (PRIVACY.md point 5)
 
 ### v3 — Combine + fundamental skills + report bands
