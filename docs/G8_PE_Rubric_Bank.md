@@ -59,7 +59,10 @@ The three reported bands are **Knowledge · Skills · Concept Transfer**. Each i
 
 ## 1 · AP & Cooperation
 
-*Source: G8 Active Participation Rubric — teacher and student ("I…") versions both exist.*
+*Source: G8 Active Participation Rubric — teacher and student ("I…") versions both exist.
+The student "I…" lines for Social Skills, Self Management, Growth Mindset and Self Awareness
+were drafted in Oct 2026 from the teacher descriptors for the AP Check-out kiosk; check them
+against the G8 student rubric.*
 
 ### Active Participation — PE.G6-10.C1 (ACT) → **Concept Transfer**
 | Band | Descriptor | Student "I…" |
@@ -70,36 +73,36 @@ The three reported bands are **Knowledge · Skills · Concept Transfer**. Each i
 | **1–2** | Minimal effort; often disengaged. Reflections missing, very brief, or unrelated to participation. | I have trouble participating actively and rarely show that I understand why it matters. |
 
 ### Social Skills — PE.G6-10.S4 (ACT) → **Skills**
-| Band | Descriptor |
-|---|---|
-| **7** | Consistently communicates positively, encourages others, and actively helps teammates take part. |
-| **5–6** | Communicates respectfully and helps the team most of the time. |
-| **3–4** | Contribution and communication are inconsistent. |
-| **1–2** | Rarely communicates positively or contributes to the team. |
+| Band | Descriptor | Student "I…" |
+|---|---|---|
+| **7** | Consistently communicates positively, encourages others, and actively helps teammates take part. | I always communicate positively, encourage others and help my teammates take part. |
+| **5–6** | Communicates respectfully and helps the team most of the time. | I communicate respectfully and help my team most of the time. |
+| **3–4** | Contribution and communication are inconsistent. | I sometimes help my team, but how I join in and communicate changes from lesson to lesson. |
+| **1–2** | Rarely communicates positively or contributes to the team. | I rarely communicate positively or help my team. |
 
 ### Self Management — ATL.SM.manageself → **ATL**
-| Band | Descriptor |
-|---|---|
-| **7** | Always prepared with full kit, on time, ready to start without reminders. |
-| **5–6** | Usually prepared and on time; may need rare reminders. |
-| **3–4** | Sometimes unprepared or late to start; occasionally missing kit. |
-| **1–2** | Often unprepared, late, or missing kit. |
+| Band | Descriptor | Student "I…" |
+|---|---|---|
+| **7** | Always prepared with full kit, on time, ready to start without reminders. | I am always ready with full kit, on time, and start without reminders. |
+| **5–6** | Usually prepared and on time; may need rare reminders. | I am usually ready and on time; I rarely need a reminder. |
+| **3–4** | Sometimes unprepared or late to start; occasionally missing kit. | I am sometimes late or not ready to start, and sometimes I forget kit. |
+| **1–2** | Often unprepared, late, or missing kit. | I am often late, not ready, or missing kit. |
 
 ### Growth Mindset — ATL.SM.growthmindset → **ATL**
-| Band | Descriptor |
-|---|---|
-| **7** | Embraces challenges, tries new things, stays positive even after setbacks. |
-| **5–6** | Open to challenges and generally keeps trying after mistakes. |
-| **3–4** | Sometimes avoids challenges or gives up when frustrated. |
-| **1–2** | Avoids challenges, refuses tasks, or gives up quickly. |
+| Band | Descriptor | Student "I…" |
+|---|---|---|
+| **7** | Embraces challenges, tries new things, stays positive even after setbacks. | I take on challenges, try new things and stay positive even when things go wrong. |
+| **5–6** | Open to challenges and generally keeps trying after mistakes. | I am open to challenges and usually keep trying after mistakes. |
+| **3–4** | Sometimes avoids challenges or gives up when frustrated. | I sometimes avoid challenges or give up when I get frustrated. |
+| **1–2** | Avoids challenges, refuses tasks, or gives up quickly. | I avoid challenges, refuse tasks, or give up quickly. |
 
 ### Self Awareness — ATL.SC.self → **ATL**
-| Band | Descriptor |
-|---|---|
-| **7** | Consistently manages behaviour and emotions positively without reminders. |
-| **5–6** | Usually self-manages well; responds to reminders. |
-| **3–4** | Needs frequent reminders to stay on track. |
-| **1–2** | Disruptive or unable to manage behaviour despite reminders. |
+| Band | Descriptor | Student "I…" |
+|---|---|---|
+| **7** | Consistently manages behaviour and emotions positively without reminders. | I always manage my behaviour and feelings in a positive way, without reminders. |
+| **5–6** | Usually self-manages well; responds to reminders. | I usually manage myself well, and I respond when I am reminded. |
+| **3–4** | Needs frequent reminders to stay on track. | I need a lot of reminders to stay on track. |
+| **1–2** | Disruptive or unable to manage behaviour despite reminders. | I find it hard to manage my behaviour, even with reminders. |
 
 ---
 

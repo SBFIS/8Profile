@@ -71,6 +71,16 @@ Earlier status (v1): rebuilt as GitHub Pages + token-verified API after the stud
 - Profile: participation section + trend; card: Effort and Team axes become real
 - Data-minimisation rule stays: bootstrap returns the caller's rows only
 
+### v2.1 — AP Check-out (end-of-lesson routine on the teacher's iPad)  ✅ built on `claude/ap-kiosk`
+- [x] Teacher picks class + one AP focus; students tap name → band in words (Not yet · Approaching · Got it · Leading, stored 1 · 3 · 5 · 7 like the Form import) → evidence word or skip → ✓; press-and-hold to leave
+- [x] Student taps are that day's self-check in APLog (only the focus column is set); the teacher's spotlight ratings are APLog `lesson` rows, never `teacher` (Canvas, summative)
+- [x] Spotlight five: fewest lesson ratings in 30 days → oldest → alphabetical. AP summary per student (lesson vs self averages, suggested band, CSV)
+- [x] Student chart: lesson ratings as a small square, separate from the Canvas diamond. Student-facing band wording uses the "I…" lines
+- [x] Rubric Bank: drafted "I…" lines for Social Skills, Self Management, Growth Mindset, Self Awareness. `upsert_` reads only the key columns and matches Date cells
+- [ ] Check the drafted "I…" lines against the G8 student rubric
+- [ ] DP lead review of the kiosk (PRIVACY.md point 5)
+- [ ] First run on the real Sheet: paste dist/Code.gs, deploy a new version, try one test student
+
 ### v3 — Combine + fundamental skills + report bands
 - Combine tab: mile, push-ups, sit-to-stand, broad jump, 40 m sprint × Sept/Jan/May
 - Skills tab: 9 ladders × level (1–4) × checkpoint, with self → peer → teacher sign-off state

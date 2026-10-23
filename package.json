@@ -2,13 +2,14 @@
   "name": "fis-g8-pe-profile",
   "private": true,
   "version": "0.1.0",
-  "description": "Grade 8 PE student profile — Google Apps Script web app inside an FIS-owned Sheet. Code only: no data, no secrets.",
+  "description": "Grade 8 PE student profile \u2014 Google Apps Script web app inside an FIS-owned Sheet. Code only: no data, no secrets.",
   "scripts": {
     "test": "node dev/test-server.js",
     "preview": "node dev/build-preview.js",
     "build": "node dev/build-site.js && node dev/build-single.js",
     "smoke": "node dev/build-preview.js && node dev/smoke.js",
-    "check": "node dev/test-server.js && node dev/build-site.js && node dev/build-single.js"
+    "check": "node dev/test-server.js && node dev/build-site.js && node dev/build-single.js",
+    "smoke:checkout": "node dev/build-preview.js && node dev/smoke-checkout.js"
   },
   "license": "UNLICENSED"
 }

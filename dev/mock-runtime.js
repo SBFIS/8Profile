@@ -11,7 +11,7 @@
 (function () {
   'use strict';
   const q = new URLSearchParams(location.search);
-  const STORE = 'g8pe_fake_book_v2';
+  const STORE = 'g8pe_fake_book_v3';
   const latency = parseInt(q.get('latency') || '200', 10);
   const failWrites = q.get('fail') === '1';
   window.__preview = { fastRetry: true };
@@ -85,6 +85,10 @@
     importApRows_([['Student name', 'PE.G6-10.C1 result', 'ATL.SM.manageself result', 'Growthmindset result', 'PE.G6-10.S4 result', 'ATL.SC.self result'],
       ['Sample One', 4, 5, 5, 5, 4], ['Sample Two', 5, 5, 4, 5, 5]], 's1-mid');
     importApRows_([['Student', 'SIS Login ID', 'Assignment -  Am I an Active Participant in PE? (139255)'], ['    Points Possible', '', 7], ['Sample Four', 'sample.four@example.edu', 6]], 's1-mid'); // overall only, like the Grades export
+    // AP check-out: the teacher's lesson ratings on the day's focus (Source 'lesson', never Canvas)
+    const KI = { ready: 4, effort: 5, growth: 6, team: 7, manage: 8 };
+    [[34, 'effort', 5], [20, 'team', 6], [13, 'effort', 6], [4, 'growth', 4]].forEach(r => { const row = ['sample.one@example.edu', ago(r[0]), 'lesson', '', '', '', '', '', '', new Date()]; row[KI[r[1]]] = r[2]; setRow('APLog', row); });
+    [[13, 'effort', 3], [4, 'team', 5]].forEach(r => { const row = ['sample.two@example.edu', ago(r[0]), 'lesson', '', '', '', '', '', '', new Date()]; row[KI[r[1]]] = r[2]; setRow('APLog', row); });
     callApi({ action: 'saveSkills', token: TT, email: 'sample.one@example.edu', checkpoint: 'jan', levels: { throw: 5, catch: 5, dribble: 5, core: 5 } }); // a January bump → trend arrows
     callApi({ action: 'saveCombine', token: tokenFor('sample.three@example.edu'), checkpoint: 'sept', results: { mile: 545, pushups: 22, broad: 195, sprint: 5.3 } });
   }
