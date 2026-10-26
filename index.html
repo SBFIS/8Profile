@@ -854,6 +854,55 @@ body.demo{padding-top:52px}
 .apnext{margin-top:10px;background:var(--ap-t);border-radius:12px;padding:10px 12px}
 .apn-h{font-family:var(--disp);font-weight:800;font-size:13.5px;margin-bottom:3px}
 .apnext p{margin:0;font-size:13px;line-height:1.45}.apnext b{font-weight:700}
+/* ── AP check-out (teacher iPad kiosk, spotlight, summary) ── */
+.co-entry{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:linear-gradient(135deg,var(--ap),#14753f);color:#fff;border:none;border-radius:16px;padding:16px 18px;margin:14px 0;cursor:pointer;box-shadow:0 8px 20px rgba(31,157,87,.28)}
+.co-entry .ce-i{font-size:30px}.co-entry .ce-t{flex:1;display:flex;flex-direction:column}.co-entry .ce-t b{font-family:var(--disp);font-size:20px}.co-entry .ce-t span{font-size:13px;opacity:.9}
+.co-entry .sg-go{font-family:var(--disp);font-weight:700;background:rgba(255,255,255,.18);border-radius:999px;padding:6px 12px}
+.co-entry.slim{display:inline-flex;width:auto;margin:0 0 0 8px;padding:6px 14px;border-radius:999px;font-family:var(--disp);font-weight:700;font-size:13px;box-shadow:none;vertical-align:middle}
+.co-chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.co-chip{font-family:var(--disp);font-weight:700;font-size:18px;min-width:72px;padding:12px 18px;border-radius:12px;border:2px solid var(--line);background:#fff;cursor:pointer}
+.co-chip.on{border-color:var(--maroon);background:var(--maroon-t);color:var(--maroon)}
+.co-focuses{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin:0 0 12px}
+.co-focus{display:flex;align-items:center;gap:12px;text-align:left;padding:14px;border-radius:14px;border:2px solid var(--line);background:#fff;cursor:pointer;min-height:68px}
+.co-focus .cf-e{font-size:28px}.co-focus .cf-t{display:flex;flex-direction:column}.co-focus .cf-t b{font-family:var(--disp);font-size:17px}.co-focus .cf-t span{font-size:11.5px;color:var(--muted)}
+.co-focus.on{border-color:var(--ap);background:var(--ap-t)}
+.co-go{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0}.co-go .ct-btn{margin:0;font-size:16px;padding:13px 20px}.co-go .ct-btn[disabled]{opacity:.45;cursor:not-allowed;filter:none}
+.ct-btn.ghost{background:#fff;color:var(--maroon);border:2px solid var(--maroon-t);box-shadow:none}
+.kiosk{max-width:1000px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.ko-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 14px}
+.ko-f{font-size:18px}.ko-f b{font-family:var(--disp)}.ko-k{font-family:var(--disp);font-weight:700;color:var(--muted)}
+.ko-hold{margin-left:auto;position:relative;overflow:hidden;border:1px solid var(--line);background:var(--paper);color:var(--muted);border-radius:999px;padding:7px 14px;font-size:12px;cursor:pointer;touch-action:none}
+.ko-hold i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--maroon-t);z-index:-1}.ko-hold{z-index:0}
+.ko-hold.holding i{width:100%;transition:width .9s linear}
+.ko-q{text-align:center;margin:22px 0 16px}.ko-q h1{font-family:var(--disp);font-weight:800;font-size:clamp(30px,5vw,46px);margin:0 0 4px;line-height:1.05}.ko-q p{color:var(--ink-soft);margin:0;font-size:16px}
+.ko-names{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.ko-name{position:relative;font-family:var(--disp);font-weight:700;font-size:21px;min-height:72px;padding:12px;border-radius:14px;border:2px solid var(--line);background:#fff;cursor:pointer;color:var(--ink)}
+.ko-name.done{background:var(--ap-t);border-color:#bfe6cd;color:#14753f}.ko-name.busy{opacity:.7}
+.ko-name .tick{position:absolute;top:6px;right:9px;font-size:16px}
+.ko-bands{display:flex;flex-direction:column;gap:10px;max-width:820px;margin:0 auto}
+.ko-band{display:flex;align-items:center;gap:16px;width:100%;text-align:left;background:#fff;border:2px solid var(--line);border-radius:16px;padding:14px 16px;min-height:76px;cursor:pointer;color:var(--ink)}
+.ko-lv{flex:none;width:220px;white-space:nowrap;font-family:var(--disp);font-weight:800;font-size:24px;color:var(--bc)}
+.ko-bt{font-size:14.5px;color:var(--ink-soft)}
+.kb3{--bc:#b8860b}.kb2{--bc:#1f9d57}.kb1{--bc:#e8730c}.kb0{--bc:#9a6b55}
+.ko-band.kb3,.ko-band.kb2,.ko-band.kb1,.ko-band.kb0{border-left:8px solid var(--bc)}
+.ko-words{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;max-width:860px;margin:0 auto}
+.ko-w{font-size:18px;font-weight:600;min-height:64px;border-radius:14px;border:2px solid var(--line);background:#fff;cursor:pointer;color:var(--ink)}
+.ko-row{display:flex;justify-content:space-between;align-items:center;max-width:860px;margin:18px auto 0}.ko-row .ct-btn{margin:0;font-size:18px;padding:13px 26px}
+.ko-back{display:flex;margin:18px auto 0}
+.ko-thanks{text-align:center;padding:60px 0}.ko-thanks .big{font-size:80px;color:var(--ap);line-height:1}.ko-thanks h1{font-family:var(--disp);font-size:42px;margin:8px 0}.ko-thanks p{color:var(--muted)}
+@media(max-width:640px){.ko-band{flex-direction:column;align-items:flex-start;gap:4px}.ko-lv{width:auto}}
+.sp-row{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:0 0 10px}.sp-row.rated{border-color:#bfe6cd}
+.sp-nm{font-family:var(--disp);font-weight:700;font-size:18px;margin-bottom:8px}.sp-st{font-family:var(--body);font-weight:600;font-size:12px;color:var(--ap)}
+.sp-nums{display:flex;gap:6px;flex-wrap:wrap}
+.sp-n{width:48px;height:48px;border-radius:11px;border:2px solid var(--bc);background:#fff;color:var(--bc);font-family:var(--disp);font-weight:800;font-size:20px;cursor:pointer}.sp-n.on{background:var(--bc);color:#fff}
+.sp-desc{font-size:12.5px;color:var(--ink-soft);margin:8px 0 0}
+.sp-words{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.sp-w{font-size:12px;border-radius:999px;padding:5px 10px;border:1px solid var(--line);background:var(--paper);cursor:pointer}.sp-w.on{background:var(--ap-t);border-color:var(--ap);color:#14753f;font-weight:600}
+.sp-more{margin-top:14px}.sp-more summary{cursor:pointer;font-weight:600;color:var(--maroon);margin-bottom:10px}
+.aps{display:flex;flex-direction:column;align-items:center;border:none;border-radius:9px;padding:4px 8px;cursor:pointer;background:var(--paper);min-width:96px}
+.aps b{font-family:var(--disp);font-size:13px;color:var(--bc,var(--ink))}.aps span{font-size:10.5px;color:var(--muted);white-space:nowrap}
+.aps.kb3{background:#fdeebd}.aps.kb2{background:#dcf1e3}.aps.kb1{background:#f8ecd6}.aps.kb0{background:#f3e9e3}
+.aplesson{fill:var(--maroon);opacity:.75}
+.lg-l{width:7px;height:7px;background:var(--maroon);opacity:.75;border-radius:1px}
 </style>
 
 </head>
@@ -995,47 +1044,82 @@ window.RUBRICS = {
  "ap": {
   "effort": {
    "name": "Active Participation",
+   "code": "PE.G6-10.C1",
    "levels": [
     "Minimal effort; often disengaged. Reflections missing, very brief, or unrelated to participation",
     "Effort and focus vary; sometimes distracted or off-task. Reflections describe *what* they did rather than why it matters",
     "Usually works hard and stays engaged; occasional lapses. Reflections show an understanding of why participation matters, though examples are general",
     "Always gives full effort and stays engaged the whole lesson, including in activities they do not naturally enjoy. Reflections explain *why* regular participation matters, using specific examples from their own experience"
+   ],
+   "student": [
+    "I have trouble participating actively and rarely show that I understand why it matters",
+    "I sometimes participate actively and am beginning to show that I understand why it matters",
+    "I participate actively and mostly show that I understand why regular participation matters",
+    "I participate actively and consistently show that I understand why regular participation in a wide variety of activities matters, including in activities I don't naturally enjoy"
    ]
   },
   "team": {
    "name": "Social Skills",
+   "code": "PE.G6-10.S4",
    "levels": [
     "Rarely communicates positively or contributes to the team",
     "Contribution and communication are inconsistent",
     "Communicates respectfully and helps the team most of the time",
     "Consistently communicates positively, encourages others, and actively helps teammates take part"
+   ],
+   "student": [
+    "I rarely communicate positively or help my team",
+    "I sometimes help my team, but how I join in and communicate changes from lesson to lesson",
+    "I communicate respectfully and help my team most of the time",
+    "I always communicate positively, encourage others and help my teammates take part"
    ]
   },
   "ready": {
    "name": "Self Management",
+   "code": "ATL.SM.manageself",
    "levels": [
     "Often unprepared, late, or missing kit",
     "Sometimes unprepared or late to start; occasionally missing kit",
     "Usually prepared and on time; may need rare reminders",
     "Always prepared with full kit, on time, ready to start without reminders"
+   ],
+   "student": [
+    "I am often late, not ready, or missing kit",
+    "I am sometimes late or not ready to start, and sometimes I forget kit",
+    "I am usually ready and on time; I rarely need a reminder",
+    "I am always ready with full kit, on time, and start without reminders"
    ]
   },
   "growth": {
    "name": "Growth Mindset",
+   "code": "ATL.SM.growthmindset",
    "levels": [
     "Avoids challenges, refuses tasks, or gives up quickly",
     "Sometimes avoids challenges or gives up when frustrated",
     "Open to challenges and generally keeps trying after mistakes",
     "Embraces challenges, tries new things, stays positive even after setbacks"
+   ],
+   "student": [
+    "I avoid challenges, refuse tasks, or give up quickly",
+    "I sometimes avoid challenges or give up when I get frustrated",
+    "I am open to challenges and usually keep trying after mistakes",
+    "I take on challenges, try new things and stay positive even when things go wrong"
    ]
   },
   "manage": {
    "name": "Self Awareness",
+   "code": "ATL.SC.self",
    "levels": [
     "Disruptive or unable to manage behaviour despite reminders",
     "Needs frequent reminders to stay on track",
     "Usually self-manages well; responds to reminders",
     "Consistently manages behaviour and emotions positively without reminders"
+   ],
+   "student": [
+    "I find it hard to manage my behaviour, even with reminders",
+    "I need a lot of reminders to stay on track",
+    "I usually manage myself well, and I respond when I am reminded",
+    "I always manage my behaviour and feelings in a positive way, without reminders"
    ]
   }
  }
@@ -1075,7 +1159,7 @@ async function rawCall(action, payload) {
 }
 // Apps Script caps simultaneous runs; a whole class tapping at once produces
 // transient errors. Retry those with backoff; permanent ones surface at once.
-const PERMANENT = /Unknown style|Unknown action|Incomplete|class list|not connected|Bad request|out of range|not a number|locked|missing|whole numbers|rate at least|too long|unknown checkpoint|teacher/i;
+const PERMANENT = /Unknown style|Unknown action|Incomplete|class list|not connected|Bad request|out of range|not a number|locked|missing|whole numbers|rate at least|too long|unknown checkpoint|teacher|Unknown focus|Unknown word|Unknown rater|Rating must|No students/i;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function call(action, payload) {
   if (demo) return demoCall(action, payload || {});
@@ -1418,7 +1502,7 @@ function profileView(b) {
     fitSummary(m) +
     '<h3 class="sec sec-fund"><span class="em">🧩</span> Fundamental skills <span class="tap">· self → peer → teacher · tap a skill</span><button type="button" class="secbtn" id="tomyskills">✎ Record my levels</button></h3><p class="seclede">Seven building blocks, each a 6-level ladder. Same test every Combine, so your level climbs over the year.</p>' +
     '<div class="grid3">' + fund + '</div>' +
-    '<h3 class="sec sec-ap"><span class="em">🤝</span> Active participation <span class="tap">· all year</span><button type="button" class="secbtn" id="toapself">✎ Rate myself</button></h3><p class="seclede">Your biggest all-year story — how you show up, tracked through every unit.</p>' +
+    '<h3 class="sec sec-ap"><span class="em">🤝</span> Active participation <span class="tap">· all year</span>' + (AP_SELF_IN_APP ? '<button type="button" class="secbtn" id="toapself">✎ Rate myself</button>' : '') + '</h3><p class="seclede">Your biggest all-year story — how you show up, tracked through every unit.</p>' +
     '<div class="aptrend" id="aptrend">' + apCompare() + apTrend() + '</div>' +
     '<h3 class="sec sec-rep"><span class="em">🧠</span> My report picture <span class="tap">· tap for how it’s built</span></h3><p class="seclede">The three grades on your Canvas report — a best fit across the descriptors.</p>' +
     '<div class="grid3">' + bandV('rp-know', '🧠', 'Knowledge', 'knowledge') + bandV('rp-skill', '🎯', 'Skills', 'skills') + bandV('rp-ct', '🔄', 'Concept transfer', 'concept') + '</div>' +
@@ -1683,12 +1767,17 @@ const AP_BANDS = [
   { name: 'Got it',      e: '✅', tag: 'Doing it well',   v: 5, cls: 'b2' },
   { name: 'Leading',     e: '🌟', tag: 'Lifting others', v: 7, cls: 'b3' }
 ];
+// Students rate themselves at the end-of-lesson check-out (teacher's iPad), not on their own device.
+// Flip to true to bring back "✎ Rate myself" (e.g. for Health).
+const AP_SELF_IN_APP = false;
 const bandIx = v => v == null ? null : (v >= 6.5 ? 3 : v >= 4.5 ? 2 : v >= 2.5 ? 1 : 0);
 const bandOf = v => { const i = bandIx(v); return i == null ? null : AP_BANDS[i]; };
 const rubTxt = t => esc(String(t || '').replace(/\*/g, ''));
+// What a band looks like, in the student's own words ("I…") where the rubric bank has them.
+const apMine = (R, k, i) => (R[k].student && R[k].student[i]) || R[k].levels[i];
 let apKey = 'all', apDraft = null;
 const AP_SHORT = { ready: 'Ready', effort: 'Effort', growth: 'Growth', team: 'Team', manage: 'Self' };
-function apLog() { const m = measured(); return (m && m.apLog) || { self: [], teacher: [] }; }
+function apLog() { const m = measured(), l = (m && m.apLog) || { self: [], teacher: [] }; if (!l.lesson) l.lesson = []; return l; }
 function apVal(v, key) {
   if (key !== 'all') return v[key] != null ? v[key] : null;
   if (v.overall != null) return v.overall;
@@ -1701,12 +1790,12 @@ function apTrend() {
   const log = apLog(), key = apKey;
   const chips = '<div class="apchips">' + [['all', '⭐', 'All five']].concat(AP_ROWS).map(r =>
     '<button type="button" class="apchip' + (key === r[0] ? ' on' : '') + '" data-apkey="' + r[0] + '">' + r[1] + ' ' + esc(r[0] === 'all' ? r[2] : AP_SHORT[r[0]]) + '</button>').join('') + '</div>';
-  if (!log.self.length && !log.teacher.length) return '<div class="apempty">Rate yourself to start your line. Your teacher’s grade appears here at mid-semester and the end of each semester.</div>';
+  if (!log.self.length && !log.teacher.length && !log.lesson.length) return '<div class="apempty">' + (AP_SELF_IN_APP ? 'Rate yourself to start your line.' : 'Your end-of-lesson check-outs start your line.') + ' Your teacher’s grade appears here at mid-semester and the end of each semester.</div>';
   const parse = s => { const p = String(s).split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); };
   const y0y = apYearStart().getFullYear();
   const roundDate = t => { if (t.date) return parse(t.date); const md = AP_ROUND_POS[t.round].split('-').map(Number); return new Date(md[0] >= 8 ? y0y : y0y + 1, md[0] - 1, md[1]); };
   // Zoom to the data: first point − 10 days → max(last point, today) + 3 weeks, at least ~10 weeks wide.
-  const pts = log.self.map(e => parse(e.date)).concat(log.teacher.map(roundDate));
+  const pts = log.self.map(e => parse(e.date)).concat(log.teacher.map(roundDate), log.lesson.map(e => parse(e.date)));
   const day = 864e5, today = new Date();
   let x0 = new Date(Math.min.apply(null, pts) - 10 * day), x1 = new Date(Math.max(Math.max.apply(null, pts), today.getTime()) + 21 * day);
   if (x1 - x0 < 70 * day) x1 = new Date(x0.getTime() + 70 * day);
@@ -1724,6 +1813,9 @@ function apTrend() {
   const sp = log.self.map(e => [parse(e.date), apVal(e.v, key)]).filter(p => p[1] != null);
   if (sp.length > 1) g += '<polyline class="apself" points="' + sp.map(p => xOf(p[0]).toFixed(1) + ',' + yOf(p[1]).toFixed(1)).join(' ') + '"/>';
   sp.forEach(p => { g += '<circle class="apdot" cx="' + xOf(p[0]).toFixed(1) + '" cy="' + yOf(p[1]).toFixed(1) + '" r="3.6"><title>Me · ' + p[0].toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + ' · ' + bandOf(p[1]).name + '</title></circle>'; });
+  // lesson check-out ratings: a small square, so they never read as the Canvas grade (the diamond)
+  log.lesson.forEach(e => { const v = apVal(e.v, key); if (v == null) return; const x = xOf(parse(e.date)), y = yOf(v) + 7;
+    g += '<rect class="aplesson" x="' + (x - 3).toFixed(1) + '" y="' + (y - 3).toFixed(1) + '" width="6" height="6" rx="1"><title>Teacher in a lesson · ' + parse(e.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + ' · ' + bandOf(v).name + '</title></rect>'; });
   log.teacher.forEach(t => { const v = apVal(t.v, key); if (v == null) return; const x = xOf(roundDate(t)), y = yOf(v);
     g += '<path class="aptchr" d="M' + x + ' ' + (y - 8) + 'L' + (x + 8) + ' ' + y + 'L' + x + ' ' + (y + 8) + 'L' + (x - 8) + ' ' + y + 'Z"><title>Teacher · ' + esc(t.label) + ' · ' + bandOf(v).name + '</title></path>' +
       '<text x="' + x + '" y="' + (y > H - B - 22 ? y - 13 : y + 22) + '" class="aptl" text-anchor="middle">' + esc(t.label) + '</text>'; });
@@ -1742,11 +1834,11 @@ function apTrend() {
       : me > tb ? 'You put yourself at <b>' + M + '</b>; at ' + esc(lastT[1]) + ' your teacher had you at <b>' + T + '</b>. What could you show more of so your teacher sees it too?'
       : 'Your teacher has you at <b>' + T + '</b>, higher than you rate yourself. You’re doing better than you think 💪'; }
   else if (lastS != null) say = 'Your teacher’s first band arrives at mid-semester. Keep checking in so you can compare.';
-  else if (lastT) say = 'Your teacher has placed you. Tap ✎ Rate myself to see how your view compares.';
+  else if (lastT) say = AP_SELF_IN_APP ? 'Your teacher has placed you. Tap ✎ Rate myself to see how your view compares.' : 'Your teacher has placed you. Your end-of-lesson check-outs will show how your view compares.';
   const tail = (say ? '<p class="apsay">' + say + '</p>' : '') + apNextStep(log, key);
   if (!apEnough(log)) return tail + '<p class="apunlock">📈 Your line through the year appears after ' + AP_LINE_MIN + ' check-ins over a few weeks (' + log.self.length + ' so far).</p>';
   return tail + '<div class="ap-hd ap-hd2">📈 My check-ins over time</div>' + chips + '<svg class="apchart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="My active participation self-checks and my teacher’s grades over the year">' + g + '</svg>' +
-    '<div class="aplegend"><span><i class="lg-me"></i>Me (' + log.self.length + ' check' + (log.self.length === 1 ? '' : 's') + ')</span><span><i class="lg-t"></i>My teacher</span></div>';
+    '<div class="aplegend"><span><i class="lg-me"></i>Me (' + log.self.length + ' check' + (log.self.length === 1 ? '' : 's') + ')</span><span><i class="lg-t"></i>My teacher’s grade</span>' + (log.lesson.length ? '<span><i class="lg-l"></i>My teacher in lessons</span>' : '') + '</div>';
 }
 const AP_LINE_MIN = 4;
 function apEnough(log) {
@@ -1773,7 +1865,7 @@ function apCompare() {
     const mine = AP_KEYS_C.map(latestSelf).filter(v => v != null);
     out += row('', '🏅', 'Overall · ' + lastT.label, mine.length ? mine.reduce((a, b) => a + b, 0) / mine.length : null, lastT.v.overall, 'me');
   }
-  if (!log.self.length) out += '<button type="button" class="ct-btn apc-cta" id="toapself2">✎ Rate myself on the five keys</button>';
+  if (!log.self.length && AP_SELF_IN_APP) out += '<button type="button" class="ct-btn apc-cta" id="toapself2">✎ Rate myself on the five keys</button>';
   out += AP_ROWS.map(r => row('ap-' + r[0], r[1], r[2], latestSelf(r[0]), lastT && lastT.v[r[0]] != null ? lastT.v[r[0]] : null)).join('');
   return '<div class="apcompare">' + out +
     '<div class="aplegend"><span><i class="lg-me2"></i>Me (latest check-in)</span><span><i class="lg-t"></i>My teacher' + (lastT ? ' (' + esc(lastT.label) + ')' : '') + '</span></div></div>';
@@ -1792,8 +1884,8 @@ function apNextStep(log, key) {
   if (!cur || !R[k]) return '';
   const band = bandIx(cur[0]), row = AP_ROWS.find(r => r[0] === k), now = AP_BANDS[band], nx = AP_BANDS[band + 1];
   return '<div class="apnext"><div class="apn-h">🎯 ' + (key === 'all' ? 'Your focus: ' : 'Next step: ') + row[1] + ' ' + esc(row[2]) + '</div>' +
-    (band === 3 ? '<p>You’re <b>🌟 Leading</b>. Keep it going: ' + rubTxt(R[k].levels[3]) + '.</p>'
-      : '<p>' + (cur[1] === 'teacher' ? 'Your teacher has you at ' : 'You put yourself at ') + '<b>' + now.e + ' ' + now.name + '</b>. To reach <b>' + nx.e + ' ' + nx.name + '</b>: ' + rubTxt(R[k].levels[band + 1]) + '.</p>') + '</div>';
+    (band === 3 ? '<p>You’re <b>🌟 Leading</b>. Keep it going: ' + rubTxt(apMine(R, k, 3)) + '.</p>'
+      : '<p>' + (cur[1] === 'teacher' ? 'Your teacher has you at ' : 'You put yourself at ') + '<b>' + now.e + ' ' + now.name + '</b>. To reach <b>' + nx.e + ' ' + nx.name + '</b>: ' + rubTxt(apMine(R, k, band + 1)) + '.</p>') + '</div>';
 }
 function apSelfView() {
   const d = apDraft || (apDraft = {}), R = (window.RUBRICS || {}).ap || {};
@@ -1801,7 +1893,7 @@ function apSelfView() {
     const pick = d[k] != null ? bandIx(d[k]) : null;
     return '<div class="aprow"><div class="apr-h"><span class="em">' + em + '</span><span><b>' + esc(name) + '</b><small>' + esc(sub) + '</small></span></div>' +
       '<div class="apr-b">' + AP_BANDS.map((b, i) => '<button type="button" class="apb ' + b.cls + (pick === i ? ' on' : '') + '" data-k="' + k + '" data-n="' + b.v + '"><span class="apb-e">' + b.e + '</span><b>' + b.name + '</b><small>' + b.tag + '</small></button>').join('') + '</div>' +
-      (pick != null && R[k] ? '<p class="apr-desc">' + AP_BANDS[pick].e + ' <b>' + AP_BANDS[pick].name + '</b> looks like: ' + rubTxt(R[k].levels[pick]) + '.' + (pick < 3 ? '<br><span>Next: ' + AP_BANDS[pick + 1].e + ' ' + rubTxt(R[k].levels[pick + 1]) + '.</span>' : '') + '</p>' : '') + '</div>';
+      (pick != null && R[k] ? '<p class="apr-desc">' + AP_BANDS[pick].e + ' <b>' + AP_BANDS[pick].name + '</b> looks like: ' + rubTxt(apMine(R, k, pick)) + '.' + (pick < 3 ? '<br><span>Next: ' + AP_BANDS[pick + 1].e + ' ' + rubTxt(apMine(R, k, pick + 1)) + '.</span>' : '') + '</p>' : '') + '</div>';
   }).join('');
   const n = Object.keys(d).length;
   return '<div class="wrap">' + backBtn() +
@@ -2721,6 +2813,7 @@ function demoBar() {
 function teacherLanding(b) {
   return '<div class="wrap"><div class="phero"><div class="k">TEACHER</div><h1>G8 PE — class view</h1><p>Signed in as <code>' + esc(b.email) + '</code>. Open the class dashboard to see everyone’s Combine and record the skill-ladder results your classes run.</p></div>' +
     '<div class="done"><button type="button" class="ct-btn" id="toclass">Open class dashboard ↗</button></div>' +
+    '<button type="button" class="co-entry" id="tocheckout"><span class="ce-i">📲</span><span class="ce-t"><b>AP Check-out</b><span>60 seconds at the end of the lesson: students tap how they did on today’s AP focus, you rate a spotlight group.</span></span><span class="sg-go">Go ↗</span></button>' +
     '<div class="demobox"><h3>👀 View as a student</h3><p>Show the class what to do, on the board. Uses a <b>made-up student</b>, so no real names or results appear, and nothing is saved.</p>' +
     '<div class="demobtns"><button type="button" class="ct-btn" data-demo="fresh">New student</button><button type="button" class="ct-btn ghost" data-demo="example">Mid-unit example</button></div>' +
     '<p class="small">New student: an empty profile, starting from the Athlete Pack. Mid-unit example: Combine done, goals set and a workout built.</p></div>' +
@@ -2746,6 +2839,7 @@ function classView() {
   const cpBtns = CPS.map(cp => '<button type="button" class="cpbtn' + (cp === teacherCp ? ' on' : '') + '" data-cp="' + cp + '">' + CP_LABEL[cp] + '</button>').join('');
   return '<div class="wrap wide">' +
     '<button type="button" class="back light" id="toprofileT">← Back</button>' + (state.role === 'teacher' ? '<button type="button" class="back light" id="todemo" style="margin-left:8px">👀 View as a student</button>' : '') +
+    '<button type="button" class="co-entry slim" id="tocheckout2">📲 AP Check-out</button><button type="button" class="back light" id="toapsum" style="margin-left:8px">📊 AP check-out summary</button>' +
     '<div class="phero tight"><div class="k">TEACHER · GRADEBOOK</div><h1>Class dashboard</h1><p>' + rows.length + ' student' + (rows.length === 1 ? '' : 's') + (teacherFilter === 'all' ? '' : ' · ' + esc(teacherFilter)) + '. Tap a skill or band cell to set it. 🔒 locks a student so they can’t change their own entries.</p></div>' +
     '<div class="mxbar">' +
       '<label class="mxf">Class <select id="mxclass">' + classOpts + '</select></label>' +
@@ -2925,6 +3019,209 @@ async function saveMySkillsUI() {
     state.student.combine = m;
     toast('Levels saved.'); show(lastHub);
   } catch (e) { btn.disabled = false; btn.textContent = 'Save my levels'; toast('Couldn’t save: ' + e.message, true); }
+}
+
+// ═══════════════ AP check-out: 60-second end-of-lesson routine on the teacher's iPad ═══════════════
+// Teacher picks a class and ONE AP focus; students tap name → band (words only) → one word (or skip).
+// The teacher rates a rotating spotlight group 1–7 (stored as 'lesson', never as a Canvas grade).
+// The roster call never returns ratings, and the kiosk shows nothing but a ✓ once a student has tapped.
+const CO_FOCUS = { effort: ['🔥', 'Best effort'], team: ['🙌', 'Great teammate'], ready: ['✅', 'Be ready'], growth: ['🌱', 'Growth mindset'], manage: ['🧘', 'Manage myself'] };
+const CO_ORDER = ['effort', 'team', 'ready', 'growth', 'manage'];
+const CO_KEY = 'pe_checkout';
+let co = null; // { from, roster, klass, focus, step, sel, rating, given:{email:{rating,word}}, saving:{email:true} }
+// Bands come from AP_BANDS (Not yet · Approaching · Got it · Leading); wording from the rubric bank.
+function coBandCls(v) { const i = bandIx(v); return i == null ? 'lv0' : 'kb' + i; }
+function coDesc(key, v) { const a = RUBRICS.ap[key], i = bandIx(v); return i == null ? '' : String(a.levels[i]).replace(/\*/g, ''); }
+function coMine(key, i) { const a = RUBRICS.ap[key]; return String((a.student && a.student[i]) || a.levels[i]).replace(/\*/g, ''); }
+function coRemember() { try { sessionStorage.setItem(CO_KEY, JSON.stringify({ date: co.roster && co.roster.date, klass: co.klass, focus: co.focus })); } catch (e) {} }
+function coRecall(date) { try { const j = JSON.parse(sessionStorage.getItem(CO_KEY) || 'null'); return j && j.date === date ? j : null; } catch (e) { return null; } }
+function coName(s) { return s.first + (s.lastInitial ? ' ' + s.lastInitial + '.' : ''); }
+function coStudent(email) { return ((co.roster && co.roster.students) || []).find(s => s.email === email) || null; }
+
+async function openCheckout(from) {
+  co = { from: from || 'landing', roster: null, klass: '', focus: '', step: 'names', sel: null, rating: null, given: {}, saving: {} };
+  $('#app').innerHTML = '<div class="loading"><div class="spinner"></div>Loading classes…</div>';
+  try {
+    co.roster = await call('checkoutRoster', {});
+    const last = coRecall(co.roster.date);
+    if (last && co.roster.classes.indexOf(last.klass) !== -1) { co.focus = CO_FOCUS[last.focus] ? last.focus : ''; await coLoadClass(last.klass, true); return; }
+    show('checkout');
+  } catch (e) { toast('Couldn’t open the check-out: ' + e.message, true); coLeave(); }
+}
+async function coLoadClass(klass, quiet) {
+  try {
+    co.roster = await call('checkoutRoster', { klass: klass, focus: co.focus });
+    co.klass = co.roster.klass; coRemember(); show('checkout');
+  } catch (e) { if (!quiet) toast('Couldn’t load ' + klass + ': ' + e.message, true); co.klass = ''; show('checkout'); }
+}
+function coLeave() { const from = co ? co.from : 'landing'; co = null; if (from === 'class' && classData) show('class'); else if (state.role === 'student') show('profile'); else renderTeacher(state); }
+
+function checkoutSetupView() {
+  const r = co.roster, studs = r.students || [];
+  const doneSelf = studs.filter(s => s.doneToday.self).length, doneT = studs.filter(s => s.doneToday.teacher).length;
+  const classBtns = r.classes.map(c => '<button type="button" class="co-chip' + (c === co.klass ? ' on' : '') + '" data-coclass="' + esc(c) + '">' + esc(c) + '</button>').join('') || '<span class="small">No classes on the Students tab yet.</span>';
+  const focusBtns = CO_ORDER.map(k => { const a = RUBRICS.ap[k], f = CO_FOCUS[k];
+    return '<button type="button" class="co-focus' + (k === co.focus ? ' on' : '') + '" data-cofocus="' + k + '"><span class="cf-e">' + f[0] + '</span><span class="cf-t"><b>' + esc(f[1]) + '</b><span>' + esc(a.name) + ' · ' + esc(a.code) + '</span></span></button>'; }).join('');
+  const ready = co.klass && co.focus;
+  return '<div class="wrap">' +
+    '<button type="button" class="back light" id="coback">← Back</button>' +
+    '<div class="phero tight"><div class="k">AP CHECK-OUT · ' + esc(r.date) + '</div><h1>📲 End-of-lesson check-out</h1><p>Pick the class and today’s <b>one</b> AP focus. At the end of the lesson each student taps their name, a number and one word: about 10 seconds each. Then rate your spotlight group on the same focus.</p></div>' +
+    '<h3 class="sec"><span class="em">👥</span> Class</h3><div class="co-chips">' + classBtns + '</div>' +
+    '<h3 class="sec"><span class="em">🎯</span> AP focus of the day</h3><div class="co-focuses">' + focusBtns + '</div>' +
+    (co.klass ? '<p class="seclede co-count">' + esc(co.klass) + ' · ' + studs.length + ' students' + (co.focus ? ' · today on this focus: <b>' + doneSelf + '</b> checked out, <b>' + doneT + '</b> rated by you' : '') + '</p>' : '') +
+    '<div class="co-go">' +
+      '<button type="button" class="ct-btn" id="cokiosk"' + (ready ? '' : ' disabled') + '>▶ Start student check-out</button>' +
+      '<button type="button" class="ct-btn ghost" id="cospot"' + (ready ? '' : ' disabled') + '>🧑‍🏫 Rate my spotlight group</button>' +
+    '</div>' +
+    '<p class="small">Hand the iPad round, or prop it by the door. To leave the student screen, <b>press and hold</b> “Teacher” for a second, so students can’t wander into your view.</p>' +
+  '</div>';
+}
+
+function kioskTop() {
+  const f = CO_FOCUS[co.focus];
+  return '<div class="ko-top"><span class="ko-f">' + f[0] + ' Today: <b>' + esc(f[1]) + '</b></span><span class="ko-k">' + esc(co.klass) + '</span>' +
+    '<button type="button" class="ko-hold" id="kohold" aria-label="Teacher: press and hold to leave"><i></i>Teacher · hold</button></div>';
+}
+function kioskView() {
+  const studs = co.roster.students, f = CO_FOCUS[co.focus];
+  if (co.step === 'rate' || co.step === 'word') {
+    const s = coStudent(co.sel); if (!s) { co.step = 'names'; return kioskView(); }
+    if (co.step === 'rate') {
+      const rows = AP_BANDS.map((b, i) => '<button type="button" class="ko-band kb' + i + '" data-rate="' + b.v + '"><span class="ko-lv">' + b.e + ' ' + esc(b.name) + '</span><span class="ko-bt">' + esc(coMine(co.focus, i)) + '</span></button>').reverse().join('');
+      return '<div class="wrap kiosk">' + kioskTop() +
+        '<div class="ko-q"><h1>Hi ' + esc(s.first) + ' 👋</h1><p>' + f[0] + ' <b>' + esc(f[1]) + '</b>: how did you do today? Tap the one that fits best.</p></div>' +
+        '<div class="ko-bands">' + rows + '</div>' +
+        '<button type="button" class="back light ko-back" data-kback="1">← Not me</button></div>';
+    }
+    return '<div class="wrap kiosk">' + kioskTop() +
+      '<div class="ko-q"><h1>One word for today?</h1><p>Pick the one that fits, or skip.</p></div>' +
+      '<div class="ko-words">' + co.roster.words.map((w, i) => '<button type="button" class="ko-w" data-word="' + i + '">' + esc(w) + '</button>').join('') + '</div>' +
+      '<div class="ko-row"><button type="button" class="back light" data-kback="1">← Change my answer</button><button type="button" class="ct-btn" data-word="skip">Skip ›</button></div></div>';
+  }
+  if (co.step === 'thanks') {
+    const s = coStudent(co.sel);
+    return '<div class="wrap kiosk">' + kioskTop() + '<div class="ko-thanks"><div class="big">✓</div><h1>Thanks' + (s ? ', ' + esc(s.first) : '') + '!</h1><p>Next person: tap your name.</p></div></div>';
+  }
+  const done = studs.filter(s => s.doneToday.self).length;
+  const btns = studs.map(s => {
+    const busy = co.saving[s.email], tick = s.doneToday.self;
+    return '<button type="button" class="ko-name' + (tick ? ' done' : '') + (busy ? ' busy' : '') + '" data-who="' + esc(s.email) + '">' + esc(coName(s)) + (tick ? '<span class="tick">✓</span>' : (busy ? '<span class="tick">…</span>' : '')) + '</button>';
+  }).join('');
+  return '<div class="wrap kiosk">' + kioskTop() +
+    '<div class="ko-q"><h1>Tap your name</h1><p>' + done + ' of ' + studs.length + ' checked out. Tapped by mistake? Tap your name again to change it.</p></div>' +
+    '<div class="ko-names">' + btns + '</div></div>';
+}
+function kioskSave(email, rating, word) {
+  const s = coStudent(email); if (!s) return;
+  co.saving[email] = true;
+  call('saveCheckin', { email: email, focus: co.focus, who: 'self', rating: rating, word: word })
+    .then(() => { s.doneToday.self = true; })
+    .catch(e => { if (!e.authRequired) toast('Couldn’t save ' + s.first + '’s check-out. Tap your name again (' + e.message + ')', true); })
+    .then(() => { delete co.saving[email]; if (co && view === 'kiosk' && co.step === 'names') show('kiosk'); });
+}
+function kioskWire(app) {
+  const w = app.firstElementChild; if (!w) return;
+  w.addEventListener('click', e => {
+    const nm = e.target.closest('[data-who]'); if (nm) { co.sel = nm.getAttribute('data-who'); co.rating = null; co.step = 'rate'; return show('kiosk'); }
+    const rt = e.target.closest('[data-rate]'); if (rt) { co.rating = +rt.getAttribute('data-rate'); co.step = 'word'; return show('kiosk'); }
+    const wd = e.target.closest('[data-word]'); if (wd) {
+      const i = wd.getAttribute('data-word'), word = i === 'skip' ? '' : co.roster.words[+i];
+      kioskSave(co.sel, co.rating, word);
+      co.rating = null; co.step = 'thanks'; show('kiosk');
+      clearTimeout(kioskWire.t); kioskWire.t = setTimeout(() => { if (co && view === 'kiosk' && co.step === 'thanks') { co.sel = null; co.step = 'names'; show('kiosk'); } }, 1100);
+      return;
+    }
+    if (e.target.closest('[data-kback]')) { if (co.step === 'word') co.step = 'rate'; else { co.sel = null; co.step = 'names'; } return show('kiosk'); }
+  });
+  // press-and-hold to leave, so a student can't open the teacher screens with a stray tap
+  const h = $('#kohold'); if (!h) return;
+  let t = null;
+  const cancel = () => { clearTimeout(t); t = null; h.classList.remove('holding'); };
+  h.addEventListener('pointerdown', e => { e.preventDefault(); h.classList.add('holding'); t = setTimeout(() => { cancel(); co.step = 'names'; co.sel = null; coLoadClass(co.klass, true); }, 900); });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => h.addEventListener(ev, cancel));
+  h.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+function spotlightView() {
+  const r = co.roster, f = CO_FOCUS[co.focus], a = RUBRICS.ap[co.focus];
+  const spot = r.spotlight.map(coStudent).filter(Boolean), rest = r.students.filter(s => r.spotlight.indexOf(s.email) === -1);
+  const row = s => {
+    const g = co.given[s.email] || {}, b = bandOf(g.rating), busy = co.saving[s.email];
+    const nums = [1, 2, 3, 4, 5, 6, 7].map(n => '<button type="button" class="sp-n ' + coBandCls(n) + (g.rating === n ? ' on' : '') + '" data-sprate="' + n + '" data-em="' + esc(s.email) + '">' + n + '</button>').join('');
+    const words = r.words.map((w, i) => '<button type="button" class="sp-w' + (g.word === w ? ' on' : '') + '" data-spword="' + i + '" data-em="' + esc(s.email) + '">' + esc(w) + '</button>').join('');
+    return '<div class="sp-row' + (g.rating || s.doneToday.teacher ? ' rated' : '') + '"><div class="sp-nm">' + esc(coName(s)) + (busy ? ' <span class="sp-st">saving…</span>' : (g.rating ? ' <span class="sp-st">✓ saved</span>' : (s.doneToday.teacher ? ' <span class="sp-st">✓ rated today</span>' : ''))) + '</div>' +
+      '<div class="sp-nums">' + nums + '</div>' + (b ? '<div class="sp-desc"><b>' + b.e + ' ' + esc(b.name) + '</b> · ' + esc(coDesc(co.focus, g.rating)) + '</div>' : '') +
+      '<div class="sp-words">' + words + '</div></div>';
+  };
+  return '<div class="wrap">' +
+    '<button type="button" class="back light" id="spback">← Check-out setup</button>' +
+    '<div class="phero tight"><div class="k">SPOTLIGHT · ' + esc(co.klass) + ' · ' + esc(r.date) + '</div><h1>' + f[0] + ' ' + esc(f[1]) + '</h1><p>' + esc(a.name) + ' · ' + esc(a.code) + '. Tap 1–7 to save; add a word if it helps. Spotlight = the students you’ve rated least in the last 30 days. These are lesson ratings: they never change a Canvas grade.</p></div>' +
+    '<h3 class="sec"><span class="em">🔦</span> Spotlight today</h3>' + (spot.map(row).join('') || '<p class="seclede">No students in this class.</p>') +
+    (rest.length ? '<details class="sp-more"' + (co.moreOpen ? ' open' : '') + '><summary>Rate someone else in ' + esc(co.klass) + ' (' + rest.length + ')</summary>' + rest.map(row).join('') + '</details>' : '') +
+  '</div>';
+}
+function spotSave(email) {
+  const g = co.given[email], s = coStudent(email); if (!g || !g.rating || !s) return;
+  co.saving[email] = true;
+  call('saveCheckin', { email: email, focus: co.focus, who: 'teacher', rating: g.rating, word: g.word || '' })
+    .then(() => { s.doneToday.teacher = true; })
+    .catch(e => { if (!e.authRequired) { delete g.rating; toast('Couldn’t save ' + s.first + ': ' + e.message, true); } })
+    .then(() => { delete co.saving[email]; if (co && view === 'spotlight') { const y = window.scrollY; show('spotlight'); window.scrollTo(0, y); } });
+}
+function spotWire(app) {
+  const w = app.firstElementChild; if (!w) return;
+  const more = w.querySelector('.sp-more'); if (more) more.addEventListener('toggle', () => { co.moreOpen = more.open; });
+  w.addEventListener('click', e => {
+    const n = e.target.closest('[data-sprate]'), wd = e.target.closest('[data-spword]'); if (!n && !wd) return;
+    const em = (n || wd).getAttribute('data-em'), g = co.given[em] || (co.given[em] = {});
+    if (n) g.rating = +n.getAttribute('data-sprate');
+    else { const word = co.roster.words[+wd.getAttribute('data-spword')]; g.word = g.word === word ? '' : word; }
+    const y = window.scrollY;
+    if (g.rating) spotSave(em);
+    show('spotlight'); window.scrollTo(0, y);
+  });
+}
+
+// Teacher: per-student check-out summary to support the Canvas rubric.
+function apSummaryView() {
+  const rows = mxRows();
+  const head = CO_ORDER.map(k => '<th class="mx-c" title="' + esc(RUBRICS.ap[k].name + ' · ' + RUBRICS.ap[k].code) + '">' + CO_FOCUS[k][0] + ' ' + esc(CO_FOCUS[k][1]) + '</th>').join('');
+  const body = rows.map(s => {
+    const sum = s.checkinSummary || {};
+    const cells = CO_ORDER.map(k => {
+      const c = sum[k]; if (!c) return '<td class="mx-c"><span class="muted">·</span></td>';
+      const basis = c.lessonAvg != null ? c.lessonAvg : c.selfAvg, b = bandOf(basis);
+      return '<td class="mx-c"><button type="button" class="aps ' + coBandCls(basis) + '" data-aps="' + esc(s.id) + '|' + k + '">' +
+        '<b>' + (b ? b.e + ' ' + esc(b.name) : '—') + '</b><span>L ' + (c.lessonAvg == null ? '–' : c.lessonAvg) + ' (' + c.lessonN + ') · S ' + (c.selfAvg == null ? '–' : c.selfAvg) + ' (' + c.selfN + ')</span></button></td>';
+    }).join('');
+    return '<tr><td class="mx-nm">' + esc(s.name) + '</td><td class="mx-cl">' + esc(s.klass) + '</td>' + cells + '</tr>';
+  }).join('');
+  const classOpts = ['all'].concat(mxClasses()).map(c => '<option value="' + esc(c) + '"' + (c === teacherFilter ? ' selected' : '') + '>' + (c === 'all' ? 'All classes' : esc(c)) + '</option>').join('');
+  return '<div class="wrap wide">' +
+    '<button type="button" class="back light" id="apsback">← Class dashboard</button>' +
+    '<div class="phero tight"><div class="k">TEACHER · AP CHECK-OUT SUMMARY</div><h1>Active Participation</h1><p>Lesson check-outs per student and AP criterion: <b>L</b> = your lesson ratings (average and count), <b>S</b> = the student’s own check-ins. The band comes from your average, or the student’s if you haven’t rated them yet. Canvas grades are not in here and are never changed by this: it’s evidence for your summative judgement. Tap a cell for the descriptors.</p></div>' +
+    '<div class="mxbar"><label class="mxf">Class <select id="apsclass">' + classOpts + '</select></label><div class="mxact"><button type="button" class="minib" id="apscsv">⬇ CSV</button></div></div>' +
+    '<div class="tablewrap mxwrap"><table class="mx aps-t"><thead><tr><th class="mx-nm">Student</th><th class="mx-cl">Class</th>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>' +
+  '</div>';
+}
+function apsOverlay(id, k) {
+  const s = classData.students.find(x => x.id === id); if (!s) return;
+  const c = (s.checkinSummary || {})[k], a = RUBRICS.ap[k], basis = c ? (c.lessonAvg != null ? c.lessonAvg : c.selfAvg) : null, here = bandIx(basis);
+  let html = '<button class="x" type="button" data-close="1">✕</button><h4>' + CO_FOCUS[k][0] + ' ' + esc(a.name) + '</h4><div class="om">' + esc(a.code) + ' · ' + esc(s.name) +
+    (c ? ' · lessons ' + (c.lessonAvg == null ? '–' : c.lessonAvg) + ' over ' + c.lessonN + ', self ' + (c.selfAvg == null ? '–' : c.selfAvg) + ' over ' + c.selfN + ' · last ' + esc(c.last) : '') + '</div>';
+  const RANGE = ['1–2', '3–4', '5–6', '7'];
+  AP_BANDS.map((b, i) => [b, i]).reverse().forEach(([b, i]) => { const on = here === i; html += '<div class="lad' + (on ? ' here' : '') + '"><span class="lv">' + RANGE[i] + '</span><span><b>' + b.e + ' ' + esc(b.name) + '.</b> ' + esc(String(a.levels[i]).replace(/\*/g, '')) + '</span>' + (on ? '<span class="youre">suggested</span>' : '') + '</div>'; });
+  $('#ovcard').innerHTML = html; $('#ov').classList.add('show');
+}
+function apsCsv() {
+  const data = [['Student', 'Class'].concat(...CO_ORDER.map(k => [RUBRICS.ap[k].name + ' band', RUBRICS.ap[k].name + ' lesson avg', 'lesson n', RUBRICS.ap[k].name + ' self avg', 'self n']))];
+  mxRows().forEach(s => { const sum = s.checkinSummary || {};
+    data.push([s.name, s.klass].concat(...CO_ORDER.map(k => { const c = sum[k]; if (!c) return ['', '', 0, '', 0]; const b = bandOf(c.lessonAvg != null ? c.lessonAvg : c.selfAvg);
+      return [b ? b.name : '', c.lessonAvg == null ? '' : c.lessonAvg, c.lessonN, c.selfAvg == null ? '' : c.selfAvg, c.selfN]; }))); });
+  const csv = data.map(r => r.map(c => { c = String(c); return /[",\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; }).join(',')).join('\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const el = document.createElement('a'); el.href = url; el.download = 'g8-pe-ap-checkout-' + (teacherFilter === 'all' ? 'all' : teacherFilter.replace(/\W+/g, '')) + '.csv';
+  document.body.appendChild(el); el.click(); el.remove(); URL.revokeObjectURL(url);
 }
 
 function message(big, title, body, extra) {
@@ -3144,6 +3441,7 @@ function show(v, arg) {
     app.innerHTML = classView();
     wire('toprofileT', () => { if (state.role === 'student') show('profile'); else renderTeacher(state); });
     wire('todemo', () => startDemo('fresh'));
+    wire('tocheckout2', () => openCheckout('class')); wire('toapsum', () => show('apsummary'));
     const cl = $('#mxclass'); if (cl) cl.addEventListener('change', () => { teacherFilter = cl.value; show('class'); });
     document.querySelectorAll('.cpbtn').forEach(b => b.addEventListener('click', () => { teacherCp = b.getAttribute('data-cp'); show('class'); }));
     document.querySelectorAll('th[data-sort]').forEach(th => th.addEventListener('click', () => { const c = th.getAttribute('data-sort'); if (teacherSort.col === c) teacherSort.dir *= -1; else teacherSort = { col: c, dir: 1 }; show('class'); }));
@@ -3153,6 +3451,28 @@ function show(v, arg) {
       tbl.addEventListener('click', e => { const ab = e.target.closest('[data-assess]'); if (ab) return show('assess', ab.getAttribute('data-assess')); const lb = e.target.closest('[data-lock]'); if (lb) mxToggleLock(lb.getAttribute('data-lock')); });
     }
     wire('mxlockall', () => mxLockAll(true)); wire('mxunlockall', () => mxLockAll(false)); wire('mxcsv', mxExportCsv);
+  } else if (v === 'checkout') {
+    app.innerHTML = checkoutSetupView();
+    wire('coback', coLeave);
+    wire('cokiosk', () => { co.step = 'names'; co.sel = null; show('kiosk'); });
+    wire('cospot', () => show('spotlight'));
+    onWrap(e => {
+      const c = e.target.closest('[data-coclass]'); if (c) { coLoadClass(c.getAttribute('data-coclass')); return; }
+      const f = e.target.closest('[data-cofocus]'); if (f) { co.focus = f.getAttribute('data-cofocus'); if (co.klass) coLoadClass(co.klass); else { coRemember(); show('checkout'); } }
+    });
+  } else if (v === 'kiosk') {
+    app.innerHTML = kioskView();
+    kioskWire(app);
+  } else if (v === 'spotlight') {
+    app.innerHTML = spotlightView();
+    wire('spback', () => coLoadClass(co.klass, true));
+    spotWire(app);
+    return;
+  } else if (v === 'apsummary') {
+    app.innerHTML = apSummaryView();
+    wire('apsback', () => show('class')); wire('apscsv', apsCsv);
+    const cl = $('#apsclass'); if (cl) cl.addEventListener('change', () => { teacherFilter = cl.value; show('apsummary'); });
+    onWrap(e => { const t = e.target.closest('[data-aps]'); if (t) { const p = t.getAttribute('data-aps').split('|'); apsOverlay(p[0], p[1]); } });
   } else if (v === 'skillentry') {
     currentSid = arg || currentSid;
     app.innerHTML = skillEntryView(currentSid);
@@ -3192,7 +3512,7 @@ function render(b) {
 function renderTeacher(b) {
   document.body.classList.remove('dark');
   $('#app').innerHTML = teacherLanding(b);
-  wire('toclass', loadClass); wire('signout', signOut);
+  wire('toclass', loadClass); wire('signout', signOut); wire('tocheckout', () => openCheckout('landing'));
   document.querySelectorAll('.demobox [data-demo]').forEach(x => x.addEventListener('click', () => startDemo(x.getAttribute('data-demo'))));
 }
 async function loadClass() {
@@ -3209,7 +3529,8 @@ async function boot() {
   try {
     const b = await call('bootstrap'); render(b);
     let pend = null; try { pend = JSON.parse(sessionStorage.getItem('pe_pending') || 'null'); sessionStorage.removeItem('pe_pending'); } catch (x) {}
-    if (pend && b.role === 'student' && /^save/.test(pend.action)) {
+    // A kiosk tap interrupted by an expired sign-in is replayed for the teacher, like a student's own save.
+    if (pend && /^save/.test(pend.action) && (pend.action === 'saveCheckin' ? (b.role === 'teacher' || b.alsoTeacher) : b.role === 'student')) {
       try { await call(pend.action, pend.payload); render(await call('bootstrap')); toast('Saved what you were doing before you signed in ✓'); }
       catch (x) { toast('Couldn’t save your last change: ' + x.message, true); }
     }

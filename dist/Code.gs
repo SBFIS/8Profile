@@ -19,7 +19,8 @@
 //   • identity_() is the only place an identity is established: from the Google
 //     ID token, verified with Google (audience, verified email, FIS domain, expiry).
 //     Nothing in the request body (email, id) is ever trusted for identity.
-//   • Every handler works on the verified caller's own rows. Nothing returns the roster.
+//   • Every student handler works on the verified caller's own rows. Class data (the
+//     dashboard, the AP check-out kiosk) is returned only behind requireTeacher_().
 //   • Errors returned to the client never contain an email (they reach Stackdriver logs).
 //   • The photo is the picture claim of the student's own token, passed through at
 //     runtime. Nothing is copied or stored.
@@ -66,6 +67,13 @@ var SKILL_MIN = 1, SKILL_MAX = 6;
 var AP_ROUNDS = ['s1-mid', 's1-end', 's2-mid', 's2-end'];
 var AP_ROUND_LABELS = { 's1-mid': 'S1 mid', 's1-end': 'S1 end', 's2-mid': 'S2 mid', 's2-end': 'S2 end' };
 var AP_SELF_MAX = 120; // most recent self-checks returned per student
+// AP check-out (end of lesson, on the teacher's iPad): one AP key is the focus of the day.
+// A student's tap is a self-check (Source 'self'); the teacher's lesson rating has its own
+// Source 'lesson' and is never mixed with the summative Canvas grades (Source 'teacher').
+var CHECKIN_WORDS = ['Cheered someone on', 'Tried my best', 'Tried something new', 'Helped set up', 'Stayed focused', 'Lost focus', 'Gave up a bit', 'Forgot kit'];
+var CHECKIN_WHO = { self: 'self', teacher: 'lesson' };
+var CHECKIN_DAYS_SPOTLIGHT = 30; // window for "fewest lesson ratings"
+var SPOTLIGHT_SIZE = 5;
 // Canvas Learning Mastery outcome → AP key. Matched case-insensitively inside each export header.
 var AP_CANVAS = [
   { key: 'effort', match: ['c1'] },
@@ -92,7 +100,7 @@ var TABS = {
   Combine:       ['Email', 'Checkpoint'].concat(FIT_KEYS).concat(['Updated']),   // students enter their own fitness numbers
   Skills:        ['Email', 'Checkpoint'].concat(SKILL_KEYS).concat(['Updated']), // teachers enter the skill-ladder levels
   Participation: apHeaders_(),                                                   // teacher-reported, self + teacher per key
-  APLog:         ['Email', 'Date', 'Source', 'Round'].concat(AP_KEYS).concat(['Updated', 'overall']), // every AP rating: student self-checks (often) + teacher grades (4 rounds); overall = the single Canvas AP grade
+  APLog:         ['Email', 'Date', 'Source', 'Round'].concat(AP_KEYS).concat(['Updated', 'overall', 'Word']), // every AP rating: student self-checks (often) + teacher grades (4 rounds) + teacher lesson ratings ('lesson'); overall = the single Canvas AP grade; Word = check-out evidence word
   Bands:         ['Email'].concat(BAND_KEYS).concat(['Updated']),                // the three report bands
   Outcomes:      ['Email', 'Outcome', 'Value', 'Updated'],                       // latest 1–7 per standard (K1…C3), imported from Canvas Learning Mastery
   Goals:         ['Email', 'Component', 'Goal', 'Updated', 'Target'],            // focus goals: Target added last so it appends cleanly onto an existing Goals tab; plus one '_note' row
@@ -281,7 +289,7 @@ function doPost(e) {
 }
 // Opening the API URL in a browser is not the app; say so, with no data.
 // Bump with each server change: opening the /exec link in a browser shows which build is live.
-var BUILD = '2026-10-26 · workout assessment evidence';
+var BUILD = '2026-10-26 · workout assessment evidence + AP check-out';
 function doGet() {
   return ContentService.createTextOutput(JSON.stringify({ ok: false, build: BUILD, error: 'This is the data service for My PE Profile. Open the app link your PE teacher shared.' }))
     .setMimeType(ContentService.MimeType.JSON);
@@ -305,6 +313,8 @@ function handle_(body) {
     case 'setLock':         return setLock_(cfg, id, body.emails, body.checkpoint, body.locked);
     case 'classOverview':   return classOverview_(cfg, id);
     case 'classStudent':    return classStudent_(cfg, id, body.email);
+    case 'checkoutRoster':  return checkoutRoster_(cfg, id, body.klass, body.focus);
+    case 'saveCheckin':     return saveCheckin_(cfg, id, body.email, body.focus, body.who, body.rating, body.word);
     default: throw new Error('Unknown action');
   }
 }
@@ -365,30 +375,38 @@ function apEntry_(r) {
   AP_KEYS.concat(['overall']).forEach(function (k) { var n = numOrNull_(r[k]); if (n !== null && n >= 1 && n <= 7) { v[k] = n; any = true; } });
   return any ? v : null;
 }
-function apLogIndex_() {
+// self = the student's own checks (own device, Form, or the check-out kiosk), dated;
+// teacher = the summative Canvas rounds; lesson = the teacher's check-out ratings, dated.
+// rows (optional) collects every self/lesson row for the teacher's check-out summary.
+function apLogIndex_(rows) {
   var idx = {};
   readTab_('APLog').forEach(function (r) {
     var email = lower_(r.Email); if (!email) return;
     var v = apEntry_(r); if (!v) return;
-    var o = idx[email] || (idx[email] = { self: [], teacher: {} });
+    var o = idx[email] || (idx[email] = { self: [], teacher: {}, lesson: [] });
     var src = lower_(r.Source);
     if (src === 'teacher') {
       var round = lower_(r.Round); if (AP_ROUNDS.indexOf(round) === -1) return;
       o.teacher[round] = { round: round, label: AP_ROUND_LABELS[round], date: ymd_(r.Date), v: v };
-    } else if (src === 'self') {
+    } else if (src === 'self' || src === 'lesson') {
       var date = ymd_(r.Date); if (!date) return;
-      o.self.push({ date: date, v: v });
+      var e = { date: date, v: v }, word = str_(r.Word);
+      if (word && CHECKIN_WORDS.indexOf(word) !== -1) e.word = word;
+      (src === 'self' ? o.self : o.lesson).push(e);
+      if (rows) rows.push({ email: email, src: src, date: date, v: v });
     }
   });
+  var byDate = function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; };
   Object.keys(idx).forEach(function (e) {
     var o = idx[e];
-    o.self.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    o.self.sort(byDate); o.lesson.sort(byDate);
     if (o.self.length > AP_SELF_MAX) o.self = o.self.slice(-AP_SELF_MAX);
+    if (o.lesson.length > AP_SELF_MAX) o.lesson = o.lesson.slice(-AP_SELF_MAX);
     o.teacher = AP_ROUNDS.filter(function (r) { return o.teacher[r]; }).map(function (r) { return o.teacher[r]; });
   });
   return idx;
 }
-function apLogFor_(email) { return apLogIndex_()[email] || { self: [], teacher: [] }; }
+function apLogFor_(email) { return apLogIndex_()[email] || { self: [], teacher: [], lesson: [] }; }
 
 // Latest self + latest teacher value per key: from the log when there is one,
 // otherwise from the older one-row Participation tab.
@@ -539,6 +557,8 @@ function combineMeta_() {
 }
 
 // ---------- Writes (always for the caller's own row) ----------
+// Sheets turns a typed "2026-10-23" into a Date; compare it as the day string it was written as.
+function cellKey_(v) { return Object.prototype.toString.call(v) === '[object Date]' ? ymd_(v) : v; }
 // Insert-or-update one row of `name`, matched on the `keys` columns (case-insensitive),
 // under a script lock. Columns not in `fields` keep their value.
 function upsert_(name, keys, fields) {
@@ -551,9 +571,11 @@ function upsert_(name, keys, fields) {
     var keyCols = Object.keys(keys).map(function (k) { return headers.indexOf(k); });
     var rowIdx = -1;
     if (lastRow > 1) {
-      var data = s.getRange(2, 1, lastRow - 1, lastCol).getValues();
+      // Only the key columns are read to find the row (e.g. 3 of APLog's 13), then just that row.
+      var c0 = Math.min.apply(null, keyCols), c1 = Math.max.apply(null, keyCols);
+      var data = s.getRange(2, c0 + 1, lastRow - 1, c1 - c0 + 1).getValues();
       for (var i = 0; i < data.length && rowIdx === -1; i++) {
-        var hit = Object.keys(keys).every(function (k, j) { return lower_(data[i][keyCols[j]]) === lower_(keys[k]); });
+        var hit = Object.keys(keys).every(function (k, j) { return lower_(cellKey_(data[i][keyCols[j] - c0])) === lower_(keys[k]); });
         if (hit) rowIdx = i + 2;
       }
     }
@@ -836,14 +858,14 @@ function classOverview_(cfg, id) {
   requireTeacher_(id);
   var combine = indexSeries_('Combine', FIT_KEYS);
   var skills  = indexSeries_('Skills', SKILL_KEYS);
-  var ap = indexAp_(), apLog = apLogIndex_(), bands = indexBands_(), locks = locksIndex_();
+  var ckRows = [], ap = indexAp_(), apLog = apLogIndex_(ckRows), bands = indexBands_(), locks = locksIndex_(), checkins = checkinSummary_(ckRows);
   var out = [];
   readTab_('Students').forEach(function (r) {
     var email = lower_(r.Email); if (!email) return;
     out.push({ id: email, name: str_(r.Name), klass: str_(r.Class),
       fitness: combine[email] || {}, skills: skills[email] || {},
       ap: apLatest_(apLog[email] || { self: [], teacher: [] }, null, ap[email]),
-      bands: bands[email] || {}, locked: locks[email] || {} });
+      bands: bands[email] || {}, locked: locks[email] || {}, checkinSummary: checkins[email] || {} });
   });
   return { role: 'class', students: out, meta: combineMeta_() };
 }
@@ -855,6 +877,96 @@ function classStudent_(cfg, id, targetEmail) {
   return { role: 'classStudent', student: { id: email, name: str_(r.Name), klass: str_(r.Class),
     fitness: fitnessFor_(email), skills: skillsFor_(email), ap: apFor_(email), apLog: apLogFor_(email), bands: bandsFor_(email),
     plan: planFor_(email), goals: goalsFor_(email) } };  // teacher assessment view: the student's workout, goals, log and reflection
+}
+
+// ---------- AP check-out (end-of-lesson routine on the teacher's iPad) ----------
+// The date is always the server's today; the client never sends one.
+function daysAgoYmd_(n) { return ymd_(new Date(Date.now() - n * 86400000)); }
+function round1_(n) { return Math.round(n * 10) / 10; }
+// Teacher view: per student, per AP key { selfAvg, lessonAvg, selfN, lessonN, last } over every
+// self and lesson rating kept. Canvas grades are not in here: they stay in the dashboard as they are.
+function checkinSummary_(rows) {
+  var acc = {};
+  rows.forEach(function (r) {
+    AP_KEYS.forEach(function (k) {
+      var n = r.v[k]; if (n == null) return;
+      var o = acc[r.email] || (acc[r.email] = {}), f = o[k] || (o[k] = { s: 0, sn: 0, l: 0, ln: 0, last: '' });
+      if (r.src === 'self') { f.s += n; f.sn++; } else { f.l += n; f.ln++; }
+      if (r.date > f.last) f.last = r.date;
+    });
+  });
+  var out = {};
+  Object.keys(acc).forEach(function (e) {
+    out[e] = {};
+    Object.keys(acc[e]).forEach(function (k) { var f = acc[e][k];
+      out[e][k] = { selfAvg: f.sn ? round1_(f.s / f.sn) : null, lessonAvg: f.ln ? round1_(f.l / f.ln) : null, selfN: f.sn, lessonN: f.ln, last: f.last }; });
+  });
+  return out;
+}
+// "Last, First" or "First Last" → first name + last initial, for the name buttons.
+function shortName_(raw) {
+  var name = str_(raw).replace(/\s+/g, ' '), first, last;
+  if (name.indexOf(',') !== -1) { last = str_(name.split(',')[0]); first = nameParts_(name).first; }
+  else { var p = name.split(' '); first = p[0] || ''; last = p.length > 1 ? p[p.length - 1] : ''; }
+  return { first: first, lastInitial: last.charAt(0).toUpperCase() };
+}
+// Teacher-only: one class's names for the kiosk, who has checked out today on the focus, and
+// the spotlight five (fewest lesson ratings in 30 days → oldest last lesson rating → alphabetical).
+// Never returns ratings. Without a class, returns just the class list.
+function checkoutRoster_(cfg, id, klass, focus) {
+  requireTeacher_(id);
+  var students = readTab_('Students').filter(function (r) { return lower_(r.Email); });
+  var classes = {}; students.forEach(function (r) { var c = str_(r.Class); if (c) classes[c] = true; });
+  var out = { classes: Object.keys(classes).sort(), words: CHECKIN_WORDS, focuses: AP_KEYS, date: ymd_(new Date()), klass: '', students: [], spotlight: [] };
+  var want = lower_(klass);
+  if (!want) return out;
+  var mine = students.filter(function (r) { return lower_(r.Class) === want; });
+  if (!mine.length) throw new Error('No students in that class');
+  out.klass = str_(mine[0].Class);
+  var f = lower_(focus); if (AP_KEYS.indexOf(f) === -1) f = '';
+  var today = out.date, from = daysAgoYmd_(CHECKIN_DAYS_SPOTLIGHT), stats = {};
+  mine.forEach(function (r) { stats[lower_(r.Email)] = { self: false, teacher: false, recent: 0, last: '' }; });
+  readTab_('APLog').forEach(function (r) {
+    var st = stats[lower_(r.Email)]; if (!st) return;
+    var src = lower_(r.Source); if (src !== 'self' && src !== 'lesson') return;
+    var date = ymd_(r.Date), v = apEntry_(r); if (!date || !v) return;
+    if (date === today && (f ? v[f] != null : true)) st[src === 'self' ? 'self' : 'teacher'] = true;
+    if (src === 'lesson') { if (date >= from) st.recent++; if (date > st.last) st.last = date; }
+  });
+  var rows = mine.map(function (r) {
+    var email = lower_(r.Email), n = shortName_(r.Name);
+    return { email: email, first: n.first, lastInitial: n.lastInitial, sortName: lower_(r.Name), doneToday: { self: stats[email].self, teacher: stats[email].teacher } };
+  });
+  var cmp = function (a, b) { return a < b ? -1 : (a > b ? 1 : 0); };
+  out.spotlight = rows.slice().sort(function (a, b) {
+    var x = stats[a.email], y = stats[b.email];
+    return (x.recent - y.recent) || cmp(x.last, y.last) || cmp(a.sortName, b.sortName) || cmp(a.email, b.email); // never rated ('') sorts first
+  }).slice(0, SPOTLIGHT_SIZE).map(function (r) { return r.email; });
+  out.students = rows.sort(function (a, b) { return cmp(a.first.toLowerCase(), b.first.toLowerCase()) || cmp(a.sortName, b.sortName); })
+    .map(function (r) { return { email: r.email, first: r.first, lastInitial: r.lastInitial, doneToday: r.doneToday }; });
+  return out;
+}
+// Teacher-only: the verified teacher records a check-in for a student on the roster: the
+// student's own tap (who 'self' → a self-check) or the teacher's lesson rating (who 'teacher'
+// → Source 'lesson'). Only today's focus column is set; re-tapping overwrites it. Class and
+// date come from the server, never the request. Canvas rows (Source 'teacher') are never touched.
+function saveCheckin_(cfg, id, targetEmail, focus, who, rating, word) {
+  requireTeacher_(id);
+  var email = lower_(targetEmail);
+  if (!email) throw new Error('Missing student');
+  if (!readTab_('Students').some(function (r) { return lower_(r.Email) === email; })) throw new Error('That student is not on the class list');
+  var f = lower_(focus);
+  if (AP_KEYS.indexOf(f) === -1) throw new Error('Unknown focus');
+  var src = CHECKIN_WHO.hasOwnProperty(lower_(who)) ? CHECKIN_WHO[lower_(who)] : '';
+  if (!src) throw new Error('Unknown rater');
+  var n = (typeof rating === 'number') ? rating : (typeof rating === 'string' && /^\s*\d+\s*$/.test(rating) ? Number(rating) : NaN);
+  if (!isFinite(n) || n % 1 !== 0 || n < 1 || n > 7) throw new Error('Rating must be a whole number 1–7');
+  var wd = (word === null || word === undefined) ? '' : word;
+  if (typeof wd !== 'string' || (wd !== '' && CHECKIN_WORDS.indexOf(wd) === -1)) throw new Error('Unknown word');
+  var date = ymd_(new Date()), fields = { Word: wd, Updated: new Date() };
+  fields[f] = n;
+  upsert_('APLog', { Email: email, Date: date, Source: src }, fields);
+  return { ok: true, date: date };
 }
 
 // ---------- Sheet menu (teacher, inside the Sheet) ----------

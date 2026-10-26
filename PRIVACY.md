@@ -14,7 +14,7 @@ minors under GDPR, so it is built to keep everything inside the FIS Google Works
 | Where data lives | One Google Sheet owned by the PE teacher's FIS account, inside the FIS Workspace |
 | Where code runs | The page is static HTML served by GitHub Pages (no data on it). All data handling runs in Google Apps Script bound to that Sheet, in the FIS Workspace. |
 | Who can use the app | Only verified `@fis.edu` Google accounts: every request carries a Google sign-in token that the server verifies with Google before answering |
-| What a student sees | Their own rows only. The class list never reaches a browser. |
+| What a student sees | Their own rows only. The class list never reaches a student's account. It reaches only a verified teacher's browser: the class dashboard, and the AP check-out on the teacher's iPad, which shows first names + last initials and no ratings. |
 | Third parties | GitHub serves the page code (no data). Google provides sign-in and hosts the data. No analytics, trackers, or cookies beyond Google's session. |
 | This repository | Code only. No data, no secrets. Test data is synthetic (`example.edu`). |
 
@@ -26,7 +26,7 @@ minors under GDPR, so it is built to keep everything inside the FIS Google Works
 | Teachers | Email, Name | Teacher | Show the teacher screen instead of a student profile |
 | Profile | Email, Style (one of six labels), Goal (≤140 chars, optional, own words), Updated | Written by the student through the app | Persist the student's chosen PE Style / goal |
 | Predictions | Email, Checkpoint (`intro`), Timestamp, and for each of 13 fitness/skill items a rating (strength · neutral · work-on) and a frequency (often · sometimes · rarely) | Entered by the student in the Lesson 1 "Strengths & challenges" activity | The student's own prediction, shown back to them and later lined up against their Combine results. **New data created by the app** (self-perception, low sensitivity), one row per student per checkpoint, no free text |
-| APLog | Email, Date, Source (`self` or `teacher`), Round (teacher only: s1-mid · s1-end · s2-mid · s2-end), five 1–7 Active Participation ratings, Updated | Self rows: the student's own check-in in the app (one per day). Teacher rows: imported by the teacher inside the Sheet from a Canvas Grades or Learning Mastery export (menu "Import AP grades from Canvas…"); the import tab is deleted afterwards | Shown back to that student only, as their self-checks against the teacher's graded rounds. Canvas grades never leave FIS Google: export → this Sheet → APLog |
+| APLog | Email, Date, Source (`self`, `teacher` or `lesson`), Round (teacher only: s1-mid · s1-end · s2-mid · s2-end), five 1–7 Active Participation ratings, Updated, Word (check-out only: one of eight fixed evidence words, or blank) | Self rows: the student's own check-in in the app (one per day), or their tap on the **AP Check-out** kiosk at the end of a PE lesson (on the teacher's signed-in iPad; only that day's focus criterion). Lesson rows (`lesson`): the teacher's rating of a few students per lesson on the day's focus, kept separate from the summative Canvas grades and never written over them. Teacher rows: imported by the teacher inside the Sheet from a Canvas Grades or Learning Mastery export (menu "Import AP grades from Canvas…"); the import tab is deleted afterwards | Shown back to that student only, as their self-checks against the teacher's graded rounds. Canvas grades never leave FIS Google: export → this Sheet → APLog |
 | Outcomes | Email, Outcome (a PE standard code, e.g. K4, S3), Value (1–7), Updated | Imported by the teacher inside the Sheet from a Canvas Learning Mastery export (same menu as AP) | Places that student's own Athlete Card axes in the four bands; never shown to anyone else |
 | Config | key/value settings | Teacher | No personal data |
 
@@ -119,6 +119,16 @@ with "Please sign in", and the API URL opened in a browser returns a one-line no
 5. **Teacher accounts.** Teachers see only a teacher screen in v1. Later phases may add a
    teacher "view a student's profile" function; that is a new access path and should be
    reviewed when designed.
+   **AP Check-out (new, needs review).** A teacher-only screen on the teacher's own
+   signed-in iPad shows one class's names as *first name + last initial* so students can
+   tap their own name, then one of four bands in words and an evidence word. Students see
+   that name grid, but never a rating: the roster call returns no ratings, and once a
+   student has tapped, the grid shows only a ✓. Two residual risks to weigh: (a) a student
+   could tap someone else's name (the teacher sees it in the summary; nothing is graded
+   automatically, and Canvas grades are never changed); (b) the evidence words include
+   "Lost focus", "Gave up a bit" and "Forgot kit", which the next student in the queue could
+   glimpse before the screen clears (about a second). Leaving the kiosk for the teacher
+   screens needs a press-and-hold.
 6. **Self-prediction data.** The Lesson 1 activity is the first thing the app *creates*
    rather than displays: a student's own opinion of their strengths and challenges. It
    is shown only to that student (and, in the Sheet, the PE teacher). Confirm this is

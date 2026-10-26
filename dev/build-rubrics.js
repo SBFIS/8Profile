@@ -53,11 +53,13 @@ const apSec = md.split(/\n## 1 · AP & Cooperation/)[1];
 if (!apSec) throw new Error('AP & Cooperation section not found in rubric bank');
 apSec.split(/\n## /)[0].split('\n### ').slice(1).forEach(c => {
   const lines = c.split('\n'), name = lines[0].split('—')[0].trim(), key = AP_CRIT[name]; if (!key) return;
-  const bands = {};
-  lines.forEach(l => { const cells = l.split('|').map(x => x.trim()); const b = (cells[1] || '').match(/^\*\*(.+?)\*\*$/); if (b && cells[2]) bands[b[1].replace(/-/g, '–')] = cells[2].replace(/\.$/, ''); });
+  const bands = {}, mine = {};
+  lines.forEach(l => { const cells = l.split('|').map(x => x.trim()); const b = (cells[1] || '').match(/^\*\*(.+?)\*\*$/); if (b && cells[2]) { const k = b[1].replace(/-/g, '–'); bands[k] = cells[2].replace(/\.$/, ''); if (cells[3]) mine[k] = cells[3].replace(/\*/g, '').replace(/\.$/, ''); } });
   const levels = BAND_ORDER.map(b => bands[b]);
   if (levels.some(x => !x)) throw new Error('AP / ' + name + ': expected bands ' + BAND_ORDER.join(', '));
-  ap[key] = { name, levels };
+  // student: the "I…" column, bottom-up like levels (null where the bank has none)
+  const student = BAND_ORDER.map(b => mine[b] || null), code = ((lines[0].match(/—\s*([A-Z][\w.-]+)/) || [])[1]) || '';
+  ap[key] = { name, code, levels, student };
 });
 Object.keys(AP_CRIT).forEach(n => { if (!ap[AP_CRIT[n]]) throw new Error('AP criterion not found in rubric bank: ' + n); });
 
