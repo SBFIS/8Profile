@@ -1483,7 +1483,7 @@ function profileView(b) {
     fitSummary(m) +
     '<h3 class="sec sec-fund"><span class="em">🧩</span> Fundamental skills <span class="tap">· self → peer → teacher · tap a skill</span><button type="button" class="secbtn" id="tomyskills">✎ Record my levels</button></h3><p class="seclede">Seven building blocks, each a 6-level ladder. Same test every Combine, so your level climbs over the year.</p>' +
     '<div class="grid3">' + fund + '</div>' +
-    '<h3 class="sec sec-ap"><span class="em">🤝</span> Active participation <span class="tap">· all year</span><button type="button" class="secbtn" id="toapself">✎ Rate myself</button></h3><p class="seclede">Your biggest all-year story — how you show up, tracked through every unit.</p>' +
+    '<h3 class="sec sec-ap"><span class="em">🤝</span> Active participation <span class="tap">· all year</span>' + (AP_SELF_IN_APP ? '<button type="button" class="secbtn" id="toapself">✎ Rate myself</button>' : '') + '</h3><p class="seclede">Your biggest all-year story — how you show up, tracked through every unit.</p>' +
     '<div class="aptrend" id="aptrend">' + apCompare() + apTrend() + '</div>' +
     '<h3 class="sec sec-rep"><span class="em">🧠</span> My report picture <span class="tap">· tap for how it’s built</span></h3><p class="seclede">The three grades on your Canvas report — a best fit across the descriptors.</p>' +
     '<div class="grid3">' + bandV('rp-know', '🧠', 'Knowledge', 'knowledge') + bandV('rp-skill', '🎯', 'Skills', 'skills') + bandV('rp-ct', '🔄', 'Concept transfer', 'concept') + '</div>' +
@@ -1748,6 +1748,9 @@ const AP_BANDS = [
   { name: 'Got it',      e: '✅', tag: 'Doing it well',   v: 5, cls: 'b2' },
   { name: 'Leading',     e: '🌟', tag: 'Lifting others', v: 7, cls: 'b3' }
 ];
+// Students rate themselves at the end-of-lesson check-out (teacher's iPad), not on their own device.
+// Flip to true to bring back "✎ Rate myself" (e.g. for Health).
+const AP_SELF_IN_APP = false;
 const bandIx = v => v == null ? null : (v >= 6.5 ? 3 : v >= 4.5 ? 2 : v >= 2.5 ? 1 : 0);
 const bandOf = v => { const i = bandIx(v); return i == null ? null : AP_BANDS[i]; };
 const rubTxt = t => esc(String(t || '').replace(/\*/g, ''));
@@ -1768,7 +1771,7 @@ function apTrend() {
   const log = apLog(), key = apKey;
   const chips = '<div class="apchips">' + [['all', '⭐', 'All five']].concat(AP_ROWS).map(r =>
     '<button type="button" class="apchip' + (key === r[0] ? ' on' : '') + '" data-apkey="' + r[0] + '">' + r[1] + ' ' + esc(r[0] === 'all' ? r[2] : AP_SHORT[r[0]]) + '</button>').join('') + '</div>';
-  if (!log.self.length && !log.teacher.length && !log.lesson.length) return '<div class="apempty">Rate yourself to start your line. Your teacher’s grade appears here at mid-semester and the end of each semester.</div>';
+  if (!log.self.length && !log.teacher.length && !log.lesson.length) return '<div class="apempty">' + (AP_SELF_IN_APP ? 'Rate yourself to start your line.' : 'Your end-of-lesson check-outs start your line.') + ' Your teacher’s grade appears here at mid-semester and the end of each semester.</div>';
   const parse = s => { const p = String(s).split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); };
   const y0y = apYearStart().getFullYear();
   const roundDate = t => { if (t.date) return parse(t.date); const md = AP_ROUND_POS[t.round].split('-').map(Number); return new Date(md[0] >= 8 ? y0y : y0y + 1, md[0] - 1, md[1]); };
@@ -1812,7 +1815,7 @@ function apTrend() {
       : me > tb ? 'You put yourself at <b>' + M + '</b>; at ' + esc(lastT[1]) + ' your teacher had you at <b>' + T + '</b>. What could you show more of so your teacher sees it too?'
       : 'Your teacher has you at <b>' + T + '</b>, higher than you rate yourself. You’re doing better than you think 💪'; }
   else if (lastS != null) say = 'Your teacher’s first band arrives at mid-semester. Keep checking in so you can compare.';
-  else if (lastT) say = 'Your teacher has placed you. Tap ✎ Rate myself to see how your view compares.';
+  else if (lastT) say = AP_SELF_IN_APP ? 'Your teacher has placed you. Tap ✎ Rate myself to see how your view compares.' : 'Your teacher has placed you. Your end-of-lesson check-outs will show how your view compares.';
   const tail = (say ? '<p class="apsay">' + say + '</p>' : '') + apNextStep(log, key);
   if (!apEnough(log)) return tail + '<p class="apunlock">📈 Your line through the year appears after ' + AP_LINE_MIN + ' check-ins over a few weeks (' + log.self.length + ' so far).</p>';
   return tail + '<div class="ap-hd ap-hd2">📈 My check-ins over time</div>' + chips + '<svg class="apchart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="My active participation self-checks and my teacher’s grades over the year">' + g + '</svg>' +
@@ -1843,7 +1846,7 @@ function apCompare() {
     const mine = AP_KEYS_C.map(latestSelf).filter(v => v != null);
     out += row('', '🏅', 'Overall · ' + lastT.label, mine.length ? mine.reduce((a, b) => a + b, 0) / mine.length : null, lastT.v.overall, 'me');
   }
-  if (!log.self.length) out += '<button type="button" class="ct-btn apc-cta" id="toapself2">✎ Rate myself on the five keys</button>';
+  if (!log.self.length && AP_SELF_IN_APP) out += '<button type="button" class="ct-btn apc-cta" id="toapself2">✎ Rate myself on the five keys</button>';
   out += AP_ROWS.map(r => row('ap-' + r[0], r[1], r[2], latestSelf(r[0]), lastT && lastT.v[r[0]] != null ? lastT.v[r[0]] : null)).join('');
   return '<div class="apcompare">' + out +
     '<div class="aplegend"><span><i class="lg-me2"></i>Me (latest check-in)</span><span><i class="lg-t"></i>My teacher' + (lastT ? ' (' + esc(lastT.label) + ')' : '') + '</span></div></div>';

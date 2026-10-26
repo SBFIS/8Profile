@@ -76,6 +76,7 @@ const shots = path.join(root, 'dev/shots'); fs.mkdirSync(shots, { recursive: tru
   check('student chart shows the teacher\'s lesson ratings as their own marker', (await page.$$('.apchart .aplesson')).length >= 1 && (await page.textContent('.aplegend >> nth=-1')).includes('My teacher in lessons'));
   check('lesson ratings are not drawn as the Canvas grade', (await page.$$eval('.apchart title', t => t.map(x => x.textContent))).filter(x => /^Teacher in a lesson/.test(x)).length === (await page.$$('.apchart .aplesson')).length);
   check('the kiosk tap shows up as today\'s self-check', (await page.$$eval('.apchart .apdot title', t => t.map(x => x.textContent))).length >= 7);
+  check('"Rate myself" is hidden (students check in on the teacher\'s iPad)', (await page.$$('#toapself, #toapself2')).length === 0);
   check('student AP shows bands in words, no numbers', !/\b[1-7]\/7\b|\bme [1-7]\b|teacher [1-7]\b/.test(await page.textContent('.apcompare')));
   await (await page.$('.apchart')).screenshot({ path: path.join(shots, 'checkout-student.png') });
 
