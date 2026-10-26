@@ -127,7 +127,7 @@ check('saveGoals replaces the whole set', (() => { as(S1, 'saveGoals', { goals: 
 check('saveGoals stores a numeric target and a note', (() => { const r = as(S1, 'saveGoals', { goals: [{ component: 'mile', target: 540 }, { component: 'dribble', target: 6 }], note: 'run twice a week' }); const c = as(S1, 'bootstrap').data.student.combine; return r.ok && c.goals.find(x => x.component === 'mile').target === 540 && c.goalNote === 'run twice a week'; })());
 check('savePlan stores and reads back', (() => { const plan = { days: [{ focus: 'cv', items: ['run 20 min'] }] }; const r = as(S1, 'savePlan', { plan: plan }); return r.ok && as(S1, 'bootstrap').data.student.combine.plan.days[0].focus === 'cv'; })());
 check('savePlan keeps sets/reps rows and the home-session log', (() => { const plan = { warmup: [], main: [{ n: 'Push-ups', c: 'strength', sets: 3, reps: '10' }], cooldown: [], days: { tue: true }, log: [{ date: '2026-10-14', who: 'friend' }] }; const r = as(S1, 'savePlan', { plan: plan }); const p = as(S1, 'bootstrap').data.student.combine.plan; return r.ok && p.main[0].sets === 3 && p.main[0].reps === '10' && p.log[0].who === 'friend'; })());
-check('savePlan refuses an oversized plan', /too long/.test(as(S1, 'savePlan', { plan: { reflection: 'x'.repeat(9000) } }).error || ''));
+check('savePlan refuses an oversized plan', /too long/.test(as(S1, 'savePlan', { plan: { reflection: 'x'.repeat(21000) } }).error || ''));
 check('teacher (not on roster) cannot saveGoals', /class list/.test(as(T, 'saveGoals', { goals: [] }).error));
 
 console.log('reflections + unit self-assessment');
@@ -234,6 +234,13 @@ const lm = importApRows_(LM, 's1-end');
 check('Learning Mastery outcome columns import per standard (not mastery points)', (() => { const o = readTab_('Outcomes').filter(r => r.Email === 'sample.one@example.edu'); const by = {}; o.forEach(r => by[r.Outcome] = r.Value); return lm.outcomes.join() === 'K4,S3,C1,S1' && by.K4 === 5 && by.S3 === 6 && by.S1 === 7 && lm.outcomesImported === 2; })());
 check('re-import updates outcomes, never duplicates', (() => { importApRows_(LM, 's1-end'); return readTab_('Outcomes').filter(r => r.Email === 'sample.one@example.edu' && r.Outcome === 'K4').length === 1; })());
 check('student sees own outcomes only', (() => { const a = as(S1, 'bootstrap').data.student.combine.outcomes, b = as(S2, 'bootstrap').data.student.combine.outcomes; return a.S3 === 6 && b.K4 === 3 && b.S3 === undefined && !JSON.stringify(as(S2, 'bootstrap')).includes('sample.one'); })());
+
+console.log('teacher assessment view');
+check('student saves a plan with whys, a 4-part reflection and a logged number', (() => { const plan = { v: 3, warmup: [{ n: 'Light jog', min: 3, int: 'easy' }], cardio: [], strength: [], focus: [], cooldown: [], why: { warmup: 'raise my heart rate' }, ref: { strength: 'push-ups 18', worked: 'yes', change: 'more sets', matters: 'rugby' }, log: [{ date: '2026-10-27', who: 'me', where: 'home', feel: 'ok', num: '22 push-ups' }] };
+  const r = as(S2, 'savePlan', { plan }); return r.ok && r.data.plan.ref.worked === 'yes' && r.data.plan.log[0].num === '22 push-ups'; })());
+check('teacher classStudent includes that student\'s plan and goals', (() => { const r = as(T, 'classStudent', { email: S2 }); return r.ok && r.data.student.plan.why.warmup === 'raise my heart rate' && Array.isArray(r.data.student.goals.items); })());
+check('a student cannot open another student\'s plan', (() => { const r = as(S1, 'classStudent', { email: S2 }); return !r.ok && /teacher/i.test(r.error); })());
+check('student bootstrap does not include another student\'s plan', !JSON.stringify(as(S1, 'bootstrap')).includes('raise my heart rate'));
 
 console.log('retention');
 FakeSheets.uiAnswer = 'YES';
