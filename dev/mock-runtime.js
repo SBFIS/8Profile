@@ -66,9 +66,11 @@
       strength: [{ n: 'Push-ups (max reps)', sets: 3, reps: '40s', int: 'moderate' }, { n: 'Bodyweight squats', sets: 3, reps: '45s', int: 'moderate' }],
       focus: [{ n: 'Sprints', sets: 4, reps: '20 m', min: 4, int: 'hard' }],
       cooldown: [{ n: 'Static stretches', min: 4, int: 'easy' }],
-      sChoice: 'endurance', fChoice: 'speed', hr: '150–170 bpm', fWhy: '',
+      sChoice: 'endurance', fChoice: 'speed', hr: '150–170 bpm', fWhy: 'Short hard sprints build my top speed for the 30 m.',
+      why: { warmup: 'Raises my heart rate and loosens hips and hamstrings', cardio: 'Intervals push me into my zone to improve the mile', strength: 'Timed sets build muscular endurance in arms and legs' },
+      ref: { strength: 'My strength is sit-to-stand (31). I want to improve my mile (9:44).', worked: 'I reached 160 bpm in the intervals. Push-ups went 18 to 21.', change: '', matters: '' },
       equip: ['water bottle'], days: { tue: true, thu: true, sat: true },
-      log: [{ date: ago(1), who: 'friend' }, { date: ago(9), who: 'me' }], reflection: '' } });
+      log: [{ date: ago(1), who: 'friend', num: '21 push-ups' }, { date: ago(9), who: 'me', num: '4 × 1 min at 160 bpm' }], reflection: '' } });
     const TT = tokenFor('teacher@example.edu'); // the owner is a teacher
     const seedSkills = (email, lv) => callApi({ action: 'saveSkills', token: TT, email, checkpoint: 'sept', levels: lv });
     seedSkills('sample.one@example.edu',   { throw: 4, catch: 5, strike: 3, dribble: 4, kick: 4, jump: 4, core: 5 });

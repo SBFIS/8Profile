@@ -289,7 +289,7 @@ function doPost(e) {
 }
 // Opening the API URL in a browser is not the app; say so, with no data.
 // Bump with each server change: opening the /exec link in a browser shows which build is live.
-var BUILD = '2026-10-23 · AP check-out';
+var BUILD = '2026-10-26 · workout assessment evidence + AP check-out';
 function doGet() {
   return ContentService.createTextOutput(JSON.stringify({ ok: false, build: BUILD, error: 'This is the data service for My PE Profile. Open the app link your PE teacher shared.' }))
     .setMimeType(ContentService.MimeType.JSON);
@@ -733,7 +733,7 @@ function savePlan_(cfg, id, plan) {
   requireStudent_(id);
   if (plan === null || plan === undefined) throw new Error('Missing plan');
   var json; try { json = JSON.stringify(plan); } catch (e) { throw new Error('Bad plan'); }
-  if (json.length > 8000) throw new Error('Plan is too long');
+  if (json.length > 20000) throw new Error('Plan is too long');
   upsert_('Plan', { Email: id.email }, { Plan: json, Updated: new Date() });
   return { ok: true, plan: plan };
 }
@@ -875,7 +875,8 @@ function classStudent_(cfg, id, targetEmail) {
   var r = readTab_('Students').filter(function (x) { return lower_(x.Email) === email; })[0];
   if (!r) throw new Error('That student is not on the class list');
   return { role: 'classStudent', student: { id: email, name: str_(r.Name), klass: str_(r.Class),
-    fitness: fitnessFor_(email), skills: skillsFor_(email), ap: apFor_(email), apLog: apLogFor_(email), bands: bandsFor_(email) } };
+    fitness: fitnessFor_(email), skills: skillsFor_(email), ap: apFor_(email), apLog: apLogFor_(email), bands: bandsFor_(email),
+    plan: planFor_(email), goals: goalsFor_(email) } };  // teacher assessment view: the student's workout, goals, log and reflection
 }
 
 // ---------- AP check-out (end-of-lesson routine on the teacher's iPad) ----------
