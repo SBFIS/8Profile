@@ -1916,31 +1916,43 @@ async function openCheckout(from) {
   try {
     co.roster = await call('checkoutRoster', {});
     const last = coRecall(co.roster.date);
-    if (last && co.roster.classes.indexOf(last.klass) !== -1) { co.focus = CO_FOCUS[last.focus] ? last.focus : ''; await coLoadClass(last.klass, true); return; }
     show('checkout');
+    if (last && co.roster.classes.indexOf(last.klass) !== -1) { co.focus = CO_FOCUS[last.focus] ? last.focus : ''; coLoadClass(last.klass, true); }
   } catch (e) { toast('Couldn’t open the check-out: ' + e.message, true); coLeave(); }
 }
+// Loads (or refreshes) a class. The screen updates first: the chip lights up and a spinner shows,
+// so a slow Apps Script round-trip never looks like a dead button. Only the latest request wins.
 async function coLoadClass(klass, quiet) {
+  const seq = (co.loadSeq = (co.loadSeq || 0) + 1);
+  const same = klass === co.klass && co.roster && co.roster.students;
+  co.loading = klass; if (!same) co.klass = klass;
+  if (view === 'checkout') show('checkout');
   try {
-    co.roster = await call('checkoutRoster', { klass: klass, focus: co.focus });
-    co.klass = co.roster.klass; coRemember(); show('checkout');
-  } catch (e) { if (!quiet) toast('Couldn’t load ' + klass + ': ' + e.message, true); co.klass = ''; show('checkout'); }
+    const r = await call('checkoutRoster', { klass: klass, focus: co.focus });
+    if (!co || seq !== co.loadSeq) return;
+    co.roster = r; co.klass = r.klass; co.loading = ''; coRemember();
+  } catch (e) {
+    if (!co || seq !== co.loadSeq) return;
+    co.loading = ''; if (!quiet) toast('Couldn’t load ' + klass + ': ' + e.message, true); if (!same) co.klass = '';
+  }
+  if (view === 'checkout') show('checkout');
+  else if (view === 'kiosk' && co.step === 'names') show('kiosk');
 }
 function coLeave() { const from = co ? co.from : 'landing'; co = null; if (from === 'class' && classData) show('class'); else if (state.role === 'student') show('profile'); else renderTeacher(state); }
 
 function checkoutSetupView() {
   const r = co.roster, studs = r.students || [];
   const doneSelf = studs.filter(s => s.doneToday.self).length, doneT = studs.filter(s => s.doneToday.teacher).length;
-  const classBtns = r.classes.map(c => '<button type="button" class="co-chip' + (c === co.klass ? ' on' : '') + '" data-coclass="' + esc(c) + '">' + esc(c) + '</button>').join('') || '<span class="small">No classes on the Students tab yet.</span>';
+  const classBtns = r.classes.map(c => '<button type="button" class="co-chip' + (c === co.klass ? ' on' : '') + (c === co.loading ? ' busy' : '') + '" data-coclass="' + esc(c) + '">' + (c === co.loading ? '<span class="mini-spin"></span>' : '') + esc(c) + '</button>').join('') || '<span class="small">No classes on the Students tab yet.</span>';
   const focusBtns = CO_ORDER.map(k => { const a = RUBRICS.ap[k], f = CO_FOCUS[k];
     return '<button type="button" class="co-focus' + (k === co.focus ? ' on' : '') + '" data-cofocus="' + k + '"><span class="cf-e">' + f[0] + '</span><span class="cf-t"><b>' + esc(f[1]) + '</b><span>' + esc(a.name) + ' · ' + esc(a.code) + '</span></span></button>'; }).join('');
-  const ready = co.klass && co.focus;
+  const ready = co.klass && co.focus && r.klass === co.klass; // the class list for this class has arrived
   return '<div class="wrap">' +
     '<button type="button" class="back light" id="coback">← Back</button>' +
     '<div class="phero tight"><div class="k">AP CHECK-OUT · ' + esc(r.date) + '</div><h1>📲 End-of-lesson check-out</h1><p>Pick the class and today’s <b>one</b> AP focus. At the end of the lesson each student taps their name, a number and one word: about 10 seconds each. Then rate your spotlight group on the same focus.</p></div>' +
     '<h3 class="sec"><span class="em">👥</span> Class</h3><div class="co-chips">' + classBtns + '</div>' +
     '<h3 class="sec"><span class="em">🎯</span> AP focus of the day</h3><div class="co-focuses">' + focusBtns + '</div>' +
-    (co.klass ? '<p class="seclede co-count">' + esc(co.klass) + ' · ' + studs.length + ' students' + (co.focus ? ' · today on this focus: <b>' + doneSelf + '</b> checked out, <b>' + doneT + '</b> rated by you' : '') + '</p>' : '') +
+    (co.loading ? '<p class="seclede co-count"><span class="mini-spin"></span>Loading ' + esc(co.loading) + '…</p>' : co.klass ? '<p class="seclede co-count">' + esc(co.klass) + ' · ' + studs.length + ' students' + (co.focus ? ' · today on this focus: <b>' + doneSelf + '</b> checked out, <b>' + doneT + '</b> rated by you' : '') + '</p>' : '') +
     '<div class="co-go">' +
       '<button type="button" class="ct-btn" id="cokiosk"' + (ready ? '' : ' disabled') + '>▶ Start student check-out</button>' +
       '<button type="button" class="ct-btn ghost" id="cospot"' + (ready ? '' : ' disabled') + '>🧑‍🏫 Rate my spotlight group</button>' +
@@ -2009,7 +2021,7 @@ function kioskWire(app) {
   const h = $('#kohold'); if (!h) return;
   let t = null;
   const cancel = () => { clearTimeout(t); t = null; h.classList.remove('holding'); };
-  h.addEventListener('pointerdown', e => { e.preventDefault(); h.classList.add('holding'); t = setTimeout(() => { cancel(); co.step = 'names'; co.sel = null; coLoadClass(co.klass, true); }, 900); });
+  h.addEventListener('pointerdown', e => { e.preventDefault(); h.classList.add('holding'); t = setTimeout(() => { cancel(); co.step = 'names'; co.sel = null; show('checkout'); coLoadClass(co.klass, true); }, 900); });
   ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => h.addEventListener(ev, cancel));
   h.addEventListener('contextmenu', e => e.preventDefault());
 }
@@ -2330,14 +2342,14 @@ function show(v, arg) {
     wire('cospot', () => show('spotlight'));
     onWrap(e => {
       const c = e.target.closest('[data-coclass]'); if (c) { coLoadClass(c.getAttribute('data-coclass')); return; }
-      const f = e.target.closest('[data-cofocus]'); if (f) { co.focus = f.getAttribute('data-cofocus'); if (co.klass) coLoadClass(co.klass); else { coRemember(); show('checkout'); } }
+      const f = e.target.closest('[data-cofocus]'); if (f) { co.focus = f.getAttribute('data-cofocus'); coRemember(); if (co.klass) coLoadClass(co.klass); else show('checkout'); }
     });
   } else if (v === 'kiosk') {
     app.innerHTML = kioskView();
     kioskWire(app);
   } else if (v === 'spotlight') {
     app.innerHTML = spotlightView();
-    wire('spback', () => coLoadClass(co.klass, true));
+    wire('spback', () => { show('checkout'); coLoadClass(co.klass, true); });
     spotWire(app);
     return;
   } else if (v === 'apsummary') {

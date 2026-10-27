@@ -859,6 +859,11 @@ body.demo{padding-top:52px}
 .kiosk{max-width:1000px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .ko-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 14px}
 .ko-f{font-size:18px}.ko-f b{font-family:var(--disp)}.ko-k{font-family:var(--disp);font-weight:700;color:var(--muted)}
+.mini-spin{display:inline-block;width:13px;height:13px;margin-right:7px;vertical-align:-2px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite;opacity:.7}
+/* spin keyframes defined above */
+.co-chip.busy{opacity:.85}
+.ko-band,.ko-w,.ko-nm,.co-chip,.co-focus,.sp-n,.sp-w,.ct-btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:transform .06s}
+.ko-band:active,.ko-w:active,.co-chip:active,.co-focus:active,.sp-n:active,.sp-w:active,[data-who]:active{transform:scale(.97);filter:brightness(.95)}
 .ko-hold{margin-left:auto;position:relative;overflow:hidden;border:1px solid var(--line);background:var(--paper);color:var(--muted);border-radius:999px;padding:7px 14px;font-size:12px;cursor:pointer;touch-action:none}
 .ko-hold i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--maroon-t);z-index:-1}.ko-hold{z-index:0}
 .ko-hold.holding i{width:100%;transition:width .9s linear}
