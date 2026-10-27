@@ -1904,7 +1904,7 @@ let co = null; // { from, roster, klass, focus, step, sel, rating, given:{email:
 // Bands come from AP_BANDS (Not yet · Approaching · Got it · Leading); wording from the rubric bank.
 function coBandCls(v) { const i = bandIx(v); return i == null ? 'lv0' : 'kb' + i; }
 function coDesc(key, v) { const a = RUBRICS.ap[key], i = bandIx(v); return i == null ? '' : String(a.levels[i]).replace(/\*/g, ''); }
-function coMine(key, i) { const a = RUBRICS.ap[key]; return String((a.student && a.student[i]) || a.levels[i]).replace(/\*/g, ''); }
+function coMine(key, i) { const a = RUBRICS.ap[key]; return String((a.today && a.today[i]) || (a.student && a.student[i]) || a.levels[i]).replace(/\*/g, ''); } // the check-out rates one lesson: "Today I…"
 function coRemember() { try { sessionStorage.setItem(CO_KEY, JSON.stringify({ date: co.roster && co.roster.date, klass: co.klass, focus: co.focus })); } catch (e) {} }
 function coRecall(date) { try { const j = JSON.parse(sessionStorage.getItem(CO_KEY) || 'null'); return j && j.date === date ? j : null; } catch (e) { return null; } }
 function coName(s) { return s.first + (s.lastInitial ? ' ' + s.lastInitial + '.' : ''); }

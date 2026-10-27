@@ -1056,6 +1056,12 @@ window.RUBRICS = {
     "I sometimes participate actively and am beginning to show that I understand why it matters",
     "I participate actively and mostly show that I understand why regular participation matters",
     "I participate actively and consistently show that I understand why regular participation in a wide variety of activities matters, including in activities I don't naturally enjoy"
+   ],
+   "today": [
+    "Today I found it hard to get involved and did very little",
+    "Today my effort came and went, and I was sometimes distracted or off-task",
+    "Today I worked hard for most of the lesson, with only a few short breaks in focus",
+    "Today I gave full effort the whole lesson, even in the parts I don't enjoy"
    ]
   },
   "team": {
@@ -1072,6 +1078,12 @@ window.RUBRICS = {
     "I sometimes help my team, but how I join in and communicate changes from lesson to lesson",
     "I communicate respectfully and help my team most of the time",
     "I always communicate positively, encourage others and help my teammates take part"
+   ],
+   "today": [
+    "Today I didn't help my team much or wasn't positive with others",
+    "Today I helped my team some of the time, but not for the whole lesson",
+    "Today I was respectful and helped my team for most of the lesson",
+    "Today I was positive, encouraged others and helped my teammates join in"
    ]
   },
   "ready": {
@@ -1088,6 +1100,12 @@ window.RUBRICS = {
     "I am sometimes late or not ready to start, and sometimes I forget kit",
     "I am usually ready and on time; I rarely need a reminder",
     "I am always ready with full kit, on time, and start without reminders"
+   ],
+   "today": [
+    "Today I was late, not ready to start and missing kit",
+    "Today I was a bit late or slow to start, or I was missing some kit",
+    "Today I was ready and on time, but needed a reminder to get started",
+    "Today I had full kit, was on time and started without a reminder"
    ]
   },
   "growth": {
@@ -1104,6 +1122,12 @@ window.RUBRICS = {
     "I sometimes avoid challenges or give up when I get frustrated",
     "I am open to challenges and usually keep trying after mistakes",
     "I take on challenges, try new things and stay positive even when things go wrong"
+   ],
+   "today": [
+    "Today I refused a task or gave up quickly",
+    "Today I avoided a challenge or gave up when I got frustrated",
+    "Today I was open to a challenge and kept trying after mistakes",
+    "Today I took on a challenge, tried something new and stayed positive when it went wrong"
    ]
   },
   "manage": {
@@ -1120,6 +1144,12 @@ window.RUBRICS = {
     "I need a lot of reminders to stay on track",
     "I usually manage myself well, and I respond when I am reminded",
     "I always manage my behaviour and feelings in a positive way, without reminders"
+   ],
+   "today": [
+    "Today I found it hard to manage my behaviour, even with reminders",
+    "Today I needed lots of reminders to stay on track",
+    "Today I managed myself well and responded when I was reminded",
+    "Today I managed my behaviour and feelings well without any reminders"
    ]
   }
  }
@@ -3032,7 +3062,7 @@ let co = null; // { from, roster, klass, focus, step, sel, rating, given:{email:
 // Bands come from AP_BANDS (Not yet · Approaching · Got it · Leading); wording from the rubric bank.
 function coBandCls(v) { const i = bandIx(v); return i == null ? 'lv0' : 'kb' + i; }
 function coDesc(key, v) { const a = RUBRICS.ap[key], i = bandIx(v); return i == null ? '' : String(a.levels[i]).replace(/\*/g, ''); }
-function coMine(key, i) { const a = RUBRICS.ap[key]; return String((a.student && a.student[i]) || a.levels[i]).replace(/\*/g, ''); }
+function coMine(key, i) { const a = RUBRICS.ap[key]; return String((a.today && a.today[i]) || (a.student && a.student[i]) || a.levels[i]).replace(/\*/g, ''); } // the check-out rates one lesson: "Today I…"
 function coRemember() { try { sessionStorage.setItem(CO_KEY, JSON.stringify({ date: co.roster && co.roster.date, klass: co.klass, focus: co.focus })); } catch (e) {} }
 function coRecall(date) { try { const j = JSON.parse(sessionStorage.getItem(CO_KEY) || 'null'); return j && j.date === date ? j : null; } catch (e) { return null; } }
 function coName(s) { return s.first + (s.lastInitial ? ' ' + s.lastInitial + '.' : ''); }

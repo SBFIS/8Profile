@@ -65,44 +65,44 @@ were drafted in Oct 2026 from the teacher descriptors for the AP Check-out kiosk
 against the G8 student rubric.*
 
 ### Active Participation — PE.G6-10.C1 (ACT) → **Concept Transfer**
-| Band | Descriptor | Student "I…" |
-|---|---|---|
-| **7** | Always gives full effort and stays engaged the whole lesson, including in activities they do not naturally enjoy. Reflections explain *why* regular participation matters, using specific examples from their own experience. | I participate actively and consistently show that I understand why regular participation in a wide variety of activities matters, including in activities I don't naturally enjoy. |
-| **5–6** | Usually works hard and stays engaged; occasional lapses. Reflections show an understanding of why participation matters, though examples are general. | I participate actively and mostly show that I understand why regular participation matters. |
-| **3–4** | Effort and focus vary; sometimes distracted or off-task. Reflections describe *what* they did rather than why it matters. | I sometimes participate actively and am beginning to show that I understand why it matters. |
-| **1–2** | Minimal effort; often disengaged. Reflections missing, very brief, or unrelated to participation. | I have trouble participating actively and rarely show that I understand why it matters. |
+| Band | Descriptor | Student "I…" (term) | Today I… (iPad check-out) |
+|---|---|---|---|
+| **7** | Always gives full effort and stays engaged the whole lesson, including in activities they do not naturally enjoy. Reflections explain *why* regular participation matters, using specific examples from their own experience. | I participate actively and consistently show that I understand why regular participation in a wide variety of activities matters, including in activities I don't naturally enjoy. | Today I gave full effort the whole lesson, even in the parts I don't enjoy. |
+| **5–6** | Usually works hard and stays engaged; occasional lapses. Reflections show an understanding of why participation matters, though examples are general. | I participate actively and mostly show that I understand why regular participation matters. | Today I worked hard for most of the lesson, with only a few short breaks in focus. |
+| **3–4** | Effort and focus vary; sometimes distracted or off-task. Reflections describe *what* they did rather than why it matters. | I sometimes participate actively and am beginning to show that I understand why it matters. | Today my effort came and went, and I was sometimes distracted or off-task. |
+| **1–2** | Minimal effort; often disengaged. Reflections missing, very brief, or unrelated to participation. | I have trouble participating actively and rarely show that I understand why it matters. | Today I found it hard to get involved and did very little. |
 
 ### Social Skills — PE.G6-10.S4 (ACT) → **Skills**
-| Band | Descriptor | Student "I…" |
-|---|---|---|
-| **7** | Consistently communicates positively, encourages others, and actively helps teammates take part. | I always communicate positively, encourage others and help my teammates take part. |
-| **5–6** | Communicates respectfully and helps the team most of the time. | I communicate respectfully and help my team most of the time. |
-| **3–4** | Contribution and communication are inconsistent. | I sometimes help my team, but how I join in and communicate changes from lesson to lesson. |
-| **1–2** | Rarely communicates positively or contributes to the team. | I rarely communicate positively or help my team. |
+| Band | Descriptor | Student "I…" (term) | Today I… (iPad check-out) |
+|---|---|---|---|
+| **7** | Consistently communicates positively, encourages others, and actively helps teammates take part. | I always communicate positively, encourage others and help my teammates take part. | Today I was positive, encouraged others and helped my teammates join in. |
+| **5–6** | Communicates respectfully and helps the team most of the time. | I communicate respectfully and help my team most of the time. | Today I was respectful and helped my team for most of the lesson. |
+| **3–4** | Contribution and communication are inconsistent. | I sometimes help my team, but how I join in and communicate changes from lesson to lesson. | Today I helped my team some of the time, but not for the whole lesson. |
+| **1–2** | Rarely communicates positively or contributes to the team. | I rarely communicate positively or help my team. | Today I didn't help my team much or wasn't positive with others. |
 
 ### Self Management — ATL.SM.manageself → **ATL**
-| Band | Descriptor | Student "I…" |
-|---|---|---|
-| **7** | Always prepared with full kit, on time, ready to start without reminders. | I am always ready with full kit, on time, and start without reminders. |
-| **5–6** | Usually prepared and on time; may need rare reminders. | I am usually ready and on time; I rarely need a reminder. |
-| **3–4** | Sometimes unprepared or late to start; occasionally missing kit. | I am sometimes late or not ready to start, and sometimes I forget kit. |
-| **1–2** | Often unprepared, late, or missing kit. | I am often late, not ready, or missing kit. |
+| Band | Descriptor | Student "I…" (term) | Today I… (iPad check-out) |
+|---|---|---|---|
+| **7** | Always prepared with full kit, on time, ready to start without reminders. | I am always ready with full kit, on time, and start without reminders. | Today I had full kit, was on time and started without a reminder. |
+| **5–6** | Usually prepared and on time; may need rare reminders. | I am usually ready and on time; I rarely need a reminder. | Today I was ready and on time, but needed a reminder to get started. |
+| **3–4** | Sometimes unprepared or late to start; occasionally missing kit. | I am sometimes late or not ready to start, and sometimes I forget kit. | Today I was a bit late or slow to start, or I was missing some kit. |
+| **1–2** | Often unprepared, late, or missing kit. | I am often late, not ready, or missing kit. | Today I was late, not ready to start and missing kit. |
 
 ### Growth Mindset — ATL.SM.growthmindset → **ATL**
-| Band | Descriptor | Student "I…" |
-|---|---|---|
-| **7** | Embraces challenges, tries new things, stays positive even after setbacks. | I take on challenges, try new things and stay positive even when things go wrong. |
-| **5–6** | Open to challenges and generally keeps trying after mistakes. | I am open to challenges and usually keep trying after mistakes. |
-| **3–4** | Sometimes avoids challenges or gives up when frustrated. | I sometimes avoid challenges or give up when I get frustrated. |
-| **1–2** | Avoids challenges, refuses tasks, or gives up quickly. | I avoid challenges, refuse tasks, or give up quickly. |
+| Band | Descriptor | Student "I…" (term) | Today I… (iPad check-out) |
+|---|---|---|---|
+| **7** | Embraces challenges, tries new things, stays positive even after setbacks. | I take on challenges, try new things and stay positive even when things go wrong. | Today I took on a challenge, tried something new and stayed positive when it went wrong. |
+| **5–6** | Open to challenges and generally keeps trying after mistakes. | I am open to challenges and usually keep trying after mistakes. | Today I was open to a challenge and kept trying after mistakes. |
+| **3–4** | Sometimes avoids challenges or gives up when frustrated. | I sometimes avoid challenges or give up when I get frustrated. | Today I avoided a challenge or gave up when I got frustrated. |
+| **1–2** | Avoids challenges, refuses tasks, or gives up quickly. | I avoid challenges, refuse tasks, or give up quickly. | Today I refused a task or gave up quickly. |
 
 ### Self Awareness — ATL.SC.self → **ATL**
-| Band | Descriptor | Student "I…" |
-|---|---|---|
-| **7** | Consistently manages behaviour and emotions positively without reminders. | I always manage my behaviour and feelings in a positive way, without reminders. |
-| **5–6** | Usually self-manages well; responds to reminders. | I usually manage myself well, and I respond when I am reminded. |
-| **3–4** | Needs frequent reminders to stay on track. | I need a lot of reminders to stay on track. |
-| **1–2** | Disruptive or unable to manage behaviour despite reminders. | I find it hard to manage my behaviour, even with reminders. |
+| Band | Descriptor | Student "I…" (term) | Today I… (iPad check-out) |
+|---|---|---|---|
+| **7** | Consistently manages behaviour and emotions positively without reminders. | I always manage my behaviour and feelings in a positive way, without reminders. | Today I managed my behaviour and feelings well without any reminders. |
+| **5–6** | Usually self-manages well; responds to reminders. | I usually manage myself well, and I respond when I am reminded. | Today I managed myself well and responded when I was reminded. |
+| **3–4** | Needs frequent reminders to stay on track. | I need a lot of reminders to stay on track. | Today I needed lots of reminders to stay on track. |
+| **1–2** | Disruptive or unable to manage behaviour despite reminders. | I find it hard to manage my behaviour, even with reminders. | Today I found it hard to manage my behaviour, even with reminders. |
 
 ---
 

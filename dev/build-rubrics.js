@@ -53,13 +53,16 @@ const apSec = md.split(/\n## 1 · AP & Cooperation/)[1];
 if (!apSec) throw new Error('AP & Cooperation section not found in rubric bank');
 apSec.split(/\n## /)[0].split('\n### ').slice(1).forEach(c => {
   const lines = c.split('\n'), name = lines[0].split('—')[0].trim(), key = AP_CRIT[name]; if (!key) return;
-  const bands = {}, mine = {};
-  lines.forEach(l => { const cells = l.split('|').map(x => x.trim()); const b = (cells[1] || '').match(/^\*\*(.+?)\*\*$/); if (b && cells[2]) { const k = b[1].replace(/-/g, '–'); bands[k] = cells[2].replace(/\.$/, ''); if (cells[3]) mine[k] = cells[3].replace(/\*/g, '').replace(/\.$/, ''); } });
+  const bands = {}, mine = {}, now = {};
+  lines.forEach(l => { const cells = l.split('|').map(x => x.trim()); const b = (cells[1] || '').match(/^\*\*(.+?)\*\*$/); if (b && cells[2]) { const k = b[1].replace(/-/g, '–'); bands[k] = cells[2].replace(/\.$/, ''); if (cells[3]) mine[k] = cells[3].replace(/\*/g, '').replace(/\.$/, ''); if (cells[4]) now[k] = cells[4].replace(/\*/g, '').replace(/\.$/, ''); } });
   const levels = BAND_ORDER.map(b => bands[b]);
   if (levels.some(x => !x)) throw new Error('AP / ' + name + ': expected bands ' + BAND_ORDER.join(', '));
   // student: the "I…" column, bottom-up like levels (null where the bank has none)
   const student = BAND_ORDER.map(b => mine[b] || null), code = ((lines[0].match(/—\s*([A-Z][\w.-]+)/) || [])[1]) || '';
-  ap[key] = { name, code, levels, student };
+  // today: the "Today I…" column, worded for one lesson (the iPad check-out)
+  const today = BAND_ORDER.map(b => now[b] || null);
+  if (today.some(x => !x)) throw new Error('AP / ' + name + ': every band needs a "Today I…" line');
+  ap[key] = { name, code, levels, student, today };
 });
 Object.keys(AP_CRIT).forEach(n => { if (!ap[AP_CRIT[n]]) throw new Error('AP criterion not found in rubric bank: ' + n); });
 

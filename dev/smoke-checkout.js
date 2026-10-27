@@ -34,7 +34,7 @@ const shots = path.join(root, 'dev/shots'); fs.mkdirSync(shots, { recursive: tru
   check('kiosk shows the class as first name + last initial', (await page.$$eval('.ko-name', b => b.map(x => x.textContent))).every(t => /^\S+ [A-Z]\.$/.test(t.trim())));
   check('kiosk shows no ratings', !/\b[1-7]\b/.test(await page.textContent('.ko-names')));
   await page.click('.ko-name >> nth=0'); await page.waitForSelector('.ko-band');
-  check('rating screen: four levels in words, with the student "I…" wording', (await page.$$('.ko-band')).length === 4 && (await page.textContent('.ko-bands')).includes('Got it') && (await page.textContent('.ko-bands')).includes('I participate actively'));
+  check('rating screen: four levels in words, worded for today', (await page.$$('.ko-band')).length === 4 && (await page.textContent('.ko-bands')).includes('Got it') && (await page.textContent('.ko-bands')).includes('Today I gave full effort the whole lesson'));
   check('students see no numbers on the rating screen', !/\d/.test(await page.textContent('.ko-bands')));
   await page.screenshot({ path: path.join(shots, 'checkout-rate.png'), fullPage: true });
   await page.click('[data-kback]'); await page.waitForSelector('.ko-name');
@@ -88,7 +88,7 @@ const shots = path.join(root, 'dev/shots'); fs.mkdirSync(shots, { recursive: tru
   await page.click('[data-cofocus="team"]'); await page.waitForSelector('#cokiosk:not([disabled])');
   await page.click('#cokiosk'); await page.click('.ko-name >> nth=0'); await page.waitForSelector('.ko-band');
   check('no horizontal scroll on phone (kiosk)', await noHScroll());
-  check('every criterion shows the student "I…" line', (await page.textContent('.ko-bands')).includes('I communicate respectfully'));
+  check('every criterion shows a "Today I…" line', (await page.textContent('.ko-bands')).includes('Today I was respectful'));
 
   check('no page errors', errors.length === 0, errors.join(' | '));
   await browser.close();
