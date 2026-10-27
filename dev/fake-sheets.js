@@ -72,7 +72,8 @@
   const b64url = str => (typeof btoa === 'function' ? btoa(str) : Buffer.from(str).toString('base64')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   const b64urlDecode = str => { const b = str.replace(/-/g, '+').replace(/_/g, '/'); return typeof atob === 'function' ? atob(b) : Buffer.from(b, 'base64').toString('utf8'); };
   g.Utilities = {
-    formatDate: d => new Date(d).toISOString().slice(0, 10),
+    // like Apps Script: format in the given time zone (the real one honours it)
+    formatDate: (d, tz) => new Intl.DateTimeFormat('en-CA', { timeZone: tz || 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(d)),
     DigestAlgorithm: { SHA_256: 'SHA_256' },
     // not a real hash; stable and distinct per input is all the cache key needs
     computeDigest: (alg, str) => { let h1 = 0x811c9dc5, h2 = 0x1000193; for (const ch of String(str)) { h1 = ((h1 ^ ch.charCodeAt(0)) * 16777619) >>> 0; h2 = ((h2 + ch.charCodeAt(0)) * 31) >>> 0; } return [h1, h2, String(str).length]; },
