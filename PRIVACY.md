@@ -104,7 +104,10 @@ with "Please sign in", and the API URL opened in a browser returns a one-line no
   school's roster policy.
 - A single student's data can be removed by deleting their row(s) in the Sheet.
 - No copies exist outside the Sheet: the browser holds only the sign-in token for the tab
-  session (about an hour) and a per-tab draft of the prediction until it is saved; no
+  session (about an hour), a per-tab draft of the prediction until it is saved, and — only
+  while a workout-plan change has not yet reached the Sheet — a backup of the student's own
+  plan in that browser's local storage (so a closed tab or lost connection doesn't lose work).
+  It is deleted as soon as the plan saves, and on sign-out once nothing is unsaved. No
   exports, no emails.
 
 ## Points to confirm with the data-protection lead before go-live

@@ -128,9 +128,30 @@ check('saveGoals stores a numeric target and a note', (() => { const r = as(S1, 
 check('savePlan stores and reads back', (() => { const plan = { days: [{ focus: 'cv', items: ['run 20 min'] }] }; const r = as(S1, 'savePlan', { plan: plan }); return r.ok && as(S1, 'bootstrap').data.student.combine.plan.days[0].focus === 'cv'; })());
 check('savePlan keeps sets/reps rows and the home-session log', (() => { const plan = { warmup: [], main: [{ n: 'Push-ups', c: 'strength', sets: 3, reps: '10' }], cooldown: [], days: { tue: true }, log: [{ date: '2026-10-14', who: 'friend' }] }; const r = as(S1, 'savePlan', { plan: plan }); const p = as(S1, 'bootstrap').data.student.combine.plan; return r.ok && p.main[0].sets === 3 && p.main[0].reps === '10' && p.log[0].who === 'friend'; })());
 check('savePlan keeps a full season of logged sessions (60 entries with a change line each)', (() => {
-  const log = []; for (let i = 0; i < 60; i++) log.push({ date: '2026-10-' + String(1 + (i % 28)).padStart(2, '0'), who: 'me', where: i % 2 ? 'home' : 'class', feel: 'right', hr: 'y', num: '22 push-ups and 10 min at 160 bpm', chg: 'x'.repeat(160) });
+  const log = []; for (let i = 0; i < 60; i++) log.push({ id: 'e' + i, date: '2027-02-' + String(1 + (i % 28)).padStart(2, '0'), who: 'me', where: i % 2 ? 'home' : 'class', feel: 'right', hr: 'y', num: '22 push-ups and 10 min at 160 bpm', chg: 'x'.repeat(160) });
   const r = as(S1, 'savePlan', { plan: { v: 3, why: { warmup: 'by building up slowly' }, log } });
-  return r.ok && r.data.plan.log.length === 60 && r.data.plan.log[0].chg.length === 160 && r.data.plan.log[0].hr === 'y';
+  return r.ok && r.data.plan.log.length === 60 && r.data.plan.log.every(e => /^e\d+$/.test(e.id) && e.chg.length === 160 && e.hr === 'y');
+})());
+check('savePlan merges logged sessions: an older draft never wipes a session logged since', (() => {
+  as(S2, 'savePlan', { plan: { v: 4, log: [{ id: 'a1', date: '2026-10-20', where: 'class', who: 'me', num: '18' }] } });
+  as(S2, 'savePlan', { plan: { v: 4, log: [{ id: 'a1', date: '2026-10-20', where: 'class', who: 'me', num: '18' }, { id: 'b2', date: '2026-10-22', where: 'home', who: 'friend', num: '20' }] } }); // workout mode logs b2
+  const r = as(S2, 'savePlan', { plan: { v: 4, hr: '150', log: [{ id: 'a1', date: '2026-10-20', where: 'class', who: 'me', num: '18' }] } }); // stale draft saved later
+  return r.ok && r.data.plan.log.length === 2 && r.data.plan.log.some(e => e.id === 'b2') && r.data.plan.hr === '150';
+})());
+check('savePlan removes only the sessions the student deleted', (() => {
+  const r = as(S2, 'savePlan', { plan: { v: 4, log: [], logRemoved: ['a1'] } });
+  return r.ok && r.data.plan.log.length === 1 && r.data.plan.log[0].id === 'b2' && !('logRemoved' in r.data.plan);
+})());
+check('savePlan does not duplicate a session when a save is retried', (() => {
+  const e = { id: 'c3', date: '2026-10-23', where: 'home', who: 'me', num: '21' };
+  as(S2, 'savePlan', { plan: { v: 4, log: [e] } }); const r = as(S2, 'savePlan', { plan: { v: 4, log: [e] } });
+  return r.ok && r.data.plan.log.filter(x => x.id === 'c3').length === 1;
+})());
+check('savePlan stamps savedAt (so a device can tell the plan changed elsewhere)', /^\d{4}-\d\d-\d\dT/.test((as(S2, 'savePlan', { plan: { v: 4, log: [] } }).data || { plan: {} }).plan.savedAt || ''));
+check('savePlan merges legacy sessions without ids by date/where/who/number', (() => {
+  as(S3, 'savePlan', { plan: { v: 3, log: [{ date: '2026-10-01', who: 'me', num: '9' }] } });
+  const r = as(S3, 'savePlan', { plan: { v: 4, log: [{ date: '2026-10-01', who: 'me', num: '9' }] } });
+  return r.ok && r.data.plan.log.length === 1;
 })());
 check('savePlan refuses an oversized plan', /too long/.test(as(S1, 'savePlan', { plan: { reflection: 'x'.repeat(46000) } }).error || ''));
 check('teacher (not on roster) cannot saveGoals', /class list/.test(as(T, 'saveGoals', { goals: [] }).error));
@@ -242,7 +263,7 @@ check('student sees own outcomes only', (() => { const a = as(S1, 'bootstrap').d
 
 console.log('teacher assessment view');
 check('student saves a plan with whys, a 4-part reflection and a logged number', (() => { const plan = { v: 3, warmup: [{ n: 'Light jog', min: 3, int: 'easy' }], cardio: [], strength: [], focus: [], cooldown: [], why: { warmup: 'raise my heart rate' }, ref: { strength: 'push-ups 18', worked: 'yes', change: 'more sets', matters: 'rugby' }, log: [{ date: '2026-10-27', who: 'me', where: 'home', feel: 'ok', num: '22 push-ups' }] };
-  const r = as(S2, 'savePlan', { plan }); return r.ok && r.data.plan.ref.worked === 'yes' && r.data.plan.log[0].num === '22 push-ups'; })());
+  const r = as(S2, 'savePlan', { plan }); return r.ok && r.data.plan.ref.worked === 'yes' && r.data.plan.log.some(e => e.num === '22 push-ups'); })());
 check('teacher classStudent includes that student\'s plan and goals', (() => { const r = as(T, 'classStudent', { email: S2 }); return r.ok && r.data.student.plan.why.warmup === 'raise my heart rate' && Array.isArray(r.data.student.goals.items); })());
 check('a student cannot open another student\'s plan', (() => { const r = as(S1, 'classStudent', { email: S2 }); return !r.ok && /teacher/i.test(r.error); })());
 check('student bootstrap does not include another student\'s plan', !JSON.stringify(as(S1, 'bootstrap')).includes('raise my heart rate'));

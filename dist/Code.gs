@@ -734,6 +734,23 @@ function savePlan_(cfg, id, plan) {
   if (plan === null || plan === undefined) throw new Error('Missing plan');
   var json; try { json = JSON.stringify(plan); } catch (e) { throw new Error('Bad plan'); }
   if (json.length > 45000) throw new Error('Plan is too long');
+  if (typeof plan !== 'object' || plan instanceof Array) throw new Error('Bad plan');
+  // Logged sessions are merged, not overwritten: a plan page left open on one device (or an older
+  // draft in the same tab) must never wipe a session logged since. The client lists the sessions it
+  // deliberately removed in logRemoved; everything else already on the server is kept.
+  var prev = planFor_(id.email) || {}, removed = {}, seen = {}, merged = [];
+  (plan.logRemoved instanceof Array ? plan.logRemoved : []).slice(0, 60).forEach(function (k) { removed[String(k)] = true; });
+  function key(e) { return e && e.id ? String(e.id) : [e && e.date, e && e.where || '', e && e.who || '', e && e.num || ''].join('|'); }
+  ((prev.log instanceof Array) ? prev.log : []).concat((plan.log instanceof Array) ? plan.log : []).forEach(function (e) {
+    if (!e || typeof e !== 'object') return;
+    var k = key(e); if (removed[k] || seen[k]) return; seen[k] = true; merged.push(e);
+  });
+  merged.sort(function (a, b) { return String(a.date) < String(b.date) ? -1 : String(a.date) > String(b.date) ? 1 : 0; });
+  plan.log = merged.slice(-60);
+  delete plan.logRemoved;
+  plan.savedAt = new Date().toISOString();
+  json = JSON.stringify(plan);
+  if (json.length > 45000) throw new Error('Plan is too long');
   upsert_('Plan', { Email: id.email }, { Plan: json, Updated: new Date() });
   return { ok: true, plan: plan };
 }

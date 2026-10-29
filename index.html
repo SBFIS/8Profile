@@ -831,6 +831,8 @@ body.demo{padding-top:52px}
 @media(max-width:560px){.apr-b{grid-template-columns:1fr 1fr}.apc-seg span{display:none}.apc-row{grid-template-columns:1fr auto!important}.apc-v{white-space:nowrap}}
 .agree{color:var(--ap);font-weight:700;font-size:12px}
 .cband{font-size:22px}
+.psave-st{font-size:13px;font-weight:700}.psave-st.ok{color:#1f7a45}.psave-st.dirty{color:#9a6d00}.psave-st.busy{color:var(--muted)}.psave-st.err{color:#a5281b;font-weight:600}
+.rnote{background:#eef4ff;border:1.5px solid #c9d8fb;border-radius:12px;padding:10px 14px;margin:0 0 12px;font-size:13.5px;font-weight:600;display:flex;flex-wrap:wrap;gap:8px;align-items:center}.rnote.ask{background:#fff4e0;border-color:#e7a23b}
 .ptodo{background:#fff4e0;border:2px solid #e7a23b;border-radius:14px;padding:12px 16px;margin:0 0 14px}
 .ptodo.ok{background:#eaf6ee;border-color:#9fd3b2;color:#1f6b40;font-weight:700;padding:10px 14px}
 .ptodo-h{font-weight:800;font-size:15px;display:flex;justify-content:space-between;gap:10px;align-items:baseline}
@@ -1304,7 +1306,7 @@ function showSignin(msg) {
   });
 }
 function onCredential(resp) { if (resp && resp.credential) { keepToken(resp.credential); boot(); } }
-function signOut() { dropToken(); try { google.accounts.id.disableAutoSelect(); } catch (e) {} showSignin(); }
+function signOut() { try { if (!planDraft || !planDirty()) localStorage.removeItem('pe_plan_draft:' + ((state && state.email) || 'me')); } catch (e) {} dropToken(); try { google.accounts.id.disableAutoSelect(); } catch (e) {} showSignin(); }
 
 // ═══════════════ PE Styles (visual skins; the server holds the names) ═══════════════
 const SKINS = {
@@ -2458,10 +2460,12 @@ function planTodoBanner(raw, goals, where) {
     (old ? '<p class="ptodo-new">New: a 🧠 “how does this part train it?” line for every part, a Plan check, and after each session you log your heart-rate zone and one change.</p>' : '') +
     (where === 'plan' ? '' : '<button type="button" class="ct-btn" data-fixplan="1">✎ Update my plan</button>') + '</div>';
 }
+function logId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function logKey(e) { return e && e.id ? String(e.id) : [e && e.date, (e && e.where) || '', (e && e.who) || '', (e && e.num) || ''].join('|'); }
 function normPlan(p) {
   p = p || {};
   const out = { v: PLAN_V, warmup: [], cardio: [], strength: [], focus: [], cooldown: [], sChoice: p.sChoice || '', fChoice: p.fChoice || '', hr: p.hr || '', fWhy: p.fWhy || '',
-    equip: (p.equip || []).slice(0, 20), days: p.days || {}, log: (p.log || []).slice(), reflection: p.reflection || p.notes || '',
+    equip: (p.equip || []).slice(0, 20), days: p.days || {}, log: (p.log || []).slice(), logRemoved: (p.logRemoved || []).slice(), reflection: p.reflection || p.notes || '',
     why: Object.assign({}, p.why || {}), ref: Object.assign({}, p.ref || {}) };
   // an older single reflection box carries into "Did it work?"
   if (out.reflection && !out.ref.worked) out.ref.worked = out.reflection;
@@ -2572,7 +2576,7 @@ function equipList() {
 }
 function planView(b) {
   const m = measured();
-  if (planDraft === null) planDraft = normPlan(m && m.plan);
+  if (planDraft === null) openPlanDraft();
   const goals = (m && m.goals) || [];
   const focusStrip = goals.length
     ? '<div class="goalchips"><span class="gc-h">🎯 Built for your goals</span>' + goals.map(g => '<span class="gchip">' + esc(goalLabel(g.component)) + '</span>').join('') + '<button type="button" class="lnk" id="toeditgoals">edit</button></div>'
@@ -2589,7 +2593,7 @@ function planView(b) {
   return '<div class="wrap">' +
     backBtn() +
     '<button type="button" class="wo-launch" id="wk-go">▶ Workout mode</button><div class="phero"><div class="k">PERSONAL WORKOUT PLAN</div><h1>Build my workout</h1><p>Show you can train the main parts of fitness, with your own choices. Each section has a time to plan for; give every exercise its sets &amp; reps, minutes and how hard. <b>Drag ⠿ to arrange.</b></p></div>' +
-    planTodoBanner(Object.assign({}, planDraft, { v: (m && m.plan && m.plan.v) || PLAN_V }), goals, 'plan') + fitAssessPanel() + focusStrip + inclass +
+    restoreNote() + planTodoBanner(Object.assign({}, planDraft, { v: (m && m.plan && m.plan.v) || PLAN_V }), goals, 'plan') + fitAssessPanel() + focusStrip + inclass +
     '<div class="wkcard"><div class="wkcard-h"><span>🏋️ My workout</span><span class="wkcard-n' + (ready === WK_PARTS.length ? ' ok' : '') + '">' + ready + ' of ' + WK_PARTS.length + ' sections ready · ' + Math.round(total) + ' min</span></div>' +
     WK_PARTS.map(wkPart).join('') +
     '</div>' + eqHtml +
@@ -2601,7 +2605,7 @@ function planView(b) {
     '<h3 class="sec"><span class="em">✍️</span> Reflection <span class="tap">· after you’ve done it</span></h3>' +
     evidenceHtml(planDraft.log) +
     '<div class="refset">' + REF_PROMPTS.map(r => '<label class="refq"><b>' + r[1] + '</b><small>' + esc(r[2]) + '</small><textarea id="wk-ref-' + r[0] + '" rows="3" maxlength="400" placeholder="' + esc(r[3]) + '">' + esc((planDraft.ref || {})[r[0]] || '') + '</textarea></label>').join('') + '</div>' +
-    '<div class="pbar"><div class="pcount">A plan you’ll actually do beats a perfect one.</div><button type="button" class="ct-btn" id="psaveplan">Save my plan</button></div>' +
+    '<div class="pbar"><div class="pcount">' + saveStatusHtml() + '</div><button type="button" class="ct-btn" id="psaveplan">Save my plan</button></div>' +
   '</div>';
 }
 // Reflection prompts, one per thing the rubric looks for (S2: strengths/areas, effectiveness, change, personal connection).
@@ -2682,7 +2686,7 @@ let hwOpen = false; // keep the log form open across re-renders
 function homeworkSection() {
   const log = (planDraft.log || []).slice(), tw = weekKey(isoDay(new Date()));
   const wk = log.filter(e => weekKey(e.date) === tw && e.where !== 'class'), n = wk.length, met = n >= 1, buddy = wk.some(e => e.who === 'friend' || e.who === 'family');
-  const rows = log.sort((a, b) => a.date < b.date ? 1 : -1).slice(0, 10).map(e => { const w = e.where === 'class' ? ['🏫', 'In PE', 0] : (WHO[e.who] || WHO.me); return '<div class="hw-log"><span class="hw-d">' + esc(e.date) + '</span><span class="hw-w">' + w[0] + ' ' + w[1] + '</span>' + (w[2] ? '<span class="hw-star">⭐ bonus</span>' : '') + (e.hr === 'y' ? '<span class="hw-hr">❤️ in zone</span>' : e.hr === 'n' ? '<span class="hw-hr no">❤️ below zone</span>' : '') + (e.num ? '<span class="hw-num">' + esc(e.num) + '</span>' : '') + '<button type="button" class="wr-x" data-logrm="' + esc(e.date + '|' + e.who) + '" aria-label="remove">✕</button>' + (e.chg ? '<span class="hw-chg">🔧 ' + esc(e.chg) + '</span>' : '') + '</div>'; }).join('');
+  const rows = log.sort((a, b) => a.date < b.date ? 1 : -1).slice(0, 10).map(e => { const w = e.where === 'class' ? ['🏫', 'In PE', 0] : (WHO[e.who] || WHO.me); return '<div class="hw-log"><span class="hw-d">' + esc(e.date) + '</span><span class="hw-w">' + w[0] + ' ' + w[1] + '</span>' + (w[2] ? '<span class="hw-star">⭐ bonus</span>' : '') + (e.hr === 'y' ? '<span class="hw-hr">❤️ in zone</span>' : e.hr === 'n' ? '<span class="hw-hr no">❤️ below zone</span>' : '') + (e.num ? '<span class="hw-num">' + esc(e.num) + '</span>' : '') + '<button type="button" class="wr-x" data-logrm="' + esc(logKey(e)) + '" aria-label="remove">✕</button>' + (e.chg ? '<span class="hw-chg">🔧 ' + esc(e.chg) + '</span>' : '') + '</div>'; }).join('');
   return '<div class="hwbox">' +
     '<div class="hw-rule"><b>Do your workout at least one more time each week</b> on your own, outside PE. <span class="hw-bonus">⭐ Extra points for training with a friend or family member.</span></div>' +
     '<div class="hw-week"><span class="hw-badge' + (met ? ' ok' : '') + '">' + (met ? '✓ ' : '') + n + ' home session' + (n === 1 ? '' : 's') + ' this week</span>' + (buddy ? '<span class="hw-badge star">⭐ Training-buddy bonus</span>' : '') + '<span class="hw-target">target: 1 or more</span></div>' +
@@ -2715,6 +2719,7 @@ function syncPlanFromDom() {
   planDraft.why = planDraft.why || {}; planDraft.ref = planDraft.ref || {};
   WK_PARTS.forEach(w => { const el = $('#wk-why-' + w[0]); if (el) planDraft.why[w[0]] = el.value.trim().slice(0, 160); });
   REF_PROMPTS.forEach(q => { const el = $('#wk-ref-' + q[0]); if (el) planDraft.ref[q[0]] = el.value.trim().slice(0, 400); });
+  if (view === 'plan') planChanged();
 }
 // Pointer-based drag (mouse + touch): grab ⠿, move the row within or between the three parts.
 function enableWkDrag(root) {
@@ -2756,9 +2761,77 @@ async function savePlanAndGo() {
   syncPlanFromDom();
   if (!planCount(planDraft)) { toast('Add some exercises first.', true); return; }
   const btn = $('#wk-go'); btn.disabled = true; btn.textContent = 'Saving…';
-  try { const res = await call('savePlan', { plan: planDraft }); const m = state.student.combine || { fitness: {}, skills: {} }; m.plan = res.plan; state.student.combine = m; planDraft = null; woStart('fitness'); show('workout'); }
-  catch (e) { btn.disabled = false; btn.textContent = '▶ Workout mode'; toast('Couldn’t save: ' + e.message, true); }
+  clearTimeout(planTimer); backupDraft();
+  try { const res = await call('savePlan', { plan: planDraft }); const m = state.student.combine || { fitness: {}, skills: {} }; m.plan = res.plan; state.student.combine = m; planDraft = null; planSaveState = 'saved'; dropBackup(); woStart('fitness'); show('workout'); }
+  catch (e) { if (e.authRequired) return; btn.disabled = false; btn.textContent = '▶ Workout mode'; toast('Couldn’t save yet: ' + e.message + '. Your changes are kept on this device.', true); }
 }
+// ═══════════════ keeping a student's plan safe ═══════════════
+// 1) every change is backed up on this device at once (so a closed tab, a flat battery or a lost
+//    connection never loses work); 2) changes autosave to the server a few seconds after the student
+//    stops typing, and when they leave the page; 3) a status line always says whether it's saved.
+let planBase = '', planSaving = null, planTimer = null, planSaveState = 'saved', planRestored = '';
+function planCore(p) { const x = Object.assign({}, p || {}); delete x.savedAt; delete x.logRemoved; x.log = (x.log || []).map(logKey).sort(); return JSON.stringify(x); }
+function planDirty() { if (!planDraft) return false; const m = measured(); return planCore(planDraft) !== planCore(normPlan(m && m.plan)) || (planDraft.logRemoved || []).length > 0; }
+function draftKey() { return 'pe_plan_draft:' + ((state && state.email) || 'me'); }
+function backupDraft() { try { if (planDirty()) localStorage.setItem(draftKey(), JSON.stringify({ plan: planDraft, base: planBase, at: Date.now() })); else localStorage.removeItem(draftKey()); } catch (e) {} }
+function readBackup() { try { return JSON.parse(localStorage.getItem(draftKey()) || 'null'); } catch (e) { return null; } }
+function dropBackup() { try { localStorage.removeItem(draftKey()); } catch (e) {} }
+function saveStatusHtml() {
+  const t = { saved: ['ok', '✓ All changes saved'], dirty: ['dirty', '● Changes not saved yet: saving in a moment'], saving: ['busy', 'Saving…'], error: ['err', '⚠ Couldn’t save to your profile. Your changes are kept on this device and will save when the connection is back.'] }[planSaveState] || ['ok', ''];
+  return '<span class="psave-st ' + t[0] + '" id="psave-st">' + t[1] + '</span>';
+}
+function paintSaveStatus() { const el = $('#psave-st'); if (el) el.outerHTML = saveStatusHtml(); }
+// Called after anything in the plan changes.
+function planChanged() {
+  if (!planDraft) return;
+  planSaveState = planDirty() ? (planSaving ? 'saving' : 'dirty') : 'saved';
+  backupDraft(); paintSaveStatus();
+  clearTimeout(planTimer); if (planSaveState === 'dirty') planTimer = setTimeout(() => autoSavePlan(), 8000);
+}
+async function autoSavePlan() {
+  clearTimeout(planTimer);
+  if (!planDraft || !planDirty() || state.role !== 'student') return;
+  if (planSaving) { planSaving.again = true; return; }
+  const sent = JSON.parse(JSON.stringify(planDraft)), job = planSaving = { again: false };
+  planSaveState = 'saving'; paintSaveStatus();
+  try {
+    const res = await call('savePlan', { plan: sent });
+    const m = state.student.combine || { fitness: {}, skills: {} }; m.plan = res.plan; state.student.combine = m; planBase = res.plan.savedAt || '';
+    if (planDraft) {
+      // keep sessions logged elsewhere, and forget removals the server has now applied
+      const have = {}; planDraft.log.forEach(x => { have[logKey(x)] = 1; });
+      (res.plan.log || []).forEach(x => { const k = logKey(x); if (!have[k] && (planDraft.logRemoved || []).indexOf(k) === -1) planDraft.log.push(x); });
+      planDraft.logRemoved = (planDraft.logRemoved || []).filter(k => (sent.logRemoved || []).indexOf(k) === -1);
+    }
+    planSaving = null; planSaveState = planDirty() ? 'dirty' : 'saved'; backupDraft(); paintSaveStatus();
+    if (job.again || planSaveState === 'dirty') planTimer = setTimeout(() => autoSavePlan(), 1500);
+  } catch (e) {
+    planSaving = null; if (e.authRequired) return; // the sign-in screen replays this save
+    planSaveState = 'error'; paintSaveStatus(); planTimer = setTimeout(() => autoSavePlan(), 30000);
+  }
+}
+// Start editing: the saved plan, or this device's unsaved backup of it.
+function openPlanDraft() {
+  const m = measured(), saved = m && m.plan; planBase = (saved && saved.savedAt) || '';
+  planDraft = normPlan(saved); planRestored = '';
+  const b = readBackup();
+  if (b && b.plan) {
+    const cand = normPlan(b.plan);
+    if (planCore(cand) !== planCore(planDraft) || (cand.logRemoved || []).length) {
+      if ((b.base || '') === planBase) { planDraft = cand; planRestored = 'auto'; }    // nothing saved since: carry on where they left off
+      else planRestored = 'ask';                                                      // the plan was saved elsewhere since: let them choose
+    } else dropBackup();
+  }
+  planSaveState = planDirty() ? 'dirty' : 'saved';
+}
+function restoreNote() {
+  if (planRestored === 'auto') return '<div class="rnote">↩ We brought back changes you hadn’t saved yet on this device. They’re saving now.</div>';
+  if (planRestored === 'ask') { const b = readBackup(); const when = b ? new Date(b.at).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : ''; return '<div class="rnote ask">This device has unsaved changes from ' + esc(when) + ', but your plan was saved somewhere else since. <button type="button" class="ct-btn" id="rn-use">Use this device’s version</button><button type="button" class="lnk" id="rn-drop">Keep the saved plan</button></div>'; }
+  return '';
+}
+// Leave the plan page without losing anything: save now (in the background) and go.
+function leavePlan(go) { if (planDraft) { syncPlanFromDom(); planChanged(); if (planDirty()) autoSavePlan(); } go(); }
+window.addEventListener('beforeunload', e => { if (planDraft && planDirty()) { backupDraft(); e.preventDefault(); e.returnValue = ''; } });
 // Log one session from the form and save straight away (the student stays on the page).
 async function logSessionUI() {
   syncPlanFromDom();
@@ -2767,26 +2840,24 @@ async function logSessionUI() {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > isoDay(new Date())) return toast('Pick the date of the session (not in the future).', true);
   planDraft.log = (planDraft.log || []).slice(-59);
   const who = where === 'home' ? (WHO[v('hwf-who')] ? v('hwf-who') : 'me') : 'me';
-  planDraft.log.push({ date, who, where, feel: v('hwf-feel'), hr: v('hwf-hr') === 'y' || v('hwf-hr') === 'n' ? v('hwf-hr') : '', num: v('hw-num').slice(0, 40), chg: v('hwf-chg').slice(0, 160) });
-  const btn = $('#hwf-save'); if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
-  try {
-    const res = await call('savePlan', { plan: planDraft });
-    const m = state.student.combine || { fitness: {}, skills: {} }; m.plan = res.plan; state.student.combine = m;
-    hwOpen = true; toast(where === 'home' && who !== 'me' ? 'Logged — ⭐ buddy bonus!' : 'Session logged ✓');
-  } catch (e) { planDraft.log.pop(); toast('Couldn’t log it: ' + e.message, true); }
+  planDraft.log.push({ id: logId(), date, who, where, feel: v('hwf-feel'), hr: v('hwf-hr') === 'y' || v('hwf-hr') === 'n' ? v('hwf-hr') : '', num: v('hw-num').slice(0, 40), chg: v('hwf-chg').slice(0, 160) });
+  hwOpen = true; planChanged(); clearTimeout(planTimer);
   const y = window.scrollY; show('plan'); window.scrollTo(0, y);
+  toast(where === 'home' && who !== 'me' ? 'Logged — ⭐ buddy bonus! Saving…' : 'Session logged. Saving…');
+  await autoSavePlan(); // kept on this device even if the save has to wait for the connection
 }
 async function savePlanUI() {
   syncPlanFromDom();
   const btn = $('#psaveplan'); btn.disabled = true; btn.textContent = 'Saving…';
-  try { const res = await call('savePlan', { plan: planDraft }); const m = state.student.combine || { fitness: {}, skills: {} }; m.plan = res.plan; state.student.combine = m; planDraft = null; toast('Plan saved.'); show(lastHub); }
-  catch (e) { btn.disabled = false; btn.textContent = 'Save my plan'; toast('Couldn’t save: ' + e.message, true); }
+  clearTimeout(planTimer); backupDraft();
+  try { const res = await call('savePlan', { plan: planDraft }); const m = state.student.combine || { fitness: {}, skills: {} }; m.plan = res.plan; state.student.combine = m; planDraft = null; planSaveState = 'saved'; dropBackup(); toast('Plan saved ✓'); show(lastHub); }
+  catch (e) { if (e.authRequired) return; btn.disabled = false; btn.textContent = 'Save my plan'; planSaveState = 'error'; paintSaveStatus(); toast('Couldn’t save yet: ' + e.message + '. Your changes are kept on this device. Try again in a moment.', true); }
 }
 
 // ═══════════════ workout mode: see the plan, then do it one exercise at a time ═══════════════
 
 // "Update my plan" from any banner (hubs, workout mode)
-document.addEventListener('click', e => { if (e.target.closest('[data-fixplan]')) { if (typeof wo !== 'undefined' && wo) { woStop(); woWakeOff(); wo = null; } planDraft = null; lastHub = 'fitness'; show('plan'); window.scrollTo(0, 0); } });
+document.addEventListener('click', e => { if (e.target.closest('[data-fixplan]')) { if (typeof wo !== 'undefined' && wo) { woStop(); woWakeOff(); wo = null; } if (!planDirty()) planDraft = null; lastHub = 'fitness'; show('plan'); window.scrollTo(0, 0); } });
 function woCta(raw) { const p = normPlan(raw), m = measured(); return planTodoBanner(raw, (m && m.goals) || [], 'hub') + '<button type="button" class="wo-cta" id="towo"><span class="woc-i">▶</span><span class="woc-b"><b>Do my workout</b><span>' + planCount(p) + ' exercises · about ' + woMinutes(p) + ' min</span></span><span class="woc-go">Go</span></button>'; }
 const WO_COL = { warmup: '#e8730c', cardio: '#e04848', strength: '#3b7bff', focus: '#a64fd6', cooldown: '#15a89d' };
 const WO_INT = { easy: ['🙂', 'Easy'], moderate: ['😤', 'Moderate'], hard: ['🔥', 'Hard'] };
@@ -2900,12 +2971,19 @@ async function woSave() {
   const p = woPlan(); p.log = (p.log || []).slice(-59);
   const ni = $('#wo-num'); if (ni) wo.num = ni.value.trim().slice(0, 40);
   const ci = $('#wo-chg'); if (ci) wo.chg = ci.value.trim().slice(0, 160);
-  p.log.push({ date: isoDay(new Date()), who: wo.where === 'class' ? 'me' : wo.who, where: wo.where, feel: wo.feel, hr: wo.hr || '', num: wo.num || '', chg: wo.chg || '' });
+  const entry = { id: logId(), date: isoDay(new Date()), who: wo.where === 'class' ? 'me' : wo.who, where: wo.where, feel: wo.feel, hr: wo.hr || '', num: wo.num || '', chg: wo.chg || '' };
+  p.log.push(entry);
   try {
     const res = await call('savePlan', { plan: p });
     const m = state.student.combine || { fitness: {}, skills: {} }; m.plan = res.plan; state.student.combine = m;
+    if (planDraft) planDraft.log.push(entry); // an open plan draft keeps this session too
     wo.saved = true; toast(wo.where === 'home' && wo.who !== 'me' ? 'Logged — ⭐ buddy bonus!' : 'Workout logged ✓'); show('workout');
-  } catch (e) { btn.disabled = false; btn.textContent = 'Save & finish'; toast('Couldn’t save: ' + e.message, true); }
+  } catch (e) {
+    if (e.authRequired) return;
+    // keep the session on this device; it saves the next time the plan is opened (or press Save again)
+    try { const m = measured(), d = planDraft || normPlan(m && m.plan); if (!d.log.some(x => x.id === entry.id)) d.log.push(entry); localStorage.setItem(draftKey(), JSON.stringify({ plan: d, base: (m && m.plan && m.plan.savedAt) || '', at: Date.now() })); } catch (x) {}
+    btn.disabled = false; btn.textContent = 'Save & finish'; toast('Couldn’t reach your profile (' + e.message + '). Your session is kept on this device: press Save again, or it saves next time you open your plan.', true);
+  }
 }
 function woHandle(e) {
   const nIn = $('#wo-num'); if (nIn) wo.num = nIn.value.trim().slice(0, 40); // keep the typed number and change across re-renders
@@ -2917,7 +2995,7 @@ function woHandle(e) {
   if (!id) return;
   const n = wo.list.length;
   if (id === 'wo-exit') { if (wo.stage === 'go') { woStop(); woWakeOff(); wo.stage = 'overview'; return show('workout'); } const f = wo.from; woStop(); woWakeOff(); wo = null; return show(f === 'profile' ? 'profile' : 'fitness'); }
-  if (id === 'wo-edit') { woStop(); woWakeOff(); wo = null; planDraft = null; lastHub = 'fitness'; return show('plan'); }
+  if (id === 'wo-edit') { woStop(); woWakeOff(); wo = null; if (!planDirty()) planDraft = null; lastHub = 'fitness'; return show('plan'); }
   if (id === 'wo-start' || id === 'wo-start2') { wo.stage = 'go'; wo.i = 0; woReset(); woWakeOn(); return show('workout'); }
   if (id === 'wo-play') { if (wo.running) woStop(); else { if (wo.left <= 0) wo.left = wo.total; woRun(); } return show('workout'); }
   if (id === 'wo-skiprest') { woStop(); wo.left = 0; wo.running = true; woTick(); return; }
@@ -3660,7 +3738,11 @@ function show(v, arg) {
     document.querySelectorAll('.gslider').forEach(r => r.addEventListener('input', () => { const k = r.getAttribute('data-key'), meta = goalMetaFor(k), lab = $('#glb-' + k); if (lab && meta) lab.textContent = fmtMetric(meta, Number(r.value)); }));
   } else if (v === 'plan') {
     app.innerHTML = planView(state);
-    wire('toprofile', () => show(lastHub)); wire('psaveplan', savePlanUI); wire('toeditgoals', () => show('goals')); wire('wk-go', savePlanAndGo);
+    wire('toprofile', () => leavePlan(() => show(lastHub))); wire('psaveplan', savePlanUI); wire('toeditgoals', () => leavePlan(() => show('goals'))); wire('wk-go', savePlanAndGo);
+    wire('rn-use', () => { const b = readBackup(); if (b) { planDraft = normPlan(b.plan); planRestored = ''; planChanged(); show('plan'); } });
+    wire('rn-drop', () => { dropBackup(); planRestored = ''; show('plan'); });
+    planChanged(); // status line + backup + autosave reflect whatever just changed
+    if (planRestored === 'auto' && planDirty() && !planSaving) autoSavePlan(); // brought-back edits save straight away
     const w = app.querySelector('.wrap');
     if (w) {
       w.addEventListener('click', e => {
@@ -3674,7 +3756,7 @@ function show(v, arg) {
         if (e.target.closest('#wk-eqadd')) { const i = $('#wk-eqi'), v3 = i && i.value.trim(); if (v3) { syncPlanFromDom(); planDraft.equip = (planDraft.equip || []); if (planDraft.equip.length < 20 && planDraft.equip.indexOf(v3) === -1) planDraft.equip.push(v3.slice(0, 30)); show('plan'); } return; }
         const eqr = e.target.closest('[data-eqrm]'); if (eqr) { syncPlanFromDom(); planDraft.equip.splice(+eqr.dataset.eqrm, 1); return show('plan'); }
         if (e.target.closest('#hwf-save')) { logSessionUI(); return; }
-        const lr = e.target.closest('[data-logrm]'); if (lr) { syncPlanFromDom(); const q = lr.dataset.logrm.split('|'), j = (planDraft.log || []).findIndex(x => x.date === q[0] && x.who === q[1]); if (j >= 0) planDraft.log.splice(j, 1); return show('plan'); }
+        const lr = e.target.closest('[data-logrm]'); if (lr) { syncPlanFromDom(); const k = lr.dataset.logrm, j = (planDraft.log || []).findIndex(x => logKey(x) === k); if (j >= 0) { planDraft.log.splice(j, 1); planDraft.logRemoved = (planDraft.logRemoved || []).concat([k]).slice(-60); } planChanged(); return show('plan'); }
       });
       // minutes / heart-rate / goal text update the section status as you type (on leaving the field)
       w.addEventListener('change', e => {
@@ -3684,6 +3766,8 @@ function show(v, arg) {
       });
       w.querySelectorAll('.wk-pick').forEach(d => d.addEventListener('toggle', () => { wkOpen[d.dataset.part] = d.open; if (d.open) w.querySelectorAll('.wk-pick').forEach(o => { if (o !== d && o.open) { o.open = false; wkOpen[o.dataset.part] = false; } }); }));
       enableWkDrag(w);
+      // typing anywhere in the plan: back it up on this device and autosave shortly after
+      let typeT = null; w.addEventListener('input', e => { if (e.target.closest('.hwf')) return; clearTimeout(typeT); typeT = setTimeout(() => syncPlanFromDom(), 600); });
     }
   } else if (v === 'myskills') {
     app.innerHTML = myskillsView(state);
