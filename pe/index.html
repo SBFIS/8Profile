@@ -831,6 +831,44 @@ body.demo{padding-top:52px}
 @media(max-width:560px){.apr-b{grid-template-columns:1fr 1fr}.apc-seg span{display:none}.apc-row{grid-template-columns:1fr auto!important}.apc-v{white-space:nowrap}}
 .agree{color:var(--ap);font-weight:700;font-size:12px}
 .cband{font-size:22px}
+/* ── Printable workout cards (teacher) ── */
+.pc-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:10px 14px;margin:0 0 10px;font-size:14px;font-weight:600}
+.pc-miss-box{background:#fff4e0;border:1.5px solid #e7a23b;border-radius:12px;padding:10px 14px;font-size:13.5px;margin:0 0 10px}
+.pc-pages{display:flex;flex-direction:column;align-items:center;gap:18px;padding:0 0 60px}
+.pc-pg{width:210mm;height:297mm;background:#fff;color:#231a1c;box-shadow:0 4px 18px rgba(0,0,0,.15);padding:9mm 10mm 8mm;display:flex;flex-direction:column;gap:2.4mm;overflow:hidden;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.pc-top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #6f1d2c;padding-bottom:1.6mm}
+.pc-k{font-size:8pt;font-weight:700;letter-spacing:.08em;color:#6f1d2c}.pc-pg h1{font-family:var(--disp);font-weight:900;font-size:22pt;margin:0;line-height:1.05}
+.pc-meta{text-align:right;font-size:9pt;line-height:1.35}.pc-meta b{font-size:12pt;display:block}.pc-meta span{color:#6b5e60}
+.pc-goal{font-size:9.6pt;background:#fff4d6;border-radius:2mm;padding:1.4mm 3mm}
+.pc-pt{border-left:2.6mm solid #6f1d2c;padding:0 0 .2mm 3mm}
+.pc-ph{display:flex;gap:2.6mm;align-items:baseline}.pc-ph b{font-size:11.5pt;font-weight:800}.pc-ph span{font-size:8.6pt;font-weight:700;color:#6f1d2c}
+.pc-ph i{font-style:normal;font-size:8pt;font-weight:700;background:#f3eeee;color:#4a3e40;border-radius:99px;padding:.2mm 2.2mm}.pc-ph em{font-style:normal;font-size:9pt;font-weight:700;color:#c0392b;margin-left:auto}
+.pc-pt table{width:100%;border-collapse:collapse;font-size:9.8pt}.pc-pt td{padding:.3mm 0;border-bottom:1px solid #eee5e6}
+.pc-pt td.d{text-align:right;font-weight:700;white-space:nowrap;width:44mm;padding-right:3mm}.pc-pt .ch{width:52mm;border-left:1px solid #d8cdce;border-bottom:1px solid #b9a9ac}
+.pc-pt tr.hh th{font-size:6.8pt;font-weight:700;color:#8a7d7f;text-align:left;padding:0}.pc-pt tr.hh th.d{text-align:right;padding-right:3mm}.pc-pt tr.hh th.ch{padding-left:2mm;border:0}
+.pc-pt tr.add td{height:4.6mm}.pc-pt .plus{color:#b9a9ac;font-weight:700}
+.pc-why{font-size:8pt;color:#4a3e40;font-style:italic;margin-top:.3mm}.pc-miss{color:#a5281b;font-style:normal;font-weight:600}
+.pc-log{margin-top:auto}.pc-lh{font-weight:800;font-size:10pt;color:#6f1d2c;margin-bottom:1mm}.pc-lh small{font-weight:600;font-size:7.6pt;color:#6b5e60;margin-left:2mm}
+.pc-log table{width:100%;border-collapse:collapse;font-size:7.4pt}.pc-log th{background:#f3eeee;font-weight:700;padding:.9mm;border:1px solid #d8cdce;text-align:center}
+.pc-log td{border:1px solid #d8cdce;height:8.2mm;text-align:center;color:#6b5e60}.pc-log .dt{width:13mm}.pc-log .num{width:24mm}.pc-log .fl{width:27mm}.pc-log .hr{width:14mm}
+.pc-bx{display:inline-block;width:3.5mm;height:3.5mm;border:1.3px solid #6b5e60;border-radius:.8mm;vertical-align:-.6mm}
+.pc-ft{display:flex;justify-content:space-between;gap:4mm;font-size:8.4pt;font-weight:700;background:#e7b64b;border-radius:2mm;padding:1.6mm 3mm}
+.pc-pg.pc-back{gap:3.6mm}.pc-lede{margin:0;font-size:10.5pt}
+.pc-cr{border:1.5px solid #d8cdce;border-radius:3mm;padding:2.6mm 3.4mm}.pc-crh{font-size:12pt;margin-bottom:1.6mm}.pc-crh small{color:#6b5e60;font-weight:700}
+.pc-bands{display:grid;grid-template-columns:1fr 1fr;gap:2.4mm}.pc-bands>div{border-radius:2mm;padding:2.2mm 2.8mm;font-size:9.6pt;line-height:1.4}.pc-bands b{display:block;font-size:9.4pt;margin-bottom:.6mm}
+.pc-bands .got{background:#eaf6ee}.pc-bands .got b{color:#2e7d4f}.pc-bands .lead{background:#fbf3dc}.pc-bands .lead b{color:#9a6d00}
+.pc-two{display:grid;grid-template-columns:1.15fr 1fr;gap:3mm;margin-top:auto}.pc-box{border:1.5px solid #6f1d2c;border-radius:3mm;padding:2.6mm 3mm}
+.pc-hm{width:100%;border-collapse:collapse;font-size:8.4pt}.pc-hm th{font-size:7.4pt;color:#6b5e60;text-align:center}.pc-hm td{padding:2mm .5mm;border-bottom:1px solid #eee5e6;text-align:center;white-space:nowrap}.pc-hm td:first-child,.pc-hm th:first-child{text-align:left;font-weight:700}
+.pc-ck{display:flex;gap:2mm;font-size:9pt;line-height:1.35;margin-bottom:1.4mm}.pc-ck .pc-bx{flex:none;margin-top:.4mm}
+@media print{
+  @page{size:A4;margin:0}
+  body.printing-cards{background:#fff!important}
+  body.printing-cards .pc-tools,body.printing-cards .pv-rolebar,body.printing-cards #toast,body.printing-cards .toast{display:none!important}
+  body.printing-cards .pc-pages{display:block;padding:0}
+  body.printing-cards .pc-pg:last-child{break-after:auto;page-break-after:auto}
+  body.printing-cards .pc-pg{box-shadow:none;break-after:page;page-break-after:always;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body.printing-cards #app,body.printing-cards .wrap{padding:0!important;margin:0!important;max-width:none!important}
+}
 .psteps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 14px;position:sticky;top:0;z-index:30;background:var(--paper);padding:8px 0}
 .pstep{display:flex;gap:10px;align-items:center;text-align:left;border:2px solid var(--line);background:#fff;border-radius:14px;padding:10px 12px;cursor:pointer;color:var(--ink);font:inherit;touch-action:manipulation}
 .pstep .ps-n{font-family:var(--disp);font-weight:900;font-size:22px;color:var(--muted)}.pstep b{display:block;font-size:15px}.pstep small{display:block;font-size:12px;color:var(--muted);font-weight:600}
@@ -3209,7 +3247,7 @@ function classView() {
     '<div class="mxbar">' +
       '<label class="mxf">Class <select id="mxclass">' + classOpts + '</select></label>' +
       '<div class="cptabs">' + cpBtns + '</div>' +
-      '<div class="mxact"><button type="button" class="minib" id="mxlockall">🔒 Lock all</button><button type="button" class="minib" id="mxunlockall">🔓 Unlock all</button><button type="button" class="minib" id="mxcsv">⬇ CSV</button></div>' +
+      '<div class="mxact"><button type="button" class="minib" id="mxlockall">🔒 Lock all</button><button type="button" class="minib" id="mxunlockall">🔓 Unlock all</button><button type="button" class="minib" id="mxcsv">⬇ CSV</button><button type="button" class="minib" id="mxcards">🖨 Workout cards</button></div>' +
     '</div>' +
     '<div class="mxleg"><span class="lk lv-lo"></span>below L4<span class="lk lv-mid"></span>at L4<span class="lk lv-hi"></span>above<span class="sep"></span>7 skills · 3 report bands (K/S/C, 1–7) · 5 participation keys</div>' +
     '<div class="tablewrap mxwrap"><table class="mx"><thead><tr>' +
@@ -3287,6 +3325,65 @@ function skillEntryView(sid) {
     '<div class="pbar"><div class="pcount">Teacher sign-off — the final tick.</div><button type="button" class="ct-btn" id="sksave" data-id="' + esc(sid) + '">Save levels</button></div>' +
   '</div>';
 }
+// ── Teacher: printable workout cards for a whole class (front: the plan to practise from;
+// back: how it's assessed). One A4 per student; print double-sided for the back page.
+let cardsData = null, cardsBack = true;
+async function openCards() {
+  if (!teacherFilter || teacherFilter === 'all') return toast('Pick a class first (the Class menu), then print its cards.', true);
+  cardsData = { loading: true, klass: teacherFilter }; show('cards');
+  try { cardsData = await call('classPlans', { klass: teacherFilter }); }
+  catch (e) { cardsData = { error: e.message, klass: teacherFilter }; }
+  if (view === 'cards') show('cards');
+}
+function cardDose(part, r) {
+  const sr = r.sets && r.reps ? r.sets + ' × ' + r.reps : '', mn = part !== 'strength' && r.min ? r.min + ' min' : '';
+  return [sr, mn, r.int].filter(Boolean).join(' · ');
+}
+function cardFront(s) {
+  const p = normPlan(s.plan), MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const saved = s.plan && s.plan.savedAt ? new Date(s.plan.savedAt) : null, savedTxt = saved && !isNaN(saved) ? saved.getDate() + ' ' + MON[saved.getMonth()] : '—';
+  const goals = (s.goals || []).map(g => { const meta = goalMetaFor(g.component); return esc(goalLabel(g.component)) + (meta && g.target != null ? ' → ' + esc(fmtMetric(meta, g.target)) : ''); }).join(' · ');
+  const parts = WK_PARTS.map(w => {
+    const k = w[0], rows = p[k] || [], comp = wkTrains(k, p), why = (p.why || {})[k];
+    const title = k === 'strength' ? '③ ' + (p.sChoice === 'endurance' ? 'Muscular endurance' : p.sChoice === 'strength' ? 'Strength' : 'Strength or Muscular Endurance') : k === 'focus' ? '④ My Focus' : w[1];
+    return '<div class="pc-pt"><div class="pc-ph"><b>' + esc(title) + '</b><span>' + w[2] + ' min</span>' + (comp ? '<i>Trains ' + esc(comp.replace(/^your /, '')) + '</i>' : '') + (k === 'cardio' && p.hr ? '<em>❤️ ' + esc(p.hr) + '</em>' : '') + '</div>' +
+      '<table><tr class="hh"><th></th><th class="d">Plan</th><th class="ch">Change ✏️</th></tr>' +
+      rows.map(r => '<tr><td>' + esc(r.n) + '</td><td class="d">' + esc(cardDose(k, r)) + '</td><td class="ch"></td></tr>').join('') +
+      '<tr class="add"><td><span class="plus">+</span></td><td class="d"></td><td class="ch"></td></tr></table>' +
+      '<div class="pc-why">🧠 ' + (why ? esc(why) : '<span class="pc-miss">How does this part train it? Write it here, then in My PE Profile:</span>') + '</div>' +
+      (k === 'focus' && p.fWhy ? '<div class="pc-why">🎯 ' + esc(p.fWhy) + '</div>' : '') + '</div>';
+  }).join('');
+  const log = [0, 1, 2, 3].map(() => '<tr><td class="dt"></td>' + '<td><span class="pc-bx"></span></td>'.repeat(5) + '<td class="hr">Y &nbsp; N</td><td class="num"></td><td class="fl">easy · right · hard</td><td></td></tr>').join('');
+  return '<div class="pc-pg"><div class="pc-top"><div><div class="pc-k">PRACTISE · TRIAL · IMPROVE · 40 MIN</div><h1>' + esc(s.name) + '</h1></div><div class="pc-meta"><b>' + esc(s.klass) + '</b><span>Plan saved ' + savedTxt + '</span></div></div>' +
+    (goals ? '<div class="pc-goal">🎯 <b>My goals:</b> ' + goals + '</div>' : '') + parts +
+    '<div class="pc-log"><div class="pc-lh">Session log <small>sessions 1–3 are practice · session 4 is your assessment</small></div><table><tr><th class="dt">Date</th><th>①</th><th>②</th><th>③</th><th>④</th><th>⑤</th><th>In my HR zone?</th><th>One number from today</th><th>It felt…</th><th>One change for next time, and why</th></tr>' + log + '</table></div>' +
+    '<div class="pc-ft"><span>➜ Changed something? Update My PE Profile before next session.' + (cardsBack ? ' How you’re assessed is on the back.' : '') + '</span><span>Updated <span class="pc-bx"></span></span></div></div>';
+}
+function cardBack(s) {
+  const F = RUBRICS.fitness || {}, MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const wk0 = new Date(weekKey(isoDay(new Date())) + 'T12:00:00'), weeks = [0, 1, 2].map(i => { const a = new Date(wk0); a.setDate(a.getDate() + 7 * i); const b = new Date(a); b.setDate(b.getDate() + 6); return a.getDate() + ' ' + MON[a.getMonth()] + ' – ' + b.getDate() + ' ' + MON[b.getMonth()]; });
+  const crit = ['k4', 's2', 'sm'].filter(k => F[k]).map(k => '<div class="pc-cr"><div class="pc-crh">' + FIT_SHOW[k][0] + ' <b>' + esc(F[k].name) + '</b> <small>' + esc(F[k].code) + '</small></div><div class="pc-bands"><div class="got"><b>✅ Got it looks like…</b>' + esc(F[k].got) + '.</div><div class="lead"><b>🌟 Leading looks like…</b>' + esc(F[k].leading) + '.</div></div></div>').join('');
+  return '<div class="pc-pg pc-back"><div class="pc-top"><div><div class="pc-k">PERSONAL WORKOUT ASSESSMENT · ' + esc(s.klass) + '</div><h1>How you’re assessed</h1></div><div class="pc-meta"><b>' + esc(s.name) + '</b></div></div>' +
+    '<p class="pc-lede">You’re marked on your <b>understanding</b> and your <b>effort</b>, not on being the fittest.</p>' + crit +
+    '<div class="pc-two"><div class="pc-box"><div class="pc-lh">🏠 Home sessions <small>at least one a week</small></div><table class="pc-hm"><tr><th>Week</th><th>Sessions</th><th>With friend / family</th><th>Logged in Profile</th></tr>' +
+      weeks.map(w => '<tr><td>' + w + '</td><td><span class="pc-bx"></span> <span class="pc-bx"></span> <span class="pc-bx"></span></td><td><span class="pc-bx"></span></td><td><span class="pc-bx"></span></td></tr>').join('') + '</table></div>' +
+    '<div class="pc-box"><div class="pc-lh">☑ Before your assessment</div>' + ['All five parts filled in, with times', 'I can explain how each part trains its component', 'My focus links to one of my goals, and I wrote why', 'I have logged my home sessions', 'I know what I’ll change after practising'].map(t => '<div class="pc-ck"><span class="pc-bx"></span>' + t + '</div>').join('') + '</div></div>' +
+    '<div class="pc-ft"><span>Reflection due in My PE Profile: did it work, what would you change, how consistent were you?</span></div></div>';
+}
+function cardsView() {
+  const back = '<button type="button" class="back light" id="tocardsback">← Back to class</button>';
+  if (!cardsData || cardsData.loading) return '<div class="wrap">' + back + '<div class="loading"><div class="spinner"></div>Getting ' + esc((cardsData && cardsData.klass) || '') + '’s plans…</div></div>';
+  if (cardsData.error) return '<div class="wrap">' + back + '<p class="lockmsg">' + esc(cardsData.error) + '</p></div>';
+  const withPlan = cardsData.students.filter(s => s.plan && planCount(s.plan)), without = cardsData.students.filter(s => !(s.plan && planCount(s.plan)));
+  const pages = withPlan.map(s => cardFront(s) + (cardsBack ? cardBack(s) : '')).join('');
+  return '<div class="pc-tools wrap">' + back +
+    '<div class="phero tight"><div class="k">TEACHER · PRINT</div><h1>Workout cards · ' + esc(cardsData.klass) + '</h1><p>' + withPlan.length + ' card' + (withPlan.length === 1 ? '' : 's') + ' ready. One A4 per student, printed from the plan saved in their profile right now.</p></div>' +
+    '<div class="pc-bar"><label><input type="checkbox" id="cardsback"' + (cardsBack ? ' checked' : '') + '> Add “How you’re assessed” on the back (print double-sided)</label><button type="button" class="ct-btn" id="cardsprint">🖨 Print ' + withPlan.length + ' card' + (withPlan.length === 1 ? '' : 's') + '</button></div>' +
+    (without.length ? '<div class="pc-miss-box">⚠ <b>No plan saved yet (' + without.length + '):</b> ' + without.map(s => esc(s.name)).join(', ') + '. They need to build their plan in My PE Profile first.</div>' : '') +
+    '<p class="small">In the print dialog choose A4, margins “None” or “Default”, and turn on <b>Two-sided</b> if you kept the back page.</p></div>' +
+    '<div class="pc-pages">' + pages + '</div>';
+}
+
 // ── Teacher: workout assessment evidence for one student (K4 plan · S2 goals & reflection · Self-Management log) ──
 let assessData = null;
 async function loadAssess(sid) {
@@ -3709,18 +3806,10 @@ async function savePrediction() {
 const wire = (id, fn) => { const el = $('#' + id); if (el) el.addEventListener('click', fn); };
 
 // Leaving the plan editor never loses work: if it changed, save it in the background.
-function autosavePlan() {
-  syncPlanFromDom();
-  const d = JSON.parse(JSON.stringify(planDraft)), m = state.student.combine || { fitness: {}, skills: {} };
-  if (JSON.stringify(normPlan(m.plan)) === JSON.stringify(normPlan(d))) return;
-  m.plan = d; state.student.combine = m;
-  call('savePlan', { plan: d }).then(() => toast('Plan saved ✓'))
-    .catch(e => { if (!e.authRequired) { planDraft = d; toast('Couldn’t save your plan — open it and press Save (' + e.message + ')', true); } });
-}
 function show(v, arg) {
   const prevView = view;
-  if (prevView === 'plan' && v !== 'plan' && planDraft && document.querySelector('.wk-list')) autosavePlan();
-  view = v;
+  if (prevView === 'plan' && v !== 'plan' && planDraft) { syncPlanFromDom(); if (planDirty()) autoSavePlan(); } // leaving the plan by any route saves it
+  view = v; if (v !== 'cards') document.body.classList.remove('printing-cards');
   const app = $('#app');
   if (v === 'card' && state.student && !state.student.style) v = 'pack';
   view = v;
@@ -3841,6 +3930,7 @@ function show(v, arg) {
       tbl.addEventListener('change', e => { const sel = e.target.closest('.cellsel'); if (sel) mxSaveCell(sel); });
       tbl.addEventListener('click', e => { const ab = e.target.closest('[data-assess]'); if (ab) return show('assess', ab.getAttribute('data-assess')); const lb = e.target.closest('[data-lock]'); if (lb) mxToggleLock(lb.getAttribute('data-lock')); });
     }
+    wire('mxcards', openCards);
     wire('mxlockall', () => mxLockAll(true)); wire('mxunlockall', () => mxLockAll(false)); wire('mxcsv', mxExportCsv);
   } else if (v === 'checkout') {
     app.innerHTML = checkoutSetupView();
@@ -3869,6 +3959,11 @@ function show(v, arg) {
     app.innerHTML = skillEntryView(currentSid);
     wire('toclassback', () => show('class')); wire('sksave', () => saveSkillsUI(currentSid));
     const cp = $('#skcp'); if (cp) cp.addEventListener('change', () => { teacherCp = cp.value; show('skillentry', currentSid); });
+  } else if (v === 'cards') {
+    app.innerHTML = cardsView(); document.body.classList.add('printing-cards');
+    wire('tocardsback', () => { document.body.classList.remove('printing-cards'); cardsData = null; show('class'); });
+    wire('cardsprint', () => window.print());
+    const cb = $('#cardsback'); if (cb) cb.addEventListener('change', () => { cardsBack = cb.checked; show('cards'); });
   } else if (v === 'assess') {
     currentSid = arg || currentSid;
     app.innerHTML = assessView(currentSid);

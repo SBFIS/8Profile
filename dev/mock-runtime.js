@@ -129,6 +129,7 @@
     const roles = [['student', '👤 Student'], ['student2', '👤 Student 2'], ['teacher', '🧑‍🏫 Teacher'], ['unknown', 'Not listed'], ['anon', 'Signed out']];
     const bar = document.createElement('div');
     bar.setAttribute('style', 'position:fixed;left:50%;transform:translateX(-50%);bottom:8px;z-index:9999;display:flex;gap:4px;background:#201b1d;padding:5px;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.3);font:600 12px Inter,system-ui,sans-serif');
+    bar.className = 'pv-rolebar';
     roles.forEach(([r, label]) => {
       const a = document.createElement('a');
       const on = (q.get('role') || 'student') === r;

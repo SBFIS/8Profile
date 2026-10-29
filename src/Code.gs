@@ -313,6 +313,7 @@ function handle_(body) {
     case 'setLock':         return setLock_(cfg, id, body.emails, body.checkpoint, body.locked);
     case 'classOverview':   return classOverview_(cfg, id);
     case 'classStudent':    return classStudent_(cfg, id, body.email);
+    case 'classPlans':      return classPlans_(cfg, id, body.klass);
     case 'checkoutRoster':  return checkoutRoster_(cfg, id, body.klass, body.focus);
     case 'saveCheckin':     return saveCheckin_(cfg, id, body.email, body.focus, body.who, body.rating, body.word);
     default: throw new Error('Unknown action');
@@ -984,6 +985,31 @@ function saveCheckin_(cfg, id, targetEmail, focus, who, rating, word) {
   fields[f] = n;
   upsert_('APLog', { Email: email, Date: date, Source: src }, fields);
   return { ok: true, date: date };
+}
+
+// Printable workout cards for one class (teacher only). Returns just what a card shows: each student's
+// name, the five parts with their "how" lines, heart-rate zone, focus link and goals. No log, no reflection.
+function classPlans_(cfg, id, klass) {
+  requireTeacher_(id);
+  klass = str_(klass);
+  if (!klass) throw new Error('Pick a class first');
+  var roster = readTab_('Students').filter(function (r) { return str_(r.Class) === klass; });
+  if (!roster.length) throw new Error('No students in that class');
+  var plans = {}, goals = {};
+  readTab_('Plan').forEach(function (r) { var e = lower_(r.Email); if (!e) return; try { plans[e] = JSON.parse(str_(r.Plan) || 'null'); } catch (x) {} });
+  var parts = ['warmup', 'cardio', 'strength', 'focus', 'cooldown'];
+  var students = roster.map(function (r) {
+    var e = lower_(r.Email), p = plans[e], card = null;
+    if (p && typeof p === 'object') {
+      card = { v: p.v || 0, sChoice: str_(p.sChoice), fChoice: str_(p.fChoice), hr: str_(p.hr), fWhy: str_(p.fWhy), savedAt: str_(p.savedAt), why: {} };
+      parts.forEach(function (k) {
+        card[k] = ((p[k] instanceof Array) ? p[k] : []).slice(0, 8).map(function (x) { x = x || {}; return { n: str_(x.n).slice(0, 40), sets: str_(x.sets), reps: str_(x.reps), min: str_(x.min), int: str_(x.int) }; });
+        card.why[k] = str_((p.why || {})[k]).slice(0, 160);
+      });
+    }
+    return { name: str_(r.Name), klass: klass, plan: card, goals: goalsFor_(e).items };
+  }).sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
+  return { role: 'classPlans', klass: klass, students: students };
 }
 
 // ---------- Sheet menu (teacher, inside the Sheet) ----------

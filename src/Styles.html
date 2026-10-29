@@ -819,6 +819,44 @@ body.demo{padding-top:52px}
 @media(max-width:560px){.apr-b{grid-template-columns:1fr 1fr}.apc-seg span{display:none}.apc-row{grid-template-columns:1fr auto!important}.apc-v{white-space:nowrap}}
 .agree{color:var(--ap);font-weight:700;font-size:12px}
 .cband{font-size:22px}
+/* ── Printable workout cards (teacher) ── */
+.pc-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:10px 14px;margin:0 0 10px;font-size:14px;font-weight:600}
+.pc-miss-box{background:#fff4e0;border:1.5px solid #e7a23b;border-radius:12px;padding:10px 14px;font-size:13.5px;margin:0 0 10px}
+.pc-pages{display:flex;flex-direction:column;align-items:center;gap:18px;padding:0 0 60px}
+.pc-pg{width:210mm;height:297mm;background:#fff;color:#231a1c;box-shadow:0 4px 18px rgba(0,0,0,.15);padding:9mm 10mm 8mm;display:flex;flex-direction:column;gap:2.4mm;overflow:hidden;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.pc-top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #6f1d2c;padding-bottom:1.6mm}
+.pc-k{font-size:8pt;font-weight:700;letter-spacing:.08em;color:#6f1d2c}.pc-pg h1{font-family:var(--disp);font-weight:900;font-size:22pt;margin:0;line-height:1.05}
+.pc-meta{text-align:right;font-size:9pt;line-height:1.35}.pc-meta b{font-size:12pt;display:block}.pc-meta span{color:#6b5e60}
+.pc-goal{font-size:9.6pt;background:#fff4d6;border-radius:2mm;padding:1.4mm 3mm}
+.pc-pt{border-left:2.6mm solid #6f1d2c;padding:0 0 .2mm 3mm}
+.pc-ph{display:flex;gap:2.6mm;align-items:baseline}.pc-ph b{font-size:11.5pt;font-weight:800}.pc-ph span{font-size:8.6pt;font-weight:700;color:#6f1d2c}
+.pc-ph i{font-style:normal;font-size:8pt;font-weight:700;background:#f3eeee;color:#4a3e40;border-radius:99px;padding:.2mm 2.2mm}.pc-ph em{font-style:normal;font-size:9pt;font-weight:700;color:#c0392b;margin-left:auto}
+.pc-pt table{width:100%;border-collapse:collapse;font-size:9.8pt}.pc-pt td{padding:.3mm 0;border-bottom:1px solid #eee5e6}
+.pc-pt td.d{text-align:right;font-weight:700;white-space:nowrap;width:44mm;padding-right:3mm}.pc-pt .ch{width:52mm;border-left:1px solid #d8cdce;border-bottom:1px solid #b9a9ac}
+.pc-pt tr.hh th{font-size:6.8pt;font-weight:700;color:#8a7d7f;text-align:left;padding:0}.pc-pt tr.hh th.d{text-align:right;padding-right:3mm}.pc-pt tr.hh th.ch{padding-left:2mm;border:0}
+.pc-pt tr.add td{height:4.6mm}.pc-pt .plus{color:#b9a9ac;font-weight:700}
+.pc-why{font-size:8pt;color:#4a3e40;font-style:italic;margin-top:.3mm}.pc-miss{color:#a5281b;font-style:normal;font-weight:600}
+.pc-log{margin-top:auto}.pc-lh{font-weight:800;font-size:10pt;color:#6f1d2c;margin-bottom:1mm}.pc-lh small{font-weight:600;font-size:7.6pt;color:#6b5e60;margin-left:2mm}
+.pc-log table{width:100%;border-collapse:collapse;font-size:7.4pt}.pc-log th{background:#f3eeee;font-weight:700;padding:.9mm;border:1px solid #d8cdce;text-align:center}
+.pc-log td{border:1px solid #d8cdce;height:8.2mm;text-align:center;color:#6b5e60}.pc-log .dt{width:13mm}.pc-log .num{width:24mm}.pc-log .fl{width:27mm}.pc-log .hr{width:14mm}
+.pc-bx{display:inline-block;width:3.5mm;height:3.5mm;border:1.3px solid #6b5e60;border-radius:.8mm;vertical-align:-.6mm}
+.pc-ft{display:flex;justify-content:space-between;gap:4mm;font-size:8.4pt;font-weight:700;background:#e7b64b;border-radius:2mm;padding:1.6mm 3mm}
+.pc-pg.pc-back{gap:3.6mm}.pc-lede{margin:0;font-size:10.5pt}
+.pc-cr{border:1.5px solid #d8cdce;border-radius:3mm;padding:2.6mm 3.4mm}.pc-crh{font-size:12pt;margin-bottom:1.6mm}.pc-crh small{color:#6b5e60;font-weight:700}
+.pc-bands{display:grid;grid-template-columns:1fr 1fr;gap:2.4mm}.pc-bands>div{border-radius:2mm;padding:2.2mm 2.8mm;font-size:9.6pt;line-height:1.4}.pc-bands b{display:block;font-size:9.4pt;margin-bottom:.6mm}
+.pc-bands .got{background:#eaf6ee}.pc-bands .got b{color:#2e7d4f}.pc-bands .lead{background:#fbf3dc}.pc-bands .lead b{color:#9a6d00}
+.pc-two{display:grid;grid-template-columns:1.15fr 1fr;gap:3mm;margin-top:auto}.pc-box{border:1.5px solid #6f1d2c;border-radius:3mm;padding:2.6mm 3mm}
+.pc-hm{width:100%;border-collapse:collapse;font-size:8.4pt}.pc-hm th{font-size:7.4pt;color:#6b5e60;text-align:center}.pc-hm td{padding:2mm .5mm;border-bottom:1px solid #eee5e6;text-align:center;white-space:nowrap}.pc-hm td:first-child,.pc-hm th:first-child{text-align:left;font-weight:700}
+.pc-ck{display:flex;gap:2mm;font-size:9pt;line-height:1.35;margin-bottom:1.4mm}.pc-ck .pc-bx{flex:none;margin-top:.4mm}
+@media print{
+  @page{size:A4;margin:0}
+  body.printing-cards{background:#fff!important}
+  body.printing-cards .pc-tools,body.printing-cards .pv-rolebar,body.printing-cards #toast,body.printing-cards .toast{display:none!important}
+  body.printing-cards .pc-pages{display:block;padding:0}
+  body.printing-cards .pc-pg:last-child{break-after:auto;page-break-after:auto}
+  body.printing-cards .pc-pg{box-shadow:none;break-after:page;page-break-after:always;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body.printing-cards #app,body.printing-cards .wrap{padding:0!important;margin:0!important;max-width:none!important}
+}
 .psteps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 14px;position:sticky;top:0;z-index:30;background:var(--paper);padding:8px 0}
 .pstep{display:flex;gap:10px;align-items:center;text-align:left;border:2px solid var(--line);background:#fff;border-radius:14px;padding:10px 12px;cursor:pointer;color:var(--ink);font:inherit;touch-action:manipulation}
 .pstep .ps-n{font-family:var(--disp);font-weight:900;font-size:22px;color:var(--muted)}.pstep b{display:block;font-size:15px}.pstep small{display:block;font-size:12px;color:var(--muted);font-weight:600}

@@ -268,6 +268,13 @@ check('teacher classStudent includes that student\'s plan and goals', (() => { c
 check('a student cannot open another student\'s plan', (() => { const r = as(S1, 'classStudent', { email: S2 }); return !r.ok && /teacher/i.test(r.error); })());
 check('student bootstrap does not include another student\'s plan', !JSON.stringify(as(S1, 'bootstrap')).includes('raise my heart rate'));
 
+console.log('Printable workout cards (teacher only)');
+check('a teacher gets the class\'s cards: names, parts and "how" lines', (() => { const r = as(T, 'classPlans', { klass: '8A' }); const two = r.ok && r.data.students.find(s => s.name === 'Two, Sample'); return r.ok && r.data.students.length > 0 && two && two.plan && two.plan.why.warmup === 'raise my heart rate' && Array.isArray(two.goals); })());
+check('cards carry no session log, reflection or email', (() => { const j = JSON.stringify(as(T, 'classPlans', { klass: '8A' }).data); return !/"log"|"ref"|reflection|@example\.edu|22 push-ups/.test(j); })());
+check('only the chosen class is returned', (() => { const r = as(T, 'classPlans', { klass: '8A' }); return r.ok && r.data.students.every(s => s.klass === '8A') && !r.data.students.some(s => s.name === 'T, Sample Jo'); })());
+check('a student cannot print a class\'s cards', (() => { const r = as(S1, 'classPlans', { klass: '8A' }); return !r.ok && /teacher/i.test(r.error); })());
+check('classPlans needs a real class', !as(T, 'classPlans', { klass: '' }).ok && !as(T, 'classPlans', { klass: 'nope' }).ok);
+
 console.log('AP check-out (teacher iPad → APLog)');
 const TODAY = ymd_(new Date());
 const ago = n => daysAgoYmd_(n);

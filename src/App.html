@@ -1958,7 +1958,7 @@ function classView() {
     '<div class="mxbar">' +
       '<label class="mxf">Class <select id="mxclass">' + classOpts + '</select></label>' +
       '<div class="cptabs">' + cpBtns + '</div>' +
-      '<div class="mxact"><button type="button" class="minib" id="mxlockall">🔒 Lock all</button><button type="button" class="minib" id="mxunlockall">🔓 Unlock all</button><button type="button" class="minib" id="mxcsv">⬇ CSV</button></div>' +
+      '<div class="mxact"><button type="button" class="minib" id="mxlockall">🔒 Lock all</button><button type="button" class="minib" id="mxunlockall">🔓 Unlock all</button><button type="button" class="minib" id="mxcsv">⬇ CSV</button><button type="button" class="minib" id="mxcards">🖨 Workout cards</button></div>' +
     '</div>' +
     '<div class="mxleg"><span class="lk lv-lo"></span>below L4<span class="lk lv-mid"></span>at L4<span class="lk lv-hi"></span>above<span class="sep"></span>7 skills · 3 report bands (K/S/C, 1–7) · 5 participation keys</div>' +
     '<div class="tablewrap mxwrap"><table class="mx"><thead><tr>' +
@@ -2036,6 +2036,65 @@ function skillEntryView(sid) {
     '<div class="pbar"><div class="pcount">Teacher sign-off — the final tick.</div><button type="button" class="ct-btn" id="sksave" data-id="' + esc(sid) + '">Save levels</button></div>' +
   '</div>';
 }
+// ── Teacher: printable workout cards for a whole class (front: the plan to practise from;
+// back: how it's assessed). One A4 per student; print double-sided for the back page.
+let cardsData = null, cardsBack = true;
+async function openCards() {
+  if (!teacherFilter || teacherFilter === 'all') return toast('Pick a class first (the Class menu), then print its cards.', true);
+  cardsData = { loading: true, klass: teacherFilter }; show('cards');
+  try { cardsData = await call('classPlans', { klass: teacherFilter }); }
+  catch (e) { cardsData = { error: e.message, klass: teacherFilter }; }
+  if (view === 'cards') show('cards');
+}
+function cardDose(part, r) {
+  const sr = r.sets && r.reps ? r.sets + ' × ' + r.reps : '', mn = part !== 'strength' && r.min ? r.min + ' min' : '';
+  return [sr, mn, r.int].filter(Boolean).join(' · ');
+}
+function cardFront(s) {
+  const p = normPlan(s.plan), MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const saved = s.plan && s.plan.savedAt ? new Date(s.plan.savedAt) : null, savedTxt = saved && !isNaN(saved) ? saved.getDate() + ' ' + MON[saved.getMonth()] : '—';
+  const goals = (s.goals || []).map(g => { const meta = goalMetaFor(g.component); return esc(goalLabel(g.component)) + (meta && g.target != null ? ' → ' + esc(fmtMetric(meta, g.target)) : ''); }).join(' · ');
+  const parts = WK_PARTS.map(w => {
+    const k = w[0], rows = p[k] || [], comp = wkTrains(k, p), why = (p.why || {})[k];
+    const title = k === 'strength' ? '③ ' + (p.sChoice === 'endurance' ? 'Muscular endurance' : p.sChoice === 'strength' ? 'Strength' : 'Strength or Muscular Endurance') : k === 'focus' ? '④ My Focus' : w[1];
+    return '<div class="pc-pt"><div class="pc-ph"><b>' + esc(title) + '</b><span>' + w[2] + ' min</span>' + (comp ? '<i>Trains ' + esc(comp.replace(/^your /, '')) + '</i>' : '') + (k === 'cardio' && p.hr ? '<em>❤️ ' + esc(p.hr) + '</em>' : '') + '</div>' +
+      '<table><tr class="hh"><th></th><th class="d">Plan</th><th class="ch">Change ✏️</th></tr>' +
+      rows.map(r => '<tr><td>' + esc(r.n) + '</td><td class="d">' + esc(cardDose(k, r)) + '</td><td class="ch"></td></tr>').join('') +
+      '<tr class="add"><td><span class="plus">+</span></td><td class="d"></td><td class="ch"></td></tr></table>' +
+      '<div class="pc-why">🧠 ' + (why ? esc(why) : '<span class="pc-miss">How does this part train it? Write it here, then in My PE Profile:</span>') + '</div>' +
+      (k === 'focus' && p.fWhy ? '<div class="pc-why">🎯 ' + esc(p.fWhy) + '</div>' : '') + '</div>';
+  }).join('');
+  const log = [0, 1, 2, 3].map(() => '<tr><td class="dt"></td>' + '<td><span class="pc-bx"></span></td>'.repeat(5) + '<td class="hr">Y &nbsp; N</td><td class="num"></td><td class="fl">easy · right · hard</td><td></td></tr>').join('');
+  return '<div class="pc-pg"><div class="pc-top"><div><div class="pc-k">PRACTISE · TRIAL · IMPROVE · 40 MIN</div><h1>' + esc(s.name) + '</h1></div><div class="pc-meta"><b>' + esc(s.klass) + '</b><span>Plan saved ' + savedTxt + '</span></div></div>' +
+    (goals ? '<div class="pc-goal">🎯 <b>My goals:</b> ' + goals + '</div>' : '') + parts +
+    '<div class="pc-log"><div class="pc-lh">Session log <small>sessions 1–3 are practice · session 4 is your assessment</small></div><table><tr><th class="dt">Date</th><th>①</th><th>②</th><th>③</th><th>④</th><th>⑤</th><th>In my HR zone?</th><th>One number from today</th><th>It felt…</th><th>One change for next time, and why</th></tr>' + log + '</table></div>' +
+    '<div class="pc-ft"><span>➜ Changed something? Update My PE Profile before next session.' + (cardsBack ? ' How you’re assessed is on the back.' : '') + '</span><span>Updated <span class="pc-bx"></span></span></div></div>';
+}
+function cardBack(s) {
+  const F = RUBRICS.fitness || {}, MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const wk0 = new Date(weekKey(isoDay(new Date())) + 'T12:00:00'), weeks = [0, 1, 2].map(i => { const a = new Date(wk0); a.setDate(a.getDate() + 7 * i); const b = new Date(a); b.setDate(b.getDate() + 6); return a.getDate() + ' ' + MON[a.getMonth()] + ' – ' + b.getDate() + ' ' + MON[b.getMonth()]; });
+  const crit = ['k4', 's2', 'sm'].filter(k => F[k]).map(k => '<div class="pc-cr"><div class="pc-crh">' + FIT_SHOW[k][0] + ' <b>' + esc(F[k].name) + '</b> <small>' + esc(F[k].code) + '</small></div><div class="pc-bands"><div class="got"><b>✅ Got it looks like…</b>' + esc(F[k].got) + '.</div><div class="lead"><b>🌟 Leading looks like…</b>' + esc(F[k].leading) + '.</div></div></div>').join('');
+  return '<div class="pc-pg pc-back"><div class="pc-top"><div><div class="pc-k">PERSONAL WORKOUT ASSESSMENT · ' + esc(s.klass) + '</div><h1>How you’re assessed</h1></div><div class="pc-meta"><b>' + esc(s.name) + '</b></div></div>' +
+    '<p class="pc-lede">You’re marked on your <b>understanding</b> and your <b>effort</b>, not on being the fittest.</p>' + crit +
+    '<div class="pc-two"><div class="pc-box"><div class="pc-lh">🏠 Home sessions <small>at least one a week</small></div><table class="pc-hm"><tr><th>Week</th><th>Sessions</th><th>With friend / family</th><th>Logged in Profile</th></tr>' +
+      weeks.map(w => '<tr><td>' + w + '</td><td><span class="pc-bx"></span> <span class="pc-bx"></span> <span class="pc-bx"></span></td><td><span class="pc-bx"></span></td><td><span class="pc-bx"></span></td></tr>').join('') + '</table></div>' +
+    '<div class="pc-box"><div class="pc-lh">☑ Before your assessment</div>' + ['All five parts filled in, with times', 'I can explain how each part trains its component', 'My focus links to one of my goals, and I wrote why', 'I have logged my home sessions', 'I know what I’ll change after practising'].map(t => '<div class="pc-ck"><span class="pc-bx"></span>' + t + '</div>').join('') + '</div></div>' +
+    '<div class="pc-ft"><span>Reflection due in My PE Profile: did it work, what would you change, how consistent were you?</span></div></div>';
+}
+function cardsView() {
+  const back = '<button type="button" class="back light" id="tocardsback">← Back to class</button>';
+  if (!cardsData || cardsData.loading) return '<div class="wrap">' + back + '<div class="loading"><div class="spinner"></div>Getting ' + esc((cardsData && cardsData.klass) || '') + '’s plans…</div></div>';
+  if (cardsData.error) return '<div class="wrap">' + back + '<p class="lockmsg">' + esc(cardsData.error) + '</p></div>';
+  const withPlan = cardsData.students.filter(s => s.plan && planCount(s.plan)), without = cardsData.students.filter(s => !(s.plan && planCount(s.plan)));
+  const pages = withPlan.map(s => cardFront(s) + (cardsBack ? cardBack(s) : '')).join('');
+  return '<div class="pc-tools wrap">' + back +
+    '<div class="phero tight"><div class="k">TEACHER · PRINT</div><h1>Workout cards · ' + esc(cardsData.klass) + '</h1><p>' + withPlan.length + ' card' + (withPlan.length === 1 ? '' : 's') + ' ready. One A4 per student, printed from the plan saved in their profile right now.</p></div>' +
+    '<div class="pc-bar"><label><input type="checkbox" id="cardsback"' + (cardsBack ? ' checked' : '') + '> Add “How you’re assessed” on the back (print double-sided)</label><button type="button" class="ct-btn" id="cardsprint">🖨 Print ' + withPlan.length + ' card' + (withPlan.length === 1 ? '' : 's') + '</button></div>' +
+    (without.length ? '<div class="pc-miss-box">⚠ <b>No plan saved yet (' + without.length + '):</b> ' + without.map(s => esc(s.name)).join(', ') + '. They need to build their plan in My PE Profile first.</div>' : '') +
+    '<p class="small">In the print dialog choose A4, margins “None” or “Default”, and turn on <b>Two-sided</b> if you kept the back page.</p></div>' +
+    '<div class="pc-pages">' + pages + '</div>';
+}
+
 // ── Teacher: workout assessment evidence for one student (K4 plan · S2 goals & reflection · Self-Management log) ──
 let assessData = null;
 async function loadAssess(sid) {
@@ -2458,18 +2517,10 @@ async function savePrediction() {
 const wire = (id, fn) => { const el = $('#' + id); if (el) el.addEventListener('click', fn); };
 
 // Leaving the plan editor never loses work: if it changed, save it in the background.
-function autosavePlan() {
-  syncPlanFromDom();
-  const d = JSON.parse(JSON.stringify(planDraft)), m = state.student.combine || { fitness: {}, skills: {} };
-  if (JSON.stringify(normPlan(m.plan)) === JSON.stringify(normPlan(d))) return;
-  m.plan = d; state.student.combine = m;
-  call('savePlan', { plan: d }).then(() => toast('Plan saved ✓'))
-    .catch(e => { if (!e.authRequired) { planDraft = d; toast('Couldn’t save your plan — open it and press Save (' + e.message + ')', true); } });
-}
 function show(v, arg) {
   const prevView = view;
-  if (prevView === 'plan' && v !== 'plan' && planDraft && document.querySelector('.wk-list')) autosavePlan();
-  view = v;
+  if (prevView === 'plan' && v !== 'plan' && planDraft) { syncPlanFromDom(); if (planDirty()) autoSavePlan(); } // leaving the plan by any route saves it
+  view = v; if (v !== 'cards') document.body.classList.remove('printing-cards');
   const app = $('#app');
   if (v === 'card' && state.student && !state.student.style) v = 'pack';
   view = v;
@@ -2590,6 +2641,7 @@ function show(v, arg) {
       tbl.addEventListener('change', e => { const sel = e.target.closest('.cellsel'); if (sel) mxSaveCell(sel); });
       tbl.addEventListener('click', e => { const ab = e.target.closest('[data-assess]'); if (ab) return show('assess', ab.getAttribute('data-assess')); const lb = e.target.closest('[data-lock]'); if (lb) mxToggleLock(lb.getAttribute('data-lock')); });
     }
+    wire('mxcards', openCards);
     wire('mxlockall', () => mxLockAll(true)); wire('mxunlockall', () => mxLockAll(false)); wire('mxcsv', mxExportCsv);
   } else if (v === 'checkout') {
     app.innerHTML = checkoutSetupView();
@@ -2618,6 +2670,11 @@ function show(v, arg) {
     app.innerHTML = skillEntryView(currentSid);
     wire('toclassback', () => show('class')); wire('sksave', () => saveSkillsUI(currentSid));
     const cp = $('#skcp'); if (cp) cp.addEventListener('change', () => { teacherCp = cp.value; show('skillentry', currentSid); });
+  } else if (v === 'cards') {
+    app.innerHTML = cardsView(); document.body.classList.add('printing-cards');
+    wire('tocardsback', () => { document.body.classList.remove('printing-cards'); cardsData = null; show('class'); });
+    wire('cardsprint', () => window.print());
+    const cb = $('#cardsback'); if (cb) cb.addEventListener('change', () => { cardsBack = cb.checked; show('cards'); });
   } else if (v === 'assess') {
     currentSid = arg || currentSid;
     app.innerHTML = assessView(currentSid);
