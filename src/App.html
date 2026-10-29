@@ -611,6 +611,7 @@ function nextStep() {
   if (!(m && m.fitness && Object.keys(m.fitness).length)) return ['toentry', '📝', 'Enter your Combine results'];
   if (!reflections()['compare-intro']) return ['tocompare', '🔍', 'Compare & reflect'];
   if (!(m && m.goals && m.goals.length)) return ['togoals', '🎯', 'Set your goals'];
+  if (plan && (planIsOld(plan) || planTodo(plan, m.goals).length)) { const n = planTodo(plan, m.goals).length; return ['toplan', '🆕', 'Update your workout plan' + (n ? ' · ' + n + ' to do' : '')]; }
   if (!planReady(plan)) return ['toplan', '🏋️', 'Finish building your workout'];
   if (!wk) return ['towo', '🏠', 'Do your workout at home this week'];
   return ['towo', '💪', 'Do your workout again'];
@@ -1160,7 +1161,7 @@ let planDraft = null;
 const WK_PARTS = [
   ['warmup',   '① Warm-up', 5, '', ['Gradually increase your heart rate', 'Include dynamic stretches']],
   ['cardio',   '② Cardio', 10, 'everyone', ['Plan to reach your target heart-rate zone']],
-  ['strength', '③ Strength or Muscular Endurance', 10, 'everyone · pick one', ['Strength: sets × reps (e.g. 3 × 8)', 'Endurance: sets × time (e.g. 3 × 45s)', 'Minutes are worked out for you, with rest between sets']],
+  ['strength', '③ Strength or Muscular Endurance', 10, 'everyone · pick one', ['Strength: sets × reps (e.g. 3 × 5), 1 min rest. Tip: alternate two exercises so one rests while the other works', 'Endurance: sets × time (e.g. 3 × 30s), 30 s rest', 'Minutes are worked out for you, with rest between sets']],
   ['focus',    '④ My Focus', 10, 'pick one', ['Exercises that target your chosen component', 'It has to help you reach your goal']],
   ['cooldown', '⑤ Cool-down', 5, '', ['Bring your heart rate down', 'Static stretches for the muscles you used']]
 ];
@@ -1208,15 +1209,35 @@ function normRow(x, part, choice) {
   const d = wkDefaults(part, choice);
   return { n: String(x.n || '').slice(0, 40), sets: x.sets == null ? d.sets : x.sets, reps: x.reps == null ? d.reps : x.reps, min: (x.min == null || x.min === '') ? d.min : x.min, int: x.int || d.int };
 }
+const PLAN_V = 4; // v4 (29 Oct): "how" line per part, plan check, heart-rate zone + change in each logged session
+function planIsOld(raw) { return !!raw && (raw.v || 0) < PLAN_V; } // saved before the v4 builder: show what's new
+// What still has to be done before the assessment: unfinished sections, then plan-check warnings.
+function planTodo(raw, goals) {
+  if (!raw) return [];
+  const p = normPlan(raw), out = [];
+  WK_PARTS.forEach(w => { const need = partNeeds(w[0], p); if (need) out.push(w[1] + ': ' + need); });
+  planChecks(p, goals).filter(x => !x.ok).forEach(x => { if (!/^🧠/.test(x.t) || !out.some(o => /say how it trains it/.test(o))) out.push(x.t); });
+  return out;
+}
+function planTodoBanner(raw, goals, where) {
+  if (!raw) return '';
+  const todo = planTodo(raw, goals), old = planIsOld(raw);
+  if (!todo.length && !old) return where === 'hub' ? '<div class="ptodo ok">✓ Your workout plan is ready for your assessment</div>' : '';
+  const head = old ? '🆕 Your workout builder has new steps. Finish them before your assessment.' : '⚠ Your workout plan isn’t assessment-ready yet';
+  const list = todo.length ? '<ul>' + todo.slice(0, 5).map(t => '<li>' + esc(t) + '</li>').join('') + (todo.length > 5 ? '<li>…and ' + (todo.length - 5) + ' more</li>' : '') + '</ul>' : '<p>Open your plan and save it to confirm.</p>';
+  return '<div class="ptodo"><div class="ptodo-h">' + head + ' <span class="ptodo-n">' + todo.length + ' to do</span></div>' + list +
+    (old ? '<p class="ptodo-new">New: a 🧠 “how does this part train it?” line for every part, a Plan check, and after each session you log your heart-rate zone and one change.</p>' : '') +
+    (where === 'plan' ? '' : '<button type="button" class="ct-btn" data-fixplan="1">✎ Update my plan</button>') + '</div>';
+}
 function normPlan(p) {
   p = p || {};
-  const out = { v: 3, warmup: [], cardio: [], strength: [], focus: [], cooldown: [], sChoice: p.sChoice || '', fChoice: p.fChoice || '', hr: p.hr || '', fWhy: p.fWhy || '',
+  const out = { v: PLAN_V, warmup: [], cardio: [], strength: [], focus: [], cooldown: [], sChoice: p.sChoice || '', fChoice: p.fChoice || '', hr: p.hr || '', fWhy: p.fWhy || '',
     equip: (p.equip || []).slice(0, 20), days: p.days || {}, log: (p.log || []).slice(), reflection: p.reflection || p.notes || '',
     why: Object.assign({}, p.why || {}), ref: Object.assign({}, p.ref || {}) };
   // an older single reflection box carries into "Did it work?"
   if (out.reflection && !out.ref.worked) out.ref.worked = out.reflection;
   const ch = k => k === 'strength' ? out.sChoice : (k === 'focus' ? out.fChoice : '');
-  if (p.v === 3) { WK_PARTS.forEach(w => { out[w[0]] = (p[w[0]] || []).map(x => normRow(x, w[0], ch(w[0]))); }); return out; }
+  if (p.v >= 3) { WK_PARTS.forEach(w => { out[w[0]] = (p[w[0]] || []).map(x => normRow(x, w[0], ch(w[0]))); }); return out; }
   // migrate the earlier warm-up / main / cool-down plan
   (p.warmup || []).forEach(x => out.warmup.push(normRow(x, 'warmup')));
   (p.cooldown || []).forEach(x => out.cooldown.push(normRow(x, 'cooldown')));
@@ -1228,7 +1249,7 @@ function normPlan(p) {
   });
   return out;
 }
-const REST = { strength: 90, endurance: 30 }; // seconds of rest per set (strength: long rest; endurance: short), used to estimate minutes and in workout mode
+const REST = { strength: 60, endurance: 30 }; // seconds of rest per set (strength: longer rest; endurance: short), used to estimate minutes and in workout mode
 function parseSecs(t) {
   t = String(t || '').trim().toLowerCase(); if (!t) return 0;
   let m = t.match(/^(\d+):(\d{1,2})$/); if (m) return (+m[1]) * 60 + (+m[2]);
@@ -1290,7 +1311,7 @@ function wkPart(w) {
     ? '<label class="wk-field">❤️ My target heart-rate zone <input type="text" id="wk-hr" maxlength="30" value="' + esc(planDraft.hr) + '" placeholder="e.g. 145–175 bpm"><small>A guide for your age is about 145–175 beats a minute — check it with your pulse or a watch.</small></label>'
     : part === 'focus' && planDraft.fChoice ? '<label class="wk-field">🎯 How does this help you reach your goal? <input type="text" id="wk-why" maxlength="160" value="' + esc(planDraft.fWhy) + '" placeholder="e.g. faster first steps should cut my 30 m sprint time"></label>' : '';
   const trains = wkTrains(part, planDraft);
-  const tgt = (part === 'strength' || part === 'focus') && !trains ? '' : '<label class="wk-field wk-tgt">🧠 How does this part train ' + esc(trains || 'your fitness') + '? <input type="text" id="wk-why-' + part + '" maxlength="160" value="' + esc((planDraft.why || {})[part] || '') + '" placeholder="' + esc(wkWhyHint(part, planDraft)) + '"><small>Say <b>how</b>: which exercises, how hard, how many reps or minutes, how much rest.</small></label>';
+  const tgt = (part === 'strength' || part === 'focus') && !trains ? '' : '<label class="wk-field wk-tgt">' + (planIsOld(measured() && measured().plan) ? '<span class="newtag">NEW</span> ' : '') + '🧠 How does this part train ' + esc(trains || 'your fitness') + '? <input type="text" id="wk-why-' + part + '" maxlength="160" value="' + esc((planDraft.why || {})[part] || '') + '" placeholder="' + esc(wkWhyHint(part, planDraft)) + '"><small>Say <b>how</b>: which exercises, how hard, how many reps or minutes, how much rest.</small></label>';
   return '<div class="wkpart' + (need ? '' : ' ok') + '" data-part="' + part + '"><div class="wk-h"><span class="wk-ht">' + w[1] + (w[3] ? ' <span class="wk-req">' + esc(w[3]) + '</span>' : '') + '</span>' +
     '<span class="wk-time' + (need ? '' : ' ok') + '">' + (need ? Math.round(mins * 10) / 10 + ' / ' + w[2] + ' min · ' + need : '✓ ' + Math.round(mins * 10) / 10 + ' min') + '</span></div>' +
     '<ul class="wk-brief">' + w[4].map(t => '<li>' + esc(t) + '</li>').join('') + '</ul>' +
@@ -1306,7 +1327,7 @@ function wkTrains(part, p) { return part === 'strength' ? (CHOICE_NAME[p.sChoice
 const WK_WHY_HINT = {
   warmup: 'e.g. by starting easy and building up, so my heart rate rises slowly and my hips and legs loosen before I sprint',
   cardio: 'e.g. by doing 1-minute hard intervals that keep me at 150–170 bpm for 10 minutes',
-  strength: 'e.g. by doing 3 sets of 5 slow, hard reps with 90 s rest, so my muscles work near their limit',
+  strength: 'e.g. by doing 3 sets of 5 slow, hard reps with a minute’s rest, so my muscles work near their limit',
   endurance: 'e.g. by doing 3 sets of 30–45 s with only 30 s rest, so my muscles keep going when tired',
   speed: 'e.g. by doing short sprints at full effort with full rest, so every rep is fast',
   power: 'e.g. by doing 3–5 explosive jumps with full rest, so each one is as high as I can',
@@ -1339,7 +1360,7 @@ function planView(b) {
   return '<div class="wrap">' +
     backBtn() +
     '<button type="button" class="wo-launch" id="wk-go">▶ Workout mode</button><div class="phero"><div class="k">PERSONAL WORKOUT PLAN</div><h1>Build my workout</h1><p>Show you can train the main parts of fitness, with your own choices. Each section has a time to plan for; give every exercise its sets &amp; reps, minutes and how hard. <b>Drag ⠿ to arrange.</b></p></div>' +
-    fitAssessPanel() + focusStrip + inclass +
+    planTodoBanner(Object.assign({}, planDraft, { v: (m && m.plan && m.plan.v) || PLAN_V }), goals, 'plan') + fitAssessPanel() + focusStrip + inclass +
     '<div class="wkcard"><div class="wkcard-h"><span>🏋️ My workout</span><span class="wkcard-n' + (ready === WK_PARTS.length ? ' ok' : '') + '">' + ready + ' of ' + WK_PARTS.length + ' sections ready · ' + Math.round(total) + ' min</span></div>' +
     WK_PARTS.map(wkPart).join('') +
     '</div>' + eqHtml +
@@ -1376,7 +1397,7 @@ function planChecks(p, goals) {
   }
   if (p.sChoice === 'strength' && rows('strength').length) {
     const bad = rows('strength').filter(r => { const x = repsOf(r); return x.secs || x.n > 8 || r.int !== 'hard'; });
-    if (bad.length) warn('③ Strength = few, hard reps (3–8) with long rest. Check: ' + bad.map(r => r.n).join(', ') + '.'); else ok('③ Strength: few, hard reps.');
+    if (bad.length) warn('③ Strength = few, hard reps (3–8) with about a minute’s rest. Check: ' + bad.map(r => r.n).join(', ') + '.'); else ok('③ Strength: few, hard reps.');
   }
   if (p.sChoice === 'endurance' && rows('strength').length) {
     const bad = rows('strength').filter(r => { const x = repsOf(r); return (x.secs ? x.secs < 20 : x.n < 12) || r.int === 'easy'; });
@@ -1534,7 +1555,10 @@ async function savePlanUI() {
 }
 
 // ═══════════════ workout mode: see the plan, then do it one exercise at a time ═══════════════
-function woCta(raw) { const p = normPlan(raw); return '<button type="button" class="wo-cta" id="towo"><span class="woc-i">▶</span><span class="woc-b"><b>Do my workout</b><span>' + planCount(p) + ' exercises · about ' + woMinutes(p) + ' min</span></span><span class="woc-go">Go</span></button>'; }
+
+// "Update my plan" from any banner (hubs, workout mode)
+document.addEventListener('click', e => { if (e.target.closest('[data-fixplan]')) { if (typeof wo !== 'undefined' && wo) { woStop(); woWakeOff(); wo = null; } planDraft = null; lastHub = 'fitness'; show('plan'); window.scrollTo(0, 0); } });
+function woCta(raw) { const p = normPlan(raw), m = measured(); return planTodoBanner(raw, (m && m.goals) || [], 'hub') + '<button type="button" class="wo-cta" id="towo"><span class="woc-i">▶</span><span class="woc-b"><b>Do my workout</b><span>' + planCount(p) + ' exercises · about ' + woMinutes(p) + ' min</span></span><span class="woc-go">Go</span></button>'; }
 const WO_COL = { warmup: '#e8730c', cardio: '#e04848', strength: '#3b7bff', focus: '#a64fd6', cooldown: '#15a89d' };
 const WO_INT = { easy: ['🙂', 'Easy'], moderate: ['😤', 'Moderate'], hard: ['🔥', 'Hard'] };
 const WO_CHEER = ['You’ve got this!', 'Good form first, then speed.', 'Breathe — steady and strong.', 'Every rep counts.', 'Keep going — you’re building it.', 'Nice work. Stay with it.'];
@@ -1597,6 +1621,7 @@ function woOverview() {
   const eq = []; WK_PARTS.forEach(w => (p[w[0]] || []).forEach(r => { const e = EQUIP[r.n]; if (e && eq.indexOf(e) === -1) eq.push(e); })); (p.equip || []).forEach(e => { if (eq.indexOf(e) === -1) eq.push(e); });
   return '<div class="wo">' +
     '<div class="wo-top"><button type="button" class="wo-x" id="wo-exit" aria-label="close">✕</button><span class="wo-tt">MY WORKOUT</span><button type="button" class="wo-edit" id="wo-edit">✎ Edit my plan</button></div>' +
+    (function () { const m = measured(); return planTodoBanner(m && m.plan, (m && m.goals) || [], 'wo'); })() +
     '<div class="wo-hero"><h1>Let’s train, ' + esc(state.student.first) + '</h1><p><b>' + n + '</b> exercises · about <b>' + woMinutes(p) + ' min</b></p>' +
     '<button type="button" class="wo-go" id="wo-start">▶ Start workout</button></div>' +
     (eq.length ? '<div class="wo-eq">🧰 <b>Grab:</b> ' + eq.map(esc).join(' · ') + '</div>' : '') +
@@ -2423,7 +2448,11 @@ function show(v, arg) {
         const lr = e.target.closest('[data-logrm]'); if (lr) { syncPlanFromDom(); const q = lr.dataset.logrm.split('|'), j = (planDraft.log || []).findIndex(x => x.date === q[0] && x.who === q[1]); if (j >= 0) planDraft.log.splice(j, 1); return show('plan'); }
       });
       // minutes / heart-rate / goal text update the section status as you type (on leaving the field)
-      w.addEventListener('change', e => { if (e.target.matches('.wr-mins,.wr-int,.wkpart[data-part=strength] .wr-sets,.wkpart[data-part=strength] .wr-reps,#wk-hr,#wk-why,[id^=wk-why-]')) { const y = window.scrollY; syncPlanFromDom(); show('plan'); window.scrollTo(0, y); } });
+      w.addEventListener('change', e => {
+        // a "how" line only changes its own section's status: update it in place (a full re-render here would swallow a click on Save)
+        if (e.target.matches('[id^=wk-why-],#wk-why,#wk-hr')) { syncPlanFromDom(); const part = e.target.id === 'wk-why' ? 'focus' : e.target.id === 'wk-hr' ? 'cardio' : e.target.id.slice(7), sec = w.querySelector('.wkpart[data-part="' + part + '"]'); if (sec) { const need = partNeeds(part), mins = partMins(part), tgtM = WK_PARTS.find(x => x[0] === part)[2], t = sec.querySelector('.wk-time'); sec.classList.toggle('ok', !need); if (t) { t.classList.toggle('ok', !need); t.textContent = need ? Math.round(mins * 10) / 10 + ' / ' + tgtM + ' min · ' + need : '✓ ' + Math.round(mins * 10) / 10 + ' min'; } } return; }
+        if (e.target.matches('.wr-mins,.wr-int,.wkpart[data-part=strength] .wr-sets,.wkpart[data-part=strength] .wr-reps')) { const y = window.scrollY; syncPlanFromDom(); show('plan'); window.scrollTo(0, y); }
+      });
       w.querySelectorAll('.wk-pick').forEach(d => d.addEventListener('toggle', () => { wkOpen[d.dataset.part] = d.open; if (d.open) w.querySelectorAll('.wk-pick').forEach(o => { if (o !== d && o.open) { o.open = false; wkOpen[o.dataset.part] = false; } }); }));
       enableWkDrag(w);
     }
