@@ -3332,7 +3332,7 @@ async function openCards() {
   if (!teacherFilter || teacherFilter === 'all') return toast('Pick a class first (the Class menu), then print its cards.', true);
   cardsData = { loading: true, klass: teacherFilter }; show('cards');
   try { cardsData = await call('classPlans', { klass: teacherFilter }); }
-  catch (e) { cardsData = { error: e.message, klass: teacherFilter }; }
+  catch (e) { cardsData = { error: /Unknown action/i.test(e.message) ? 'The server is still on the old version. Paste the new Code.gs into Apps Script, then Deploy → Manage deployments → ✏️ → Version: New version → Deploy. Then try again.' : e.message, klass: teacherFilter }; }
   if (view === 'cards') show('cards');
 }
 function cardDose(part, r) {
