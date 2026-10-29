@@ -869,6 +869,36 @@ body.demo{padding-top:52px}
   body.printing-cards .pc-pg{box-shadow:none;break-after:page;page-break-after:always;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   body.printing-cards #app,body.printing-cards .wrap{padding:0!important;margin:0!important;max-width:none!important}
 }
+.apshape button,.apshape .aps-tile,.apshape .aps-next{white-space:normal;overflow-wrap:anywhere}
+.apshape .aps-stats b{color:#fff}.apshape .aps-next,.apshape .aps-next b,.apshape .aps-next .h{color:#fff}.apshape .aps-next .jump i{color:#fff}
+.aps-hero{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:14px;align-items:start}
+.aps-radar{background:#fff;border:1.5px solid var(--line);border-radius:20px;padding:6px 10px 8px}
+.apradar{width:100%;height:auto;display:block}.apradar .aps-l{font-size:13px;font-weight:700;fill:var(--ink)}.apradar .aps-b{font-size:12px;font-weight:800}
+.aps-leg{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;font-size:12px;color:var(--ink-soft)}
+.aps-leg i{display:inline-block;margin-right:5px;vertical-align:-1px}
+.aps-leg .l-me{width:12px;height:12px;background:rgba(111,29,44,.25);border:2px solid #6f1d2c;border-radius:3px}
+.aps-leg .l-co{width:9px;height:9px;border:2px solid #9a6d00;transform:rotate(45deg);background:#fff}
+.aps-leg .l-st{width:18px;border-top:2px dashed #b9aeb0;vertical-align:3px}
+.aps-side{display:flex;flex-direction:column;gap:12px}
+.aps-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.aps-stats>div{background:var(--ink);color:#fff;border-radius:14px;padding:10px 12px}
+.aps-stats b{display:block;font-family:var(--disp);font-weight:900;font-size:24px;line-height:1.1}.aps-stats b.w{font-size:16px;line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aps-stats span{font-size:11.5px;color:#cfc6c7}
+.aps-next{display:flex;flex-direction:column;gap:8px;text-align:left;background:var(--maroon);color:#fff;border:0;border-radius:20px;padding:16px 18px;font:inherit;cursor:pointer;position:relative;overflow:hidden}
+.aps-next::before{content:"";position:absolute;inset:0 0 auto 0;height:5px;background:var(--gold)}
+.aps-next .k{font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--gold)}.aps-next .h{font-family:var(--disp);font-weight:900;font-size:22px}
+.aps-next .jump{display:flex;align-items:center;gap:8px;font-weight:800}.aps-next .jump i{font-style:normal;border-radius:10px;padding:5px 10px;font-size:14px}
+.aps-next .p{font-size:13.5px;line-height:1.45;color:#f3e6e8}
+.aps-tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:14px}
+.aps-tile{display:flex;flex-direction:column;gap:2px;text-align:left;background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:10px 10px 8px;font:inherit;color:var(--ink);cursor:pointer;min-width:0}
+.aps-tile.empty{opacity:.6}
+.aps-tile .tn{font-size:12.5px;font-weight:700}.aps-tile .tb{font-size:13px}.aps-tile .tb .ns{color:#b9aeb0}
+.aps-tile .tr{margin-left:6px;font-size:11px;font-weight:700}.aps-tile .tr.up{color:#2e9e5b}.aps-tile .tr.dn{color:#e0821e}.aps-tile .tr.eq{color:#9b8f91}
+.apmini{width:100%;height:auto;display:block;margin:4px 0}
+.aps-tile .co{display:block;font-size:11px;color:var(--ink-soft);background:#f6f2f1;border-radius:8px;padding:4px 6px;line-height:1.35}.aps-tile .co.ag{background:#eaf6ee}
+.aps-tile .words{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}.aps-tile .tag{font-size:11px;font-weight:600;border:1.5px solid var(--line);border-radius:999px;padding:1px 7px}.aps-tile .tag i{font-style:normal;color:var(--muted);margin-left:3px}
+.aps-time{margin-top:12px}.aps-time summary{cursor:pointer;font-weight:700;font-size:14px}
+@media(max-width:760px){.aps-hero{grid-template-columns:1fr}.aps-tiles{grid-template-columns:1fr 1fr}}
 .psteps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 14px;position:sticky;top:0;z-index:30;background:var(--paper);padding:8px 0}
 .pstep{display:flex;gap:10px;align-items:center;text-align:left;border:2px solid var(--line);background:#fff;border-radius:14px;padding:10px 12px;cursor:pointer;color:var(--ink);font:inherit;touch-action:manipulation}
 .pstep .ps-n{font-family:var(--disp);font-weight:900;font-size:22px;color:var(--muted)}.pstep b{display:block;font-size:15px}.pstep small{display:block;font-size:12px;color:var(--muted);font-weight:600}
@@ -1663,8 +1693,8 @@ function profileView(b) {
     fitSummary(m) +
     '<h3 class="sec sec-fund"><span class="em">🧩</span> Fundamental skills <span class="tap">· self → peer → teacher · tap a skill</span><button type="button" class="secbtn" id="tomyskills">✎ Record my levels</button></h3><p class="seclede">Seven building blocks, each a 6-level ladder. Same test every Combine, so your level climbs over the year.</p>' +
     '<div class="grid3">' + fund + '</div>' +
-    '<h3 class="sec sec-ap"><span class="em">🤝</span> Active participation <span class="tap">· all year</span>' + (AP_SELF_IN_APP ? '<button type="button" class="secbtn" id="toapself">✎ Rate myself</button>' : '') + '</h3><p class="seclede">Your biggest all-year story — how you show up, tracked through every unit.</p>' +
-    '<div class="aptrend" id="aptrend">' + apCompare() + apTrend() + '</div>' +
+    '<h3 class="sec sec-ap"><span class="em">🤝</span> Active participation <span class="tap">· all year</span>' + (AP_SELF_IN_APP ? '<button type="button" class="secbtn" id="toapself">✎ Rate myself</button>' : '') + '</h3><p class="seclede">Your shape: how you see yourself at the end of each lesson, how your coach sees you, and where you started.</p>' +
+    '<div class="aptrend" id="aptrend">' + apShape() + '</div>' +
     '<h3 class="sec sec-rep"><span class="em">🧠</span> My report picture <span class="tap">· tap for how it’s built</span></h3><p class="seclede">The three grades on your Canvas report — a best fit across the descriptors.</p>' +
     '<div class="grid3">' + bandV('rp-know', '🧠', 'Knowledge', 'knowledge') + bandV('rp-skill', '🎯', 'Skills', 'skills') + bandV('rp-ct', '🔄', 'Concept transfer', 'concept') + '</div>' +
     '<div class="foot"><span class="arrow">↻</span><div><b>How this grows:</b> September sets the baseline; the same measures repeat in January and May. Always <b>you vs. your past self</b> — and it maps straight to your report.</div></div>' +
@@ -2001,6 +2031,96 @@ function apTrend() {
   if (!apEnough(log)) return tail + '<p class="apunlock">📈 Your line through the year appears after ' + AP_LINE_MIN + ' check-ins over a few weeks (' + log.self.length + ' so far).</p>';
   return tail + '<div class="ap-hd ap-hd2">📈 My check-ins over time</div>' + chips + '<svg class="apchart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="My active participation self-checks and my teacher’s grades over the year">' + g + '</svg>' +
     '<div class="aplegend"><span><i class="lg-me"></i>Me (' + log.self.length + ' check' + (log.self.length === 1 ? '' : 's') + ')</span><span><i class="lg-t"></i>My teacher’s grade</span>' + (log.lesson.length ? '<span><i class="lg-l"></i>My teacher in lessons</span>' : '') + '</div>';
+}
+// ── Active participation as a "player shape": me (latest check-outs) vs coach (the teacher's latest
+// view: a lesson spotlight rating or a report grade) vs where I started, then one tile per area.
+const AP_COL = ['#9b7b6b', '#e0821e', '#2e9e5b', '#d4a017'];
+function apStory() {
+  const log = apLog(), y0y = apYearStart().getFullYear();
+  const rDate = t => t.date || (() => { const md = AP_ROUND_POS[t.round].split('-').map(Number); return (md[0] >= 8 ? y0y : y0y + 1) + '-' + String(md[0]).padStart(2, '0') + '-' + String(md[1]).padStart(2, '0'); })();
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], sd = d => { const x = String(d).split('-'); return (+x[2]) + ' ' + MON[(+x[1]) - 1]; };
+  const out = {};
+  AP_KEYS_C.forEach(k => {
+    const mine = log.self.filter(e => e.v[k] != null).map(e => ({ date: e.date, b: bandIx(e.v[k]), word: e.word || '' }));
+    const coach = log.lesson.filter(e => e.v[k] != null).map(e => ({ date: e.date, b: bandIx(e.v[k]), src: 'PE · ' + sd(e.date) }))
+      .concat(log.teacher.filter(t => t.v[k] != null || t.v.overall != null).map(t => ({ date: rDate(t), b: bandIx(t.v[k] != null ? t.v[k] : t.v.overall), src: t.label + ' grade' })))
+      .sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+    const words = {}; mine.forEach(e => { if (e.word) words[e.word] = (words[e.word] || 0) + 1; });
+    const me = mine.length ? mine[mine.length - 1].b : null, prev = mine.length > 1 ? mine[mine.length - 2].b : null;
+    out[k] = { mine, coach, words, me, start: mine.length ? mine[0].b : null, c: coach.length ? coach[coach.length - 1] : null, trend: prev == null ? 0 : Math.sign(me - prev) };
+  });
+  return out;
+}
+function apRadar(S) {
+  const cx = 190, cy = 185, R = 140, n = AP_ROWS.length;
+  const pt = (i, v) => { const a = -Math.PI / 2 + i * 2 * Math.PI / n, r = R * (v + 1) / 4; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; };
+  const P = (vals) => vals.map((v, i) => pt(i, v == null ? -0.7 : v).map(x => x.toFixed(1)).join(',')).join(' ');
+  let g = '';
+  [3, 2, 1, 0].forEach(lv => { g += '<polygon points="' + AP_ROWS.map((r, i) => pt(i, lv).map(x => x.toFixed(1)).join(',')).join(' ') + '" fill="' + AP_COL[lv] + '" fill-opacity=".1" stroke="#e3dbda"/>'; });
+  AP_ROWS.forEach((r, i) => { const p = pt(i, 3); g += '<line x1="' + cx + '" y1="' + cy + '" x2="' + p[0].toFixed(1) + '" y2="' + p[1].toFixed(1) + '" stroke="#e3dbda"/>'; });
+  const me = AP_ROWS.map(r => S[r[0]].me), co = AP_ROWS.map(r => S[r[0]].c ? S[r[0]].c.b : null), st = AP_ROWS.map(r => S[r[0]].start);
+  if (st.some(v => v != null)) g += '<polygon points="' + P(st) + '" fill="none" stroke="#b9aeb0" stroke-width="2" stroke-dasharray="4 4"/>';
+  if (co.some(v => v != null)) g += '<polygon points="' + P(co) + '" fill="none" stroke="#c8962a" stroke-width="2.5"/>';
+  if (me.some(v => v != null)) g += '<polygon points="' + P(me) + '" fill="#6f1d2c" fill-opacity=".18" stroke="#6f1d2c" stroke-width="3" stroke-linejoin="round"/>';
+  me.forEach((v, i) => { if (v == null) return; const p = pt(i, v); g += '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="7" fill="' + AP_COL[v] + '" stroke="#fff" stroke-width="2.5"/>'; });
+  co.forEach((v, i) => { if (v == null) return; const p = pt(i, v); g += '<rect x="' + (p[0] - 6).toFixed(1) + '" y="' + (p[1] - 6).toFixed(1) + '" width="12" height="12" transform="rotate(45 ' + p[0].toFixed(1) + ' ' + p[1].toFixed(1) + ')" fill="#fff" stroke="#9a6d00" stroke-width="2.5"/>'; });
+  AP_ROWS.forEach((r, i) => {
+    const p = pt(i, 3.55), anchor = Math.abs(p[0] - cx) < 20 ? 'middle' : (p[0] > cx ? 'start' : 'end'), v = me[i];
+    g += '<text x="' + p[0].toFixed(1) + '" y="' + p[1].toFixed(1) + '" text-anchor="' + anchor + '" class="aps-l">' + r[1] + ' ' + esc(r[2]) + '</text>' +
+      '<text x="' + p[0].toFixed(1) + '" y="' + (p[1] + 16).toFixed(1) + '" text-anchor="' + anchor + '" class="aps-b" fill="' + (v == null ? '#b9aeb0' : AP_COL[v]) + '">' + (v == null ? 'not played yet' : AP_BANDS[v].e + ' ' + AP_BANDS[v].name) + '</text>';
+  });
+  return '<svg class="apradar" viewBox="-70 -10 520 390" role="img" aria-label="My active participation shape: me, my teacher and where I started">' + g + '</svg>';
+}
+function apMini(s) {
+  const W = 250, H = 74, pts = s.mine.map(e => ({ d: e.date, b: e.b, t: 'me' })).concat(s.coach.map(e => ({ d: e.date, b: e.b, t: 'co' })));
+  if (!pts.length) return '';
+  const ds = pts.map(p => p.d).sort(), d0 = new Date(ds[0]).getTime(), d1 = Math.max(new Date(ds[ds.length - 1]).getTime(), d0 + 14 * 864e5);
+  const xs = d => 10 + (new Date(d).getTime() - d0) / (d1 - d0) * (W - 20), ys = b => H - 8 - b * (H - 16) / 3;
+  let g = '';
+  for (let v = 0; v < 4; v++) g += '<rect x="0" y="' + (ys(v) - (H - 16) / 6).toFixed(1) + '" width="' + W + '" height="' + ((H - 16) / 3).toFixed(1) + '" fill="' + AP_COL[v] + '" fill-opacity=".09"/>';
+  if (s.mine.length > 1) g += '<polyline points="' + s.mine.map(e => xs(e.date).toFixed(1) + ',' + ys(e.b).toFixed(1)).join(' ') + '" fill="none" stroke="#6f1d2c" stroke-width="2.5" stroke-linejoin="round"/>';
+  s.mine.forEach(e => { g += '<circle cx="' + xs(e.date).toFixed(1) + '" cy="' + ys(e.b).toFixed(1) + '" r="6" fill="' + AP_COL[e.b] + '" stroke="#fff" stroke-width="2"/>'; });
+  s.coach.forEach(e => { const x = xs(e.date).toFixed(1), y = ys(e.b).toFixed(1); g += '<rect x="' + (x - 5) + '" y="' + (y - 5) + '" width="10" height="10" transform="rotate(45 ' + x + ' ' + y + ')" fill="#fff" stroke="#9a6d00" stroke-width="2"/>'; });
+  return '<svg class="apmini" viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true">' + g + '</svg>';
+}
+function apShape() {
+  const log = apLog(), S = apStory();
+  if (!log.self.length && !log.teacher.length && !log.lesson.length) return '<div class="apempty">Your shape appears after your first end-of-lesson check-out on your teacher’s iPad.</div>';
+  // stats: check-outs, how many areas you and your coach agree on, your most-used word
+  const allWords = {}; log.self.forEach(e => { if (e.word) allWords[e.word] = (allWords[e.word] || 0) + 1; });
+  const top = Object.keys(allWords).sort((a, b) => allWords[b] - allWords[a])[0];
+  const both = AP_KEYS_C.filter(k => S[k].me != null && S[k].c), agree = both.filter(k => S[k].me === S[k].c.b).length;
+  const stats = '<div class="aps-stats"><div><b>' + log.self.length + '</b><span>check-out' + (log.self.length === 1 ? '' : 's') + '</span></div>' +
+    '<div><b>' + (both.length ? agree + '/' + both.length : '–') + '</b><span>areas you and your coach agree</span></div>' +
+    '<div><b class="w">' + (top ? '“' + esc(top) + '”' : '–') + '</b><span>your top word</span></div></div>';
+  // next level: where you rate yourself above your coach (show it more), else your coach's lowest, else your lowest
+  const R = (window.RUBRICS || {}).ap || {};
+  const over = AP_KEYS_C.filter(k => S[k].me != null && S[k].c && S[k].me > S[k].c.b).sort((a, b) => (S[b].me - S[b].c.b) - (S[a].me - S[a].c.b));
+  const byCoach = AP_KEYS_C.filter(k => S[k].c).sort((a, b) => S[a].c.b - S[b].c.b), byMe = AP_KEYS_C.filter(k => S[k].me != null).sort((a, b) => S[a].me - S[b].me);
+  const nk = over[0] || byCoach[0] || byMe[0];
+  let next = '';
+  if (nk && R[nk]) {
+    const s = S[nk], row = AP_ROWS.find(r => r[0] === nk), base = s.c ? s.c.b : s.me, nb = Math.min(3, base + 1);
+    const why = over[0] ? 'You see <b>' + AP_BANDS[s.me].name + '</b>, your coach saw <b>' + AP_BANDS[s.c.b].name + '</b> (' + esc(s.c.src) + '). Show it so your coach sees it too.'
+      : s.c ? 'Your coach saw <b>' + AP_BANDS[s.c.b].name + '</b> (' + esc(s.c.src) + ').' : 'Your latest check-out: <b>' + AP_BANDS[s.me].name + '</b>.';
+    next = '<button type="button" class="aps-next" data-ov="ap-' + nk + '"><span class="k">YOUR NEXT LEVEL</span><span class="h">' + row[1] + ' ' + esc(row[2]) + '</span>' +
+      (base >= 3 ? '<span class="jump"><i style="background:' + AP_COL[3] + '">🌟 Leading</i></span><span class="p">You’re at the top band. Keep it going: ' + rubTxt(apMine(R, nk, 3)) + '.</span>'
+        : '<span class="jump"><i style="background:' + AP_COL[base] + '">' + AP_BANDS[base].e + ' ' + AP_BANDS[base].name + '</i>→<i style="background:' + AP_COL[nb] + '">' + AP_BANDS[nb].e + ' ' + AP_BANDS[nb].name + '</i></span>' +
+          '<span class="p">' + why + ' To get to ' + AP_BANDS[nb].name + ': ' + rubTxt(apMine(R, nk, nb)) + '.</span>') + '</button>';
+  }
+  const tiles = AP_ROWS.map(r => {
+    const s = S[r[0]], me = s.me, c = s.c, ag = c && me != null && c.b === me;
+    const head = me == null ? '<b class="ns">Not played yet</b>' : '<b style="color:' + AP_COL[me] + '">' + AP_BANDS[me].e + ' ' + AP_BANDS[me].name + '</b>' +
+      (s.mine.length > 1 ? '<span class="tr ' + (s.trend > 0 ? 'up' : s.trend < 0 ? 'dn' : 'eq') + '">' + (s.trend > 0 ? '▲ up' : s.trend < 0 ? '▼ down' : '= steady') + '</span>' : '');
+    const words = Object.keys(s.words).sort((a, b) => s.words[b] - s.words[a]).map(w => '<span class="tag">' + esc(w) + '<i>×' + s.words[w] + '</i></span>').join('');
+    return '<button type="button" class="aps-tile' + (me == null ? ' empty' : '') + '" data-ov="ap-' + r[0] + '"><span class="tn">' + r[1] + ' ' + esc(r[2]) + '</span><span class="tb">' + head + '</span>' + apMini(s) +
+      (c ? '<span class="co' + (ag ? ' ag' : '') + '">◆ Coach: <b style="color:' + AP_COL[c.b] + '">' + AP_BANDS[c.b].name + '</b> · ' + esc(c.src) + (ag ? ' · ✓ you agree' : '') + '</span>' : (me == null ? '<span class="co">Shows up when it’s the lesson focus</span>' : '')) +
+      (words ? '<span class="words">' + words + '</span>' : '') + '</button>';
+  }).join('');
+  const legend = '<div class="aps-leg"><span><i class="l-me"></i>Me now</span><span><i class="l-co"></i>Coach (latest)</span><span><i class="l-st"></i>Where I started</span></div>';
+  return '<div class="apshape"><div class="aps-hero"><div class="aps-radar">' + apRadar(S) + legend + '</div><div class="aps-side">' + stats + next + '</div></div>' +
+    '<div class="aps-tiles">' + tiles + '</div>' +
+    '<details class="aps-time"><summary>📈 See it over time</summary>' + apTrend() + '</details></div>';
 }
 const AP_LINE_MIN = 4;
 function apEnough(log) {
@@ -3980,7 +4100,7 @@ function show(v, arg) {
     wire('tomyskills', () => show('myskills')); wire('toteacher', () => demo ? exitDemo() : loadClass()); wire('toarchive', () => show('archive'));
     wire('towo', () => { woStart('profile'); show('workout'); });
     wire('toapself', () => { apDraft = null; show('apself'); }); wire('toapself2', () => { apDraft = null; show('apself'); });
-    const apt = $('#aptrend'); if (apt) apt.addEventListener('click', e => { const c = e.target.closest('[data-apkey]'); if (!c) return; e.stopPropagation(); apKey = c.dataset.apkey; apt.innerHTML = apCompare() + apTrend(); });
+    const apt = $('#aptrend'); if (apt) apt.addEventListener('click', e => { const c = e.target.closest('[data-apkey]'); if (!c) return; e.stopPropagation(); apKey = c.dataset.apkey; const d = apt.querySelector('.aps-time'); if (d) d.innerHTML = '<summary>📈 See it over time</summary>' + apTrend(); });
     wire('hubnext', () => { const g = $('#hubnext').dataset.go, to = { topredict: 'predict', toentry: 'entry', tocompare: 'compare', togoals: 'goals', toplan: 'plan' }[g];
       if (g === 'towo') { woStart('profile'); return show('workout'); } lastHub = 'fitness'; show(to); });
     onWrap(e => { if (openUnit(e)) return; const t = e.target.closest('[data-ov]'); if (t) openOv(t.dataset.ov); });

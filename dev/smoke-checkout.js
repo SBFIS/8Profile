@@ -72,13 +72,15 @@ const shots = path.join(root, 'dev/shots'); fs.mkdirSync(shots, { recursive: tru
   await page.screenshot({ path: path.join(shots, 'checkout-summary.png'), fullPage: true });
 
   await page.goto(url('role=student').replace('reset=1&', ''));
-  await page.waitForSelector('.apchart');
-  check('student chart shows the teacher\'s lesson ratings as their own marker', (await page.$$('.apchart .aplesson')).length >= 1 && (await page.textContent('.aplegend >> nth=-1')).includes('My teacher in lessons'));
-  check('lesson ratings are not drawn as the Canvas grade', (await page.$$eval('.apchart title', t => t.map(x => x.textContent))).filter(x => /^Teacher in a lesson/.test(x)).length === (await page.$$('.apchart .aplesson')).length);
-  check('the kiosk tap shows up as today\'s self-check', (await page.$$eval('.apchart .apdot title', t => t.map(x => x.textContent))).length >= 7);
+  await page.waitForSelector('.apradar');
+  check('student sees the AP shape: me, coach and start', (await page.$$('.apradar polygon')).length >= 5 && (await page.textContent('.aps-leg')).includes('Coach'));
+  check('the coach view shows on the tiles with where it came from', /◆ Coach: (Not yet|Approaching|Got it|Leading) · (PE · \d+ \w+|.+ grade)/.test(await page.textContent('.aps-tiles')));
+  check('the kiosk tap shows up as my latest on that area', !/Best effort\s*Not played yet/.test(await page.textContent('.aps-tiles')));
+  check('the chosen word shows on the area tile', (await page.$$('.aps-tile .tag')).length >= 1);
+  check('there is one next-level card', (await page.$$('.aps-next')).length === 1);
   check('"Rate myself" is hidden (students check in on the teacher\'s iPad)', (await page.$$('#toapself, #toapself2')).length === 0);
-  check('student AP shows bands in words, no numbers', !/\b[1-7]\/7\b|\bme [1-7]\b|teacher [1-7]\b/.test(await page.textContent('.apcompare')));
-  await (await page.$('.apchart')).screenshot({ path: path.join(shots, 'checkout-student.png') });
+  check('student AP shows bands in words, no numbers', !/\b[1-7]\/7\b|Coach: [1-7]\b/.test(await page.textContent('.apshape')));
+  await (await page.$('.apshape')).screenshot({ path: path.join(shots, 'checkout-student.png') });
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(url('role=teacher'));
