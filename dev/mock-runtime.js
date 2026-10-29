@@ -67,10 +67,10 @@
       focus: [{ n: 'Sprints', sets: 4, reps: '20 m', min: 4, int: 'hard' }],
       cooldown: [{ n: 'Static stretches', min: 4, int: 'easy' }],
       sChoice: 'endurance', fChoice: 'speed', hr: '150–170 bpm', fWhy: 'Short hard sprints build my top speed for the 30 m.',
-      why: { warmup: 'Raises my heart rate and loosens hips and hamstrings', cardio: 'Intervals push me into my zone to improve the mile', strength: 'Timed sets build muscular endurance in arms and legs' },
+      why: { warmup: 'By starting with an easy jog then dynamic stretches, so my heart rate rises slowly', cardio: 'By 1-minute hard intervals that keep me at 150–170 bpm', strength: 'By 30 s sets', focus: 'By short sprints at full effort with full rest' },
       ref: { strength: 'My strength is sit-to-stand (31). I want to improve my mile (9:44).', worked: 'I reached 160 bpm in the intervals. Push-ups went 18 to 21.', change: '', matters: '' },
       equip: ['water bottle'], days: { tue: true, thu: true, sat: true },
-      log: [{ date: ago(1), who: 'friend', num: '21 push-ups' }, { date: ago(9), who: 'me', num: '4 × 1 min at 160 bpm' }], reflection: '' } });
+      log: [{ date: ago(1), who: 'friend', where: 'home', feel: 'right', hr: 'y', num: '21 push-ups', chg: 'Add a 5th interval: I hit my zone easily' }, { date: ago(5), who: 'me', where: 'class', feel: 'easy', hr: 'n', num: '18 push-ups', chg: 'Make the intervals Hard: I only reached 140 bpm' }, { date: ago(9), who: 'me', where: 'home', num: '4 × 1 min at 160 bpm' }], reflection: '' } });
     const TT = tokenFor('teacher@example.edu'); // the owner is a teacher
     const seedSkills = (email, lv) => callApi({ action: 'saveSkills', token: TT, email, checkpoint: 'sept', levels: lv });
     seedSkills('sample.one@example.edu',   { throw: 4, catch: 5, strike: 3, dribble: 4, kick: 4, jump: 4, core: 5 });

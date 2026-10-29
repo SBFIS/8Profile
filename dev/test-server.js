@@ -127,7 +127,12 @@ check('saveGoals replaces the whole set', (() => { as(S1, 'saveGoals', { goals: 
 check('saveGoals stores a numeric target and a note', (() => { const r = as(S1, 'saveGoals', { goals: [{ component: 'mile', target: 540 }, { component: 'dribble', target: 6 }], note: 'run twice a week' }); const c = as(S1, 'bootstrap').data.student.combine; return r.ok && c.goals.find(x => x.component === 'mile').target === 540 && c.goalNote === 'run twice a week'; })());
 check('savePlan stores and reads back', (() => { const plan = { days: [{ focus: 'cv', items: ['run 20 min'] }] }; const r = as(S1, 'savePlan', { plan: plan }); return r.ok && as(S1, 'bootstrap').data.student.combine.plan.days[0].focus === 'cv'; })());
 check('savePlan keeps sets/reps rows and the home-session log', (() => { const plan = { warmup: [], main: [{ n: 'Push-ups', c: 'strength', sets: 3, reps: '10' }], cooldown: [], days: { tue: true }, log: [{ date: '2026-10-14', who: 'friend' }] }; const r = as(S1, 'savePlan', { plan: plan }); const p = as(S1, 'bootstrap').data.student.combine.plan; return r.ok && p.main[0].sets === 3 && p.main[0].reps === '10' && p.log[0].who === 'friend'; })());
-check('savePlan refuses an oversized plan', /too long/.test(as(S1, 'savePlan', { plan: { reflection: 'x'.repeat(21000) } }).error || ''));
+check('savePlan keeps a full season of logged sessions (60 entries with a change line each)', (() => {
+  const log = []; for (let i = 0; i < 60; i++) log.push({ date: '2026-10-' + String(1 + (i % 28)).padStart(2, '0'), who: 'me', where: i % 2 ? 'home' : 'class', feel: 'right', hr: 'y', num: '22 push-ups and 10 min at 160 bpm', chg: 'x'.repeat(160) });
+  const r = as(S1, 'savePlan', { plan: { v: 3, why: { warmup: 'by building up slowly' }, log } });
+  return r.ok && r.data.plan.log.length === 60 && r.data.plan.log[0].chg.length === 160 && r.data.plan.log[0].hr === 'y';
+})());
+check('savePlan refuses an oversized plan', /too long/.test(as(S1, 'savePlan', { plan: { reflection: 'x'.repeat(46000) } }).error || ''));
 check('teacher (not on roster) cannot saveGoals', /class list/.test(as(T, 'saveGoals', { goals: [] }).error));
 
 console.log('reflections + unit self-assessment');

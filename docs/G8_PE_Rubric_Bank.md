@@ -111,30 +111,30 @@ against the G8 student rubric.*
 *Source: 26 27 G8 Fitness Workout Assessment Rubric (Combine feeds this with raw test data).*
 
 ### Knowledge — PE.G6-10.K4 (ACT) → **Knowledge**
-| Band | Descriptor |
-|---|---|
-| **7** | Excellent knowledge of the parts of a workout; outstanding thought and planning. Plan shows excellent understanding of the chosen fitness components and clearly targets them. |
-| **5–6** | Good knowledge of the parts of a workout; good planning. Good understanding of components and how to target them. |
-| **3–4** | Basic knowledge of the parts of a workout; some planning. Basic understanding of components; some understanding of targeting them. |
-| **1–2** | Limited knowledge; lack of planning. Little understanding of components; workout doesn't clearly target them. |
+| Band | Descriptor | Student: what it looks like |
+|---|---|---|
+| **7** | Excellent knowledge of the parts of a workout; outstanding thought and planning. Plan shows excellent understanding of the chosen fitness components and clearly targets them. | Your reasons explain how each part trains its component, and your choices match it: strength = few, hard reps with long rest; endurance = many reps or 30–45 s; power and speed = short, fast efforts; cardio in your heart-rate zone. |
+| **5–6** | Good knowledge of the parts of a workout; good planning. Good understanding of components and how to target them. | All five parts are filled, with times, and every part says how it trains your fitness. |
+| **3–4** | Basic knowledge of the parts of a workout; some planning. Basic understanding of components; some understanding of targeting them. |  |
+| **1–2** | Limited knowledge; lack of planning. Little understanding of components; workout doesn't clearly target them. |  |
 
 > **Combine change:** sit-ups retired as a core test (it measured hip-flexor endurance, not core stability). Core *stability* now lives in the Fundamental Skills ladder above; lower-body muscular *endurance* is measured by a 60-second sit-to-stand (bench). See §2.
 
 ### Skills — PE.G6-10.S2 (MCC) → **Skills**
-| Band | Descriptor |
-|---|---|
-| **7** | Clear understanding of own strengths and areas to improve, with a clear personal connection. Comprehensive reflection showing clear understanding of the workout's effectiveness. |
-| **5–6** | Understanding of own strengths/areas + a personal connection. Reflection shows understanding of effectiveness. |
-| **3–4** | Some understanding of strengths/areas + some personal connection. Reflection shows basic understanding of effectiveness. |
-| **1–2** | Limited understanding of own strengths and areas to improve. Simple reflection. |
+| Band | Descriptor | Student: what it looks like |
+|---|---|---|
+| **7** | Clear understanding of own strengths and areas to improve, with a clear personal connection. Comprehensive reflection showing clear understanding of the workout's effectiveness. | Your strengths and areas come from real numbers, every change is based on what happened in your sessions (your numbers, heart-rate zone, how it felt), and you explain why it matters to you. |
+| **5–6** | Understanding of own strengths/areas + a personal connection. Reflection shows understanding of effectiveness. | You know your strengths and areas to improve, you made changes, and you can say whether your workout worked. |
+| **3–4** | Some understanding of strengths/areas + some personal connection. Reflection shows basic understanding of effectiveness. |  |
+| **1–2** | Limited understanding of own strengths and areas to improve. Simple reflection. |  |
 
 ### Self Management — ATL → **ATL**
-| Band | Descriptor |
-|---|---|
-| **7** | Demonstrated self-motivation, organisation, consistent effort, and the ability to train independently. |
-| **5–6** | Mostly demonstrated self-motivation, organisation, effort, and independent training. |
-| **3–4** | Some self-motivation, organisation, effort, and independent training. |
-| **1–2** | Limited self-motivation, organisation, effort, and independent training. |
+| Band | Descriptor | Student: what it looks like |
+|---|---|---|
+| **7** | Demonstrated self-motivation, organisation, consistent effort, and the ability to train independently. | You trained at home every week and logged it, came ready, and ran your whole workout at full effort without reminders. |
+| **5–6** | Mostly demonstrated self-motivation, organisation, effort, and independent training. | You trained at home most weeks, logged your sessions, and worked with few reminders. |
+| **3–4** | Some self-motivation, organisation, effort, and independent training. |  |
+| **1–2** | Limited self-motivation, organisation, effort, and independent training. |  |
 
 ---
 

@@ -1228,7 +1228,7 @@ function normPlan(p) {
   });
   return out;
 }
-const REST = { strength: 30, endurance: 30 }; // seconds of rest per set, used to estimate minutes
+const REST = { strength: 90, endurance: 30 }; // seconds of rest per set (strength: long rest; endurance: short), used to estimate minutes and in workout mode
 function parseSecs(t) {
   t = String(t || '').trim().toLowerCase(); if (!t) return 0;
   let m = t.match(/^(\d+):(\d{1,2})$/); if (m) return (+m[1]) * 60 + (+m[2]);
@@ -1250,12 +1250,13 @@ function partNeeds(part, p) {
   if (mins < tgt) return 'add ' + (Math.round((tgt - mins) * 10) / 10) + ' min more';
   if (part === 'cardio' && !String(p.hr || '').trim()) return 'add your heart-rate zone';
   if (part === 'focus' && !String(p.fWhy || '').trim()) return 'say how it meets your goal';
-  if (part !== 'focus' && !String((p.why || {})[part] || '').trim()) return 'say what it targets';
+  if (!String((p.why || {})[part] || '').trim()) return 'say how it trains it';
   return '';
 }
 // Which focus component the student's goals point to.
 const GOAL_FOCUS = { sprint: 'speed', broad: 'power', illinois: 'agility', stork: 'balance', jump: 'power', core: 'balance', throw: 'coordination', catch: 'coordination', strike: 'coordination', dribble: 'coordination', kick: 'coordination' };
-function goalFocus() { const m = measured(), g = (m && m.goals) || []; for (const x of g) if (GOAL_FOCUS[x.component]) return GOAL_FOCUS[x.component]; return ''; }
+function goalFocusFrom(g) { for (const x of (g || [])) if (GOAL_FOCUS[x.component]) return GOAL_FOCUS[x.component]; return ''; }
+function goalFocus() { const m = measured(); return goalFocusFrom((m && m.goals) || []); }
 function wkRow(part, it) {
   const isS = part === 'strength', endu = isS && planDraft.sChoice === 'endurance';
   const ints = WK_INT.map(o => '<option value="' + o[0] + '"' + (it.int === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('');
@@ -1288,7 +1289,8 @@ function wkPart(w) {
   const extra = part === 'cardio'
     ? '<label class="wk-field">❤️ My target heart-rate zone <input type="text" id="wk-hr" maxlength="30" value="' + esc(planDraft.hr) + '" placeholder="e.g. 145–175 bpm"><small>A guide for your age is about 145–175 beats a minute — check it with your pulse or a watch.</small></label>'
     : part === 'focus' && planDraft.fChoice ? '<label class="wk-field">🎯 How does this help you reach your goal? <input type="text" id="wk-why" maxlength="160" value="' + esc(planDraft.fWhy) + '" placeholder="e.g. faster first steps should cut my 30 m sprint time"></label>' : '';
-  const tgt = part === 'focus' ? '' : '<label class="wk-field wk-tgt">🧠 This part targets… <input type="text" id="wk-why-' + part + '" maxlength="160" value="' + esc((planDraft.why || {})[part] || '') + '" placeholder="' + esc(WK_WHY_HINT[part]) + '"><small>Which part of fitness, and how your choices train it.</small></label>';
+  const trains = wkTrains(part, planDraft);
+  const tgt = (part === 'strength' || part === 'focus') && !trains ? '' : '<label class="wk-field wk-tgt">🧠 How does this part train ' + esc(trains || 'your fitness') + '? <input type="text" id="wk-why-' + part + '" maxlength="160" value="' + esc((planDraft.why || {})[part] || '') + '" placeholder="' + esc(wkWhyHint(part, planDraft)) + '"><small>Say <b>how</b>: which exercises, how hard, how many reps or minutes, how much rest.</small></label>';
   return '<div class="wkpart' + (need ? '' : ' ok') + '" data-part="' + part + '"><div class="wk-h"><span class="wk-ht">' + w[1] + (w[3] ? ' <span class="wk-req">' + esc(w[3]) + '</span>' : '') + '</span>' +
     '<span class="wk-time' + (need ? '' : ' ok') + '">' + (need ? Math.round(mins * 10) / 10 + ' / ' + w[2] + ' min · ' + need : '✓ ' + Math.round(mins * 10) / 10 + ' min') + '</span></div>' +
     '<ul class="wk-brief">' + w[4].map(t => '<li>' + esc(t) + '</li>').join('') + '</ul>' +
@@ -1297,12 +1299,23 @@ function wkPart(w) {
     (rows.length || need === 'pick one first' ? '' : '<div class="wk-empty">Nothing here yet — add an exercise, then drag ⠿ to arrange.</div>') +
     extra + tgt + wkTools(part) + '</div>';
 }
+// What each part trains (the component). ③ and ④ follow the student's choice; the "how" is theirs to explain.
+const WK_TRAINS = { warmup: 'your body for the workout', cardio: 'your cardiovascular endurance', cooldown: 'your recovery and flexibility' };
+const CHOICE_NAME = { strength: 'muscular strength', endurance: 'muscular endurance', speed: 'speed', power: 'power', agility: 'agility', coordination: 'coordination', balance: 'balance' };
+function wkTrains(part, p) { return part === 'strength' ? (CHOICE_NAME[p.sChoice] ? 'your ' + CHOICE_NAME[p.sChoice] : '') : part === 'focus' ? (CHOICE_NAME[p.fChoice] ? 'your ' + CHOICE_NAME[p.fChoice] : '') : WK_TRAINS[part]; }
 const WK_WHY_HINT = {
-  warmup: 'e.g. raises my heart rate slowly and loosens my hips and legs before I sprint',
-  cardio: 'e.g. intervals keep me at 150–170 bpm, which builds my heart and lungs for the mile',
-  strength: 'e.g. muscular endurance: 3 × 45 s of push-ups and squats so I can keep going longer',
-  cooldown: 'e.g. brings my heart rate down and stretches the legs I used most'
+  warmup: 'e.g. by starting easy and building up, so my heart rate rises slowly and my hips and legs loosen before I sprint',
+  cardio: 'e.g. by doing 1-minute hard intervals that keep me at 150–170 bpm for 10 minutes',
+  strength: 'e.g. by doing 3 sets of 5 slow, hard reps with 90 s rest, so my muscles work near their limit',
+  endurance: 'e.g. by doing 3 sets of 30–45 s with only 30 s rest, so my muscles keep going when tired',
+  speed: 'e.g. by doing short sprints at full effort with full rest, so every rep is fast',
+  power: 'e.g. by doing 3–5 explosive jumps with full rest, so each one is as high as I can',
+  agility: 'e.g. by doing fast cone drills with quick changes of direction',
+  coordination: 'e.g. by practising the skill slowly, then faster, so it becomes automatic',
+  balance: 'e.g. by holding one-leg balances for 30 s, then making them harder',
+  cooldown: 'e.g. by walking slowly, then holding stretches for 20–30 s on the muscles I used most'
 };
+function wkWhyHint(part, p) { return WK_WHY_HINT[part === 'strength' ? p.sChoice : part === 'focus' ? p.fChoice : part] || WK_WHY_HINT.warmup; }
 function equipList() {
   const auto = []; WK_PARTS.forEach(w => (planDraft[w[0]] || []).forEach(r => { const e = EQUIP[r.n]; if (e && auto.indexOf(e) === -1) auto.push(e); }));
   return { auto: auto, extra: planDraft.equip || [] };
@@ -1326,7 +1339,7 @@ function planView(b) {
   return '<div class="wrap">' +
     backBtn() +
     '<button type="button" class="wo-launch" id="wk-go">▶ Workout mode</button><div class="phero"><div class="k">PERSONAL WORKOUT PLAN</div><h1>Build my workout</h1><p>Show you can train the main parts of fitness, with your own choices. Each section has a time to plan for; give every exercise its sets &amp; reps, minutes and how hard. <b>Drag ⠿ to arrange.</b></p></div>' +
-    focusStrip + inclass +
+    fitAssessPanel() + focusStrip + inclass +
     '<div class="wkcard"><div class="wkcard-h"><span>🏋️ My workout</span><span class="wkcard-n' + (ready === WK_PARTS.length ? ' ok' : '') + '">' + ready + ' of ' + WK_PARTS.length + ' sections ready · ' + Math.round(total) + ' min</span></div>' +
     WK_PARTS.map(wkPart).join('') +
     '</div>' + eqHtml +
@@ -1334,7 +1347,9 @@ function planView(b) {
     '<div class="wk-fitt"><div class="wk-days">' + dayChips + '</div><div class="wk-tot">About <b>' + Math.round(total) + ' minutes</b> each time.</div></div>' +
     '<h3 class="sec"><span class="em">🏠</span> Train at home <span class="tap">· homework</span></h3>' +
     homeworkSection() +
+    planCheckHtml(planDraft, goals, 'Plan check · before your assessment') +
     '<h3 class="sec"><span class="em">✍️</span> Reflection <span class="tap">· after you’ve done it</span></h3>' +
+    evidenceHtml(planDraft.log) +
     '<div class="refset">' + REF_PROMPTS.map(r => '<label class="refq"><b>' + r[1] + '</b><small>' + esc(r[2]) + '</small><textarea id="wk-ref-' + r[0] + '" rows="3" maxlength="400" placeholder="' + esc(r[3]) + '">' + esc((planDraft.ref || {})[r[0]] || '') + '</textarea></label>').join('') + '</div>' +
     '<div class="pbar"><div class="pcount">A plan you’ll actually do beats a perfect one.</div><button type="button" class="ct-btn" id="psaveplan">Save my plan</button></div>' +
   '</div>';
@@ -1346,19 +1361,91 @@ const REF_PROMPTS = [
   ['change', '🔧 What I would change', 'Too easy, too hard, or not targeting your goal?', 'e.g. Add a fourth interval and swap lunges for step-ups.'],
   ['matters', '❤️ Why it matters to me', 'Connect it to something you care about.', 'e.g. Fitter legs will help me last a full rugby match.']
 ];
+// ── Plan check (Knowledge K4): do the student's choices match the component each part trains?
+// Shown to the student before the assessment and to the teacher in the assessment view.
+function repsOf(r) { const t = String(r.reps || '').trim(); return /s$|sec|min|:/.test(t) ? { secs: parseSecs(t) } : { n: parseInt(t, 10) || 0 }; }
+function planChecks(p, goals) {
+  const out = [], ok = t => out.push({ ok: true, t }), warn = t => out.push({ ok: false, t });
+  const rows = k => p[k] || [], ints = k => rows(k).map(r => r.int);
+  const why = k => String((p.why || {})[k] || '').trim();
+  if (rows('warmup').length) { if (ints('warmup').indexOf('hard') !== -1) warn('① Warm-up: start easy and build up. One exercise is set to Hard.'); else ok('① Warm-up starts easy and builds up.'); }
+  if (rows('cardio').length) {
+    if (!String(p.hr || '').trim()) warn('② Cardio: add your target heart-rate zone.');
+    else if (ints('cardio').every(i => i === 'easy')) warn('② Cardio: everything is Easy. Will you reach your heart-rate zone?');
+    else ok('② Cardio has a heart-rate zone and enough effort to reach it.');
+  }
+  if (p.sChoice === 'strength' && rows('strength').length) {
+    const bad = rows('strength').filter(r => { const x = repsOf(r); return x.secs || x.n > 8 || r.int !== 'hard'; });
+    if (bad.length) warn('③ Strength = few, hard reps (3–8) with long rest. Check: ' + bad.map(r => r.n).join(', ') + '.'); else ok('③ Strength: few, hard reps.');
+  }
+  if (p.sChoice === 'endurance' && rows('strength').length) {
+    const bad = rows('strength').filter(r => { const x = repsOf(r); return (x.secs ? x.secs < 20 : x.n < 12) || r.int === 'easy'; });
+    if (bad.length) warn('③ Muscular endurance = many reps (12+) or 30–45 s, with short rest. Check: ' + bad.map(r => r.n).join(', ') + '.'); else ok('③ Muscular endurance: long sets, short rest.');
+  }
+  if ((p.fChoice === 'speed' || p.fChoice === 'power') && rows('focus').length) {
+    const bad = rows('focus').filter(r => { const x = repsOf(r); return (x.secs ? x.secs > 15 : x.n > 6) || r.int !== 'hard'; });
+    if (bad.length) warn('④ ' + CHOICE_NAME[p.fChoice][0].toUpperCase() + CHOICE_NAME[p.fChoice].slice(1) + ' = short, fast, hard efforts (3–6 reps) with full rest. Check: ' + bad.map(r => r.n).join(', ') + '.'); else ok('④ Short, fast, hard efforts for ' + CHOICE_NAME[p.fChoice] + '.');
+  }
+  const gf = goalFocusFrom(goals);
+  if (p.fChoice) { if (gf && gf !== p.fChoice) warn('④ Your goals point to ' + CHOICE_NAME[gf] + ' but you chose ' + CHOICE_NAME[p.fChoice] + '. Explain the link in “How does this help my goal?”.'); else if (gf) ok('④ Your focus matches one of your goals.'); }
+  if (rows('cooldown').length) { if (ints('cooldown').some(i => i !== 'easy')) warn('⑤ Cool-down should be Easy, to bring your heart rate down.'); else ok('⑤ Cool-down is easy.'); }
+  const thin = WK_PARTS.filter(w => rows(w[0]).length && why(w[0]).length < 25).map(w => w[1].split(' ')[0]);
+  if (thin.length) warn('🧠 ' + thin.join(' ') + ': say more about how each part trains it (which exercises, how hard, reps, rest).'); else if (WK_PARTS.every(w => why(w[0]))) ok('🧠 Every part explains how it trains its component.');
+  return out;
+}
+function planCheckHtml(p, goals, title) {
+  const c = planChecks(p, goals); if (!c.length) return '';
+  const nOk = c.filter(x => x.ok).length;
+  return '<div class="pchk"><div class="pchk-h">🔎 ' + (title || 'Plan check') + ' <span>' + nOk + ' of ' + c.length + ' ✓</span></div>' +
+    c.map(x => '<div class="pchk-i ' + (x.ok ? 'ok' : 'warn') + '">' + (x.ok ? '✓' : '⚠') + ' ' + esc(x.t) + '</div>').join('') + '</div>';
+}
+// ── How the workout is assessed (wording generated from the rubric bank)
+const FIT_SHOW = { k4: ['📘', 'Shown by: your 🧠 “how” lines and the Plan check'], s2: ['🔍', 'Shown by: your session log and your reflection'], sm: ['🧭', 'Shown by: your home sessions, and how you work in lessons'] };
+function fitAssessPanel() {
+  const F = RUBRICS.fitness; if (!F) return '';
+  return '<details class="fasx" open><summary>🎯 How your workout is assessed <small>you’re marked on understanding and effort, not on being the fittest</small></summary>' +
+    ['k4', 's2', 'sm'].map(k => '<div class="fax"><div class="fax-h">' + FIT_SHOW[k][0] + ' <b>' + esc(F[k].name) + '</b> <small>' + esc(F[k].code) + '</small></div>' +
+      '<div class="fax-b"><div class="fax-got"><b>✅ Got it</b>' + esc(F[k].got) + '</div><div class="fax-lead"><b>🌟 Leading</b>' + esc(F[k].leading) + '</div></div><div class="fax-on">' + FIT_SHOW[k][1] + '</div></div>').join('') + '</details>';
+}
+// ── Evidence from the student's own log, for the reflection (S2) and the teacher view
+function logEvidence(log) {
+  const L = (log || []).slice().sort((a, b) => a.date < b.date ? -1 : 1);
+  const home = L.filter(e => e.where !== 'class'), weeks = {}; home.forEach(e => { weeks[weekKey(e.date)] = 1; });
+  const first = L.length ? new Date(L[0].date + 'T12:00:00') : null, span = first ? Math.max(1, Math.ceil((Date.now() - first) / (7 * 864e5))) : 0;
+  const hrDone = L.filter(e => e.hr === 'y' || e.hr === 'n'), hrYes = hrDone.filter(e => e.hr === 'y').length;
+  return { L, n: L.length, home: home.length, weeks: Object.keys(weeks).length, span, hrYes, hrN: hrDone.length,
+    nums: L.filter(e => e.num).map(e => [e.date, e.num]), changes: L.filter(e => e.chg).map(e => [e.date, e.chg]) };
+}
+function evidenceHtml(log, teacher) {
+  const v = logEvidence(log); const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], sd = d => { const x = String(d).split('-'); return x.length === 3 ? (+x[2]) + ' ' + MON[(+x[1]) - 1] : esc(d); };
+  if (!v.n) return '<div class="evid"><div class="evid-h">📊 Your evidence</div><p class="evid-e">Log your sessions (in PE and at home) and your numbers, heart-rate zone and changes will show up here to use in your reflection.</p></div>';
+  return '<div class="evid"><div class="evid-h">📊 ' + (teacher ? 'From the session log' : 'Your evidence <small>use these in your answers</small>') + '</div>' +
+    '<div class="evid-g"><span><b>' + v.n + '</b> sessions logged</span><span><b>' + v.home + '</b> at home · ' + v.weeks + ' of ' + v.span + ' weeks</span>' + (v.hrN ? '<span>❤️ In your zone <b>' + v.hrYes + ' of ' + v.hrN + '</b></span>' : '') + '</div>' +
+    (v.nums.length ? '<div class="evid-r"><b>Your numbers</b>' + v.nums.map(x => '<span>' + sd(x[0]) + ': ' + esc(x[1]) + '</span>').join('') + '</div>' : '') +
+    (v.changes.length ? '<div class="evid-r"><b>Your changes</b>' + v.changes.map(x => '<span>' + sd(x[0]) + ': ' + esc(x[1]) + '</span>').join('') + '</div>' : '') + '</div>';
+}
 const FIT_LESSONS = [['🫀', 'Cardio & endurance'], ['💪', 'Strength & power'], ['⚡', 'Speed, agility & flexibility']];
 const WHO = { me: ['🙂', 'Just me', 0], friend: ['🤝', 'With a friend', 1], family: ['👪', 'With family', 1] };
 function isoDay(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 function weekKey(s) { const d = new Date(s + (String(s).length === 10 ? 'T12:00:00' : '')); if (isNaN(d)) return ''; d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return isoDay(d); }
+let hwOpen = false; // keep the log form open across re-renders
 function homeworkSection() {
   const log = (planDraft.log || []).slice(), tw = weekKey(isoDay(new Date()));
   const wk = log.filter(e => weekKey(e.date) === tw && e.where !== 'class'), n = wk.length, met = n >= 1, buddy = wk.some(e => e.who === 'friend' || e.who === 'family');
-  const rows = log.sort((a, b) => a.date < b.date ? 1 : -1).slice(0, 8).map(e => { const w = e.where === 'class' ? ['🏫', 'In PE', 0] : (WHO[e.who] || WHO.me); return '<div class="hw-log"><span class="hw-d">' + esc(e.date) + '</span><span class="hw-w">' + w[0] + ' ' + w[1] + '</span>' + (w[2] ? '<span class="hw-star">⭐ bonus</span>' : '') + '<button type="button" class="wr-x" data-logrm="' + esc(e.date + '|' + e.who) + '" aria-label="remove">✕</button></div>'; }).join('');
+  const rows = log.sort((a, b) => a.date < b.date ? 1 : -1).slice(0, 10).map(e => { const w = e.where === 'class' ? ['🏫', 'In PE', 0] : (WHO[e.who] || WHO.me); return '<div class="hw-log"><span class="hw-d">' + esc(e.date) + '</span><span class="hw-w">' + w[0] + ' ' + w[1] + '</span>' + (w[2] ? '<span class="hw-star">⭐ bonus</span>' : '') + (e.hr === 'y' ? '<span class="hw-hr">❤️ in zone</span>' : e.hr === 'n' ? '<span class="hw-hr no">❤️ below zone</span>' : '') + (e.num ? '<span class="hw-num">' + esc(e.num) + '</span>' : '') + '<button type="button" class="wr-x" data-logrm="' + esc(e.date + '|' + e.who) + '" aria-label="remove">✕</button>' + (e.chg ? '<span class="hw-chg">🔧 ' + esc(e.chg) + '</span>' : '') + '</div>'; }).join('');
   return '<div class="hwbox">' +
     '<div class="hw-rule"><b>Do your workout at least one more time each week</b> on your own, outside PE. <span class="hw-bonus">⭐ Extra points for training with a friend or family member.</span></div>' +
     '<div class="hw-week"><span class="hw-badge' + (met ? ' ok' : '') + '">' + (met ? '✓ ' : '') + n + ' home session' + (n === 1 ? '' : 's') + ' this week</span>' + (buddy ? '<span class="hw-badge star">⭐ Training-buddy bonus</span>' : '') + '<span class="hw-target">target: 1 or more</span></div>' +
     '<div class="hw-how">▶ Use <b>Workout mode</b> — it logs your session when you finish.</div>' +
-    '<details class="hw-manual"><summary>Did it without workout mode? Log it here</summary><input type="text" id="hw-num" class="wo-num" maxlength="40" placeholder="One number from today, e.g. 22 push-ups"><div class="hw-add"><button type="button" class="hw-btn" data-log="me">🙂 Just me</button><button type="button" class="hw-btn star" data-log="friend">🤝 With a friend</button><button type="button" class="hw-btn star" data-log="family">👪 With family</button></div></details>' +
+    '<details class="hw-manual"' + (hwOpen ? ' open' : '') + '><summary>✍️ Log a session <small>copy a row from your workout card, or a home session</small></summary><div class="hwf">' +
+      '<label>Date <input type="date" id="hwf-date" max="' + isoDay(new Date()) + '" value="' + isoDay(new Date()) + '"></label>' +
+      '<label>Where <select id="hwf-where"><option value="class">🏫 In PE</option><option value="home">🏠 At home</option></select></label>' +
+      '<label>Who with <select id="hwf-who"><option value="me">🙂 Just me</option><option value="friend">🤝 A friend ⭐</option><option value="family">👪 Family ⭐</option></select></label>' +
+      '<label>It felt <select id="hwf-feel"><option value="">–</option>' + WO_FEEL.map(f => '<option value="' + f[0] + '">' + f[1] + ' ' + f[2] + '</option>').join('') + '</select></label>' +
+      '<label>Heart-rate zone? <select id="hwf-hr"><option value="">–</option><option value="y">✅ Reached it</option><option value="n">❌ Not quite</option></select></label>' +
+      '<label class="w2">One number from today <input type="text" id="hw-num" maxlength="40" placeholder="e.g. 22 push-ups"></label>' +
+      '<label class="w3">What I changed or will change, and why <input type="text" id="hwf-chg" maxlength="160" placeholder="e.g. swapped lunges for step-ups: my knee hurt on lunges"></label>' +
+      '<button type="button" class="hw-btn star" id="hwf-save">✓ Log this session</button></div></details>' +
     (rows ? '<div class="hw-logs">' + rows + '</div>' : '') +
   '</div>';
 }
@@ -1422,6 +1509,23 @@ async function savePlanAndGo() {
   try { const res = await call('savePlan', { plan: planDraft }); const m = state.student.combine || { fitness: {}, skills: {} }; m.plan = res.plan; state.student.combine = m; planDraft = null; woStart('fitness'); show('workout'); }
   catch (e) { btn.disabled = false; btn.textContent = '▶ Workout mode'; toast('Couldn’t save: ' + e.message, true); }
 }
+// Log one session from the form and save straight away (the student stays on the page).
+async function logSessionUI() {
+  syncPlanFromDom();
+  const v = id => { const el = $('#' + id); return el ? el.value.trim() : ''; };
+  const date = v('hwf-date'), where = v('hwf-where') === 'home' ? 'home' : 'class';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > isoDay(new Date())) return toast('Pick the date of the session (not in the future).', true);
+  planDraft.log = (planDraft.log || []).slice(-59);
+  const who = where === 'home' ? (WHO[v('hwf-who')] ? v('hwf-who') : 'me') : 'me';
+  planDraft.log.push({ date, who, where, feel: v('hwf-feel'), hr: v('hwf-hr') === 'y' || v('hwf-hr') === 'n' ? v('hwf-hr') : '', num: v('hw-num').slice(0, 40), chg: v('hwf-chg').slice(0, 160) });
+  const btn = $('#hwf-save'); if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    const res = await call('savePlan', { plan: planDraft });
+    const m = state.student.combine || { fitness: {}, skills: {} }; m.plan = res.plan; state.student.combine = m;
+    hwOpen = true; toast(where === 'home' && who !== 'me' ? 'Logged — ⭐ buddy bonus!' : 'Session logged ✓');
+  } catch (e) { planDraft.log.pop(); toast('Couldn’t log it: ' + e.message, true); }
+  const y = window.scrollY; show('plan'); window.scrollTo(0, y);
+}
 async function savePlanUI() {
   syncPlanFromDom();
   const btn = $('#psaveplan'); btn.disabled = true; btn.textContent = 'Saving…';
@@ -1435,6 +1539,7 @@ const WO_COL = { warmup: '#e8730c', cardio: '#e04848', strength: '#3b7bff', focu
 const WO_INT = { easy: ['🙂', 'Easy'], moderate: ['😤', 'Moderate'], hard: ['🔥', 'Hard'] };
 const WO_CHEER = ['You’ve got this!', 'Good form first, then speed.', 'Breathe — steady and strong.', 'Every rep counts.', 'Keep going — you’re building it.', 'Nice work. Stay with it.'];
 const WO_FEEL = [['easy', '😌', 'Too easy'], ['right', '💪', 'Just right'], ['hard', '🥵', 'Too hard']];
+const WO_HR = [['y', '✅', 'Yes'], ['n', '❌', 'Not quite']];
 let wo = null, woWake = null;
 function woPlan() { const m = measured(); return m && m.plan ? normPlan(m.plan) : null; }
 function woList(p) { const out = []; WK_PARTS.forEach(w => (p[w[0]] || []).forEach(r => out.push(Object.assign({ part: w[0], sec: w[1].replace(/^\S+\s/, '') }, r)))); return out; }
@@ -1530,7 +1635,9 @@ function woDone() {
     '<div class="wo-q">Where did you train?</div>' + pick('where', [['class', '🏫', 'In PE'], ['home', '🏠', 'At home']]) +
     (wo.where === 'home' ? '<div class="wo-q">Who with? <small>⭐ bonus for a friend or family member</small></div>' + pick('who', [['me', '🙂', 'Just me'], ['friend', '🤝', 'A friend ⭐'], ['family', '👪', 'Family ⭐']]) : '') +
     '<div class="wo-q">How did it feel?</div>' + pick('feel', WO_FEEL) +
+    '<div class="wo-q">Did you reach your heart-rate zone' + (p && p.hr ? ' (' + esc(p.hr) + ')' : '') + '?</div>' + pick('hr', WO_HR) +
     '<div class="wo-q">One number from today <small>so you can see your progress</small></div><input type="text" id="wo-num" class="wo-num" maxlength="40" value="' + esc(wo.num || '') + '" placeholder="e.g. 22 push-ups · cardio 10 min at 160 bpm">' +
+    '<div class="wo-q">What will you change next time, and why? <small>this is evidence for your reflection</small></div><input type="text" id="wo-chg" class="wo-num" maxlength="160" value="' + esc(wo.chg || '') + '" placeholder="e.g. add a 4th interval: I was only at 140 bpm">' +
     '<button type="button" class="wo-go wide" id="wo-save"' + (ready ? '' : ' disabled') + '>Save &amp; finish</button>' +
     '<button type="button" class="wo-edit big" id="wo-skip">Skip — don’t log it</button></div>';
 }
@@ -1538,7 +1645,8 @@ async function woSave() {
   const btn = $('#wo-save'); btn.disabled = true; btn.textContent = 'Saving…';
   const p = woPlan(); p.log = (p.log || []).slice(-59);
   const ni = $('#wo-num'); if (ni) wo.num = ni.value.trim().slice(0, 40);
-  p.log.push({ date: isoDay(new Date()), who: wo.where === 'class' ? 'me' : wo.who, where: wo.where, feel: wo.feel, num: wo.num || '' });
+  const ci = $('#wo-chg'); if (ci) wo.chg = ci.value.trim().slice(0, 160);
+  p.log.push({ date: isoDay(new Date()), who: wo.where === 'class' ? 'me' : wo.who, where: wo.where, feel: wo.feel, hr: wo.hr || '', num: wo.num || '', chg: wo.chg || '' });
   try {
     const res = await call('savePlan', { plan: p });
     const m = state.student.combine || { fitness: {}, skills: {} }; m.plan = res.plan; state.student.combine = m;
@@ -1546,7 +1654,8 @@ async function woSave() {
   } catch (e) { btn.disabled = false; btn.textContent = 'Save & finish'; toast('Couldn’t save: ' + e.message, true); }
 }
 function woHandle(e) {
-  const nIn = $('#wo-num'); if (nIn) wo.num = nIn.value.trim().slice(0, 40); // keep the typed number across re-renders
+  const nIn = $('#wo-num'); if (nIn) wo.num = nIn.value.trim().slice(0, 40); // keep the typed number and change across re-renders
+  const cIn = $('#wo-chg'); if (cIn) wo.chg = cIn.value.trim().slice(0, 160);
   const dot = e.target.closest('[data-dot]');
   if (dot) { const it = wo.list[wo.i], k = +dot.dataset.dot; wo.sets = (k < wo.sets) ? k : k + 1; woStop(); wo.rest = false; wo.total = wo.left = woKind(it) === 'interval' ? (parseSecs(it.reps) || 30) : 0; return show('workout'); }
   const id = (e.target.closest('button[id]') || {}).id, pk = e.target.closest('[data-wo]');
@@ -1814,13 +1923,14 @@ function assessView(sid) {
   if (!p) k4 = miss('No workout plan saved yet.');
   else {
     k4 = WK_PARTS.map(w => {
-      const part = w[0], rows = p[part] || [], why = part === 'focus' ? p.fWhy : (p.why || {})[part];
+      const part = w[0], rows = p[part] || [], why = (p.why || {})[part];
       if (why && String(why).trim()) whys++;
       const choice = part === 'strength' && p.sChoice ? ' · ' + (p.sChoice === 'endurance' ? 'muscular endurance' : 'strength') : part === 'focus' && p.fChoice ? ' · ' + esc(goalLabel(p.fChoice)) : '';
       const ex = rows.length ? rows.map(r => '<li>' + esc(r.n) + (r.sets ? ' · ' + esc(r.sets) + ' × ' + esc(r.reps || '?') : '') + (r.min ? ' · ' + esc(r.min) + ' min' : '') + (r.int ? ' · ' + esc(r.int) : '') + '</li>').join('') : '<li>' + miss('nothing added') + '</li>';
       return '<div class="as-part"><div class="as-ph">' + w[1] + choice + ' <small>' + Math.round(partMins(part, p)) + ' / ' + w[2] + ' min</small></div><ul>' + ex + '</ul>' +
         (part === 'cardio' ? '<div class="as-why">❤️ HR zone: ' + (p.hr ? esc(p.hr) : miss('not set')) + '</div>' : '') +
-        '<div class="as-why">🧠 ' + (part === 'focus' ? 'Helps my goal: ' : 'Targets: ') + (why && String(why).trim() ? esc(why) : miss('no reason given')) + '</div></div>';
+        '<div class="as-why">🧠 How it trains ' + esc(wkTrains(part, p) || 'it') + ': ' + (why && String(why).trim() ? esc(why) : miss('not explained')) + '</div>' +
+        (part === 'focus' ? '<div class="as-why">🎯 Helps my goal: ' + (p.fWhy ? esc(p.fWhy) : miss('no link to a goal')) + '</div>' : '') + '</div>';
     }).join('');
   }
   const total = p ? Math.round(WK_PARTS.reduce((a, w) => a + partMins(w[0], p), 0)) : 0;
@@ -1836,14 +1946,14 @@ function assessView(sid) {
   const home = log.filter(e => e.where !== 'class'), weeks = {}; home.forEach(e => { weeks[weekKey(e.date)] = true; });
   const first = log.length ? new Date(log[0].date + 'T12:00:00') : null, spanW = first ? Math.max(1, Math.ceil((Date.now() - first) / (7 * 864e5))) : 0;
   const buddy = home.filter(e => e.who === 'friend' || e.who === 'family').length;
-  const lg = log.length ? '<table class="as-log"><tr><th>Date</th><th>Where</th><th>Who</th><th>Feel</th><th>Number</th></tr>' + log.slice().reverse().map(e => '<tr><td>' + esc(e.date) + '</td><td>' + (e.where === 'class' ? 'PE' : 'home') + '</td><td>' + esc(e.who || '') + '</td><td>' + esc(e.feel || '') + '</td><td>' + esc(e.num || '') + '</td></tr>').join('') + '</table>' : miss('No sessions logged.');
+  const lg = log.length ? '<table class="as-log"><tr><th>Date</th><th>Where</th><th>Who</th><th>Feel</th><th>HR zone</th><th>Number</th><th>Change</th></tr>' + log.slice().reverse().map(e => '<tr><td>' + esc(e.date) + '</td><td>' + (e.where === 'class' ? 'PE' : 'home') + '</td><td>' + esc(e.who || '') + '</td><td>' + esc(e.feel || '') + '</td><td>' + (e.hr === 'y' ? '✅' : e.hr === 'n' ? '❌' : '') + '</td><td>' + esc(e.num || '') + '</td><td>' + esc(e.chg || '') + '</td></tr>').join('') + '</table>' : miss('No sessions logged.');
   const chip = (ok, t) => '<span class="as-chip' + (ok ? ' ok' : '') + '">' + (ok ? '✓ ' : '') + t + '</span>';
   return '<div class="wrap as-wrap">' + back +
     '<div class="phero tight"><div class="k">WORKOUT ASSESSMENT EVIDENCE</div><h1>' + esc(st.name) + '</h1><p>' + esc(st.klass) + ' · grade each criterion 1–7 in Canvas. This page only reads the student’s profile.</p></div>' +
-    '<div class="as-card"><h3>📘 Knowledge (K4) · planning a workout</h3><div class="as-chips">' + chip(parts === 5, parts + ' / 5 parts filled') + chip(whys === 5, whys + ' / 5 reasons given') + chip(!!(p && p.hr), 'HR zone') + chip(total >= 40, total + ' min') + '</div>' + k4 +
-      '<p class="as-look">Look for: every part has a clear purpose, exercises match the components named, the focus links to a goal.</p></div>' +
-    '<div class="as-card"><h3>🔍 Skills (S2) · assessing and improving</h3><div class="as-chips">' + chip(goals.length >= 2, goals.length + ' goals') + chip(nRef === 4, nRef + ' / 4 reflection prompts') + '</div><h4>Goals</h4>' + gl + (gnote ? '<p class="as-note">“' + esc(gnote) + '”</p>' : '') + '<h4>Reflection</h4>' + (ref || miss('No reflection yet.')) +
-      '<p class="as-look">Look for: strengths and areas backed by numbers, a judgement of whether the workout worked, a specific change, a personal reason.</p></div>' +
+    '<div class="as-card"><h3>📘 Knowledge (K4) · planning a workout</h3><div class="as-chips">' + chip(parts === 5, parts + ' / 5 parts filled') + chip(whys === 5, whys + ' / 5 “how” lines') + chip(!!(p && p.hr), 'HR zone') + chip(total >= 40, total + ' min') + '</div>' + (p ? planCheckHtml(p, goals, 'Plan check · do the choices match the component?') : '') + k4 +
+      '<p class="as-look">Look for: the “how” lines explain how each part trains its component, and the sets, reps, rest and effort match it. The structure and component names are given by the profile, so they are not evidence on their own.</p></div>' +
+    '<div class="as-card"><h3>🔍 Skills (S2) · assessing and improving</h3><div class="as-chips">' + chip(goals.length >= 2, goals.length + ' goals') + chip(nRef === 4, nRef + ' / 4 reflection prompts') + '</div><h4>Goals</h4>' + gl + (gnote ? '<p class="as-note">“' + esc(gnote) + '”</p>' : '') + '<h4>Evidence from the log</h4>' + evidenceHtml(log, true) + '<h4>Reflection</h4>' + (ref || miss('No reflection yet.')) +
+      '<p class="as-look">Look for: strengths and areas backed by numbers, a judgement of whether the workout worked (numbers, heart-rate zone), changes that follow from what happened, a personal reason.</p></div>' +
     '<div class="as-card"><h3>🧭 Self-Management · training independently</h3><div class="as-chips">' + chip(home.length > 0, home.length + ' home sessions') + chip(spanW && Object.keys(weeks).length >= spanW, Object.keys(weeks).length + ' of ' + spanW + ' weeks with a home session') + chip(buddy > 0, buddy + ' with a friend or family') + '</div>' + lg +
       '<p class="as-look">Also use what you saw in lessons and in the assessment: organised, on task without reminders, consistent effort.</p></div>' +
   '</div>';
@@ -2309,11 +2419,11 @@ function show(v, arg) {
         const day = e.target.closest('[data-day]'); if (day) { syncPlanFromDom(); planDraft.days[day.dataset.day] = !planDraft.days[day.dataset.day]; return show('plan'); }
         if (e.target.closest('#wk-eqadd')) { const i = $('#wk-eqi'), v3 = i && i.value.trim(); if (v3) { syncPlanFromDom(); planDraft.equip = (planDraft.equip || []); if (planDraft.equip.length < 20 && planDraft.equip.indexOf(v3) === -1) planDraft.equip.push(v3.slice(0, 30)); show('plan'); } return; }
         const eqr = e.target.closest('[data-eqrm]'); if (eqr) { syncPlanFromDom(); planDraft.equip.splice(+eqr.dataset.eqrm, 1); return show('plan'); }
-        const lg = e.target.closest('[data-log]'); if (lg) { syncPlanFromDom(); planDraft.log = planDraft.log || []; if (planDraft.log.length < 60) { const hn = $('#hw-num'); planDraft.log.push({ date: isoDay(new Date()), who: lg.dataset.log, num: hn ? hn.value.trim().slice(0, 40) : '' }); } toast(WHO[lg.dataset.log][2] ? 'Logged — ⭐ buddy bonus!' : 'Logged. Nice work.'); return show('plan'); }
+        if (e.target.closest('#hwf-save')) { logSessionUI(); return; }
         const lr = e.target.closest('[data-logrm]'); if (lr) { syncPlanFromDom(); const q = lr.dataset.logrm.split('|'), j = (planDraft.log || []).findIndex(x => x.date === q[0] && x.who === q[1]); if (j >= 0) planDraft.log.splice(j, 1); return show('plan'); }
       });
       // minutes / heart-rate / goal text update the section status as you type (on leaving the field)
-      w.addEventListener('change', e => { if (e.target.matches('.wr-mins,.wr-int,.wkpart[data-part=strength] .wr-sets,.wkpart[data-part=strength] .wr-reps,#wk-hr,#wk-why')) { const y = window.scrollY; syncPlanFromDom(); show('plan'); window.scrollTo(0, y); } });
+      w.addEventListener('change', e => { if (e.target.matches('.wr-mins,.wr-int,.wkpart[data-part=strength] .wr-sets,.wkpart[data-part=strength] .wr-reps,#wk-hr,#wk-why,[id^=wk-why-]')) { const y = window.scrollY; syncPlanFromDom(); show('plan'); window.scrollTo(0, y); } });
       w.querySelectorAll('.wk-pick').forEach(d => d.addEventListener('toggle', () => { wkOpen[d.dataset.part] = d.open; if (d.open) w.querySelectorAll('.wk-pick').forEach(o => { if (o !== d && o.open) { o.open = false; wkOpen[o.dataset.part] = false; } }); }));
       enableWkDrag(w);
     }
