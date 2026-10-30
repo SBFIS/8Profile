@@ -32,6 +32,9 @@ async function rawCall(action, payload) {
 // Apps Script caps simultaneous runs; a whole class tapping at once produces
 // transient errors. Retry those with backoff; permanent ones surface at once.
 const PERMANENT = /Unknown style|Unknown action|Incomplete|class list|not connected|Bad request|out of range|not a number|locked|missing|whole numbers|rate at least|too long|unknown checkpoint|teacher|Unknown focus|Unknown word|Unknown rater|Rating must|No students/i;
+// Only these are worth a retry (busy server, network blip, Google's HTML error page); any other
+// server error is shown straight away, so a real fault never looks like an endless spinner.
+const TRANSIENT = /too many|lock|timed? ?out|server error|temporar|try again|unavailable|busy|Failed to fetch|NetworkError|Load failed|network|JSON|Unexpected token|Request failed|Service .*failed/i;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function call(action, payload) {
   if (demo) return demoCall(action, payload || {});
@@ -40,7 +43,7 @@ async function call(action, payload) {
     try { return await rawCall(action, payload); }
     catch (e) {
       if (e.authRequired) { if (/^save/.test(action)) { try { sessionStorage.setItem('pe_pending', JSON.stringify({ action: action, payload: payload || {} })); } catch (x) {} } dropToken(); showSignin('Your sign-in expired. Sign in again — what you were saving will be saved straight after.'); throw e; }
-      if (PERMANENT.test(e.message) || attempt >= 4) throw e;
+      if (PERMANENT.test(e.message) || !TRANSIENT.test(e.message) || attempt >= 4) throw e;
       await sleep(delay + Math.random() * delay); delay = Math.min(delay * 2, 15000);
     }
   }
@@ -2833,9 +2836,10 @@ function renderTeacher(b) {
   document.querySelectorAll('.demobox [data-demo]').forEach(x => x.addEventListener('click', () => startDemo(x.getAttribute('data-demo'))));
 }
 async function loadClass() {
-  $('#app').innerHTML = '<div class="loading"><div class="spinner"></div>Loading the class…</div>';
-  try { classData = await call('classOverview'); show('class'); }
-  catch (e) { toast('Couldn’t load the class: ' + e.message, true); if (state.role === 'student') show('profile'); else renderTeacher(state); }
+  $('#app').innerHTML = '<div class="loading"><div class="spinner"></div><span id="ldmsg">Loading the class…</span></div>';
+  const slow = setTimeout(() => { const m = $('#ldmsg'); if (m) m.textContent = 'Still loading the class… the server can take up to 30 seconds after a quiet spell.'; }, 10000);
+  try { classData = await call('classOverview'); clearTimeout(slow); show('class'); }
+  catch (e) { clearTimeout(slow); toast('Couldn’t load the class: ' + e.message, true); if (state.role === 'student') show('profile'); else renderTeacher(state); }
 }
 
 $('#ov').addEventListener('click', e => { if (e.target === e.currentTarget || e.target.closest('[data-close]')) closeOv(); });
