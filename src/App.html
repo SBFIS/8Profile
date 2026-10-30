@@ -2398,7 +2398,7 @@ function kioskView() {
     if (co.step === 'rate') {
       const rows = AP_BANDS.map((b, i) => '<button type="button" class="ko-band kb' + i + '" data-rate="' + b.v + '"><ul class="ko-bt">' + coMine(co.focus, i).replace(/^Today I\s+/, '').replace(/\.$/, '').split(/;\s*/).map(x => '<li>' + esc(x) + '</li>').join('') + '</ul><span class="ko-lv">' + b.e + ' ' + esc(b.name) + '</span></button>').reverse().join('');
       return '<div class="wrap kiosk">' + kioskTop() +
-        '<div class="ko-q"><p class="ko-hi">Hi ' + esc(s.first) + ' 👋 · ' + f[0] + ' <b>' + esc(f[1]) + '</b></p><h1>Today I…</h1><p>Tap the box most like you. You don’t need every point.</p></div>' +
+        '<div class="ko-q"><p class="ko-hi">Hi ' + esc(s.first) + ' 👋 · ' + f[0] + ' <b>' + esc(f[1]) + '</b></p><h1>Today I…</h1><p>Tap the box that is most like you. It does not need to match every point.</p></div>' +
         '<div class="ko-bands">' + rows + '</div>' +
         '<button type="button" class="back light ko-back" data-kback="1">← Not me</button></div>';
     }

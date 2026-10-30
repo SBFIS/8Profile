@@ -67,47 +67,48 @@ Revised 30 Oct 2026: in Self Management (be ready), Growth Mindset and Self Awar
 meeting the expectation every time. Self Awareness now covers focus, being a learner and a positive,
 safe class. Active Participation (C1) and Social Skills (S4) are school outcomes and are unchanged.
 The official slide (G8 Active Participation Rubric - Where am I at now?) carries the same wording.
-Today I… lines: points separated by ';' show as bullets on the iPad (signs to look for, not a checklist).*
+Today I… lines: points separated by ';' show as bullets on the iPad (signs to look for, not a checklist).
+Written for English learners: common words, simple past tense, no idioms or contractions.*
 
 ### Active Participation — PE.G6-10.C1 (ACT) → **Concept Transfer**
 | Band | Descriptor | Student "I…" (term) | Today I… (iPad check-out) |
 |---|---|---|---|
-| **7** | Always gives full effort and stays engaged the whole lesson, including in activities they do not naturally enjoy. Reflections explain *why* regular participation matters, using specific examples from their own experience. | I participate actively and consistently show that I understand why regular participation in a wide variety of activities matters, including in activities I don't naturally enjoy. | Today I gave full effort all lesson; kept going in the parts I don't like; pushed on when others stopped. |
-| **5–6** | Usually works hard and stays engaged; occasional lapses. Reflections show an understanding of why participation matters, though examples are general. | I participate actively and mostly show that I understand why regular participation matters. | Today I worked hard most of the lesson; took only short breaks. |
-| **3–4** | Effort and focus vary; sometimes distracted or off-task. Reflections describe *what* they did rather than why it matters. | I sometimes participate actively and am beginning to show that I understand why it matters. | Today I worked hard sometimes; coasted sometimes. |
-| **1–2** | Minimal effort; often disengaged. Reflections missing, very brief, or unrelated to participation. | I have trouble participating actively and rarely show that I understand why it matters. | Today I hardly joined in; sat out or stood around. |
+| **7** | Always gives full effort and stays engaged the whole lesson, including in activities they do not naturally enjoy. Reflections explain *why* regular participation matters, using specific examples from their own experience. | I participate actively and consistently show that I understand why regular participation in a wide variety of activities matters, including in activities I don't naturally enjoy. | Today I worked hard all lesson; worked hard in activities I do not like; kept going when others stopped. |
+| **5–6** | Usually works hard and stays engaged; occasional lapses. Reflections show an understanding of why participation matters, though examples are general. | I participate actively and mostly show that I understand why regular participation matters. | Today I worked hard most of the lesson; stopped only for short breaks. |
+| **3–4** | Effort and focus vary; sometimes distracted or off-task. Reflections describe *what* they did rather than why it matters. | I sometimes participate actively and am beginning to show that I understand why it matters. | Today I worked hard some of the time; did not try hard some of the time. |
+| **1–2** | Minimal effort; often disengaged. Reflections missing, very brief, or unrelated to participation. | I have trouble participating actively and rarely show that I understand why it matters. | Today I did not join in much; watched more than I played. |
 
 ### Social Skills — PE.G6-10.S4 (ACT) → **Skills**
 | Band | Descriptor | Student "I…" (term) | Today I… (iPad check-out) |
 |---|---|---|---|
-| **7** | Consistently communicates positively, encourages others, and actively helps teammates take part. | I always communicate positively, encourage others and help my teammates take part. | Today I encouraged others; helped someone join in or improve. |
-| **5–6** | Communicates respectfully and helps the team most of the time. | I communicate respectfully and help my team most of the time. | Today I was respectful to everyone; did my part for the team. |
-| **3–4** | Contribution and communication are inconsistent. | I sometimes help my team, but how I join in and communicate changes from lesson to lesson. | Today I helped my team some of the time; went quiet or off-task at times. |
-| **1–2** | Rarely communicates positively or contributes to the team. | I rarely communicate positively or help my team. | Today I didn't help my team much; wasn't positive with others. |
+| **7** | Consistently communicates positively, encourages others, and actively helps teammates take part. | I always communicate positively, encourage others and help my teammates take part. | Today I said kind words to others; helped someone join in or get better. |
+| **5–6** | Communicates respectfully and helps the team most of the time. | I communicate respectfully and help my team most of the time. | Today I was kind and respectful; did my part for the team. |
+| **3–4** | Contribution and communication are inconsistent. | I sometimes help my team, but how I join in and communicate changes from lesson to lesson. | Today I helped my team some of the time; did not help at other times. |
+| **1–2** | Rarely communicates positively or contributes to the team. | I rarely communicate positively or help my team. | Today I did not help my team much; was not kind to others. |
 
 ### Self Management — ATL.SM.manageself → **ATL**
 | Band | Descriptor | Student "I…" (term) | Today I… (iPad check-out) |
 |---|---|---|---|
-| **7** | Always prepared and on time, starts without reminders, and helps the lesson get going (set-up, equipment, getting others ready). | I am always ready and on time, and I help get the lesson going for everyone. | Today I was ready early; helped set up or get others ready. |
-| **5–6** | Prepared with kit, on time and starts without reminders; rare lapses. | I am ready with my kit, on time and start without reminders, with only rare slips. | Today I had my kit; was on time; started straight away. |
-| **3–4** | Sometimes late or slow to start, or missing kit; needs reminders to get going. | I am sometimes late or slow to start, or I forget kit, and I need reminders to get going. | Today I was late or slow to start; was missing some kit. |
-| **1–2** | Often late, unprepared or missing kit. | I am often late, not ready or missing kit. | Today I was late and not ready; had no kit. |
+| **7** | Always prepared and on time, starts without reminders, and helps the lesson get going (set-up, equipment, getting others ready). | I am always ready and on time, and I help get the lesson going for everyone. | Today I was ready early; helped set up or helped others get ready. |
+| **5–6** | Prepared with kit, on time and starts without reminders; rare lapses. | I am ready with my kit, on time and start without reminders, with only rare slips. | Today I had my PE kit; was on time; started right away. |
+| **3–4** | Sometimes late or slow to start, or missing kit; needs reminders to get going. | I am sometimes late or slow to start, or I forget kit, and I need reminders to get going. | Today I was late or slow to start; did not have all my kit. |
+| **1–2** | Often late, unprepared or missing kit. | I am often late, not ready or missing kit. | Today I was late and not ready; did not have my kit. |
 
 ### Growth Mindset — ATL.SM.growthmindset → **ATL**
 | Band | Descriptor | Student "I…" (term) | Today I… (iPad check-out) |
 |---|---|---|---|
-| **7** | Seeks out challenges beyond what is set, tries new things and stays positive after setbacks, using mistakes to improve. | I look for harder challenges, try new things and stay positive when things go wrong, using mistakes to get better. | Today I chose a harder challenge; stayed positive when it went wrong. |
-| **5–6** | Takes on the challenges set, tries new things and keeps trying after mistakes. | I take on the challenges set and keep trying after mistakes. | Today I had a go at the challenges; kept trying after mistakes. |
-| **3–4** | Sometimes avoids challenges or gives up when frustrated. | I sometimes avoid challenges or give up when I get frustrated. | Today I avoided a challenge; gave up for a bit. |
-| **1–2** | Avoids challenges, refuses tasks, or gives up quickly. | I avoid challenges, refuse tasks, or give up quickly. | Today I refused a task; gave up quickly. |
+| **7** | Seeks out challenges beyond what is set, tries new things and stays positive after setbacks, using mistakes to improve. | I look for harder challenges, try new things and stay positive when things go wrong, using mistakes to get better. | Today I chose a harder challenge; stayed positive when I made mistakes. |
+| **5–6** | Takes on the challenges set, tries new things and keeps trying after mistakes. | I take on the challenges set and keep trying after mistakes. | Today I tried the challenges; kept trying after mistakes. |
+| **3–4** | Sometimes avoids challenges or gives up when frustrated. | I sometimes avoid challenges or give up when I get frustrated. | Today I did not try a challenge; stopped trying for a while. |
+| **1–2** | Avoids challenges, refuses tasks, or gives up quickly. | I avoid challenges, refuse tasks, or give up quickly. | Today I said no to a task; stopped trying quickly. |
 
 ### Self Awareness — ATL.SC.self → **ATL**
 | Band | Descriptor | Student "I…" (term) | Today I… (iPad check-out) |
 |---|---|---|---|
 | **7** | Consistently focused and in control, even when things get hard; actively helps keep the class positive, inclusive and safe. | I stay focused and in control, even when things get hard, and I help keep our class positive and safe for everyone. | Today I stayed focused all lesson; helped keep the class calm and safe. |
-| **5–6** | Stays focused, keeps learning and manages behaviour and emotions safely without reminders; lapses are rare. | I stay focused, keep learning and manage my behaviour and feelings without reminders, so I am safe and positive with others. | Today I stayed focused; kept myself and others safe; needed no reminders. |
-| **3–4** | Focus and self-control vary; needs frequent reminders to stay on track and keep the class safe. | My focus and self-control vary, and I often need reminders to stay on track. | Today I lost focus at times; needed a few reminders. |
-| **1–2** | Behaviour or lack of focus regularly disrupts learning or safety, even after reminders. | My behaviour or focus often gets in the way of learning or safety, even with reminders. | Today I got in the way of others' learning; didn't stop after reminders. |
+| **5–6** | Stays focused, keeps learning and manages behaviour and emotions safely without reminders; lapses are rare. | I stay focused, keep learning and manage my behaviour and feelings without reminders, so I am safe and positive with others. | Today I stayed focused; was safe with others; did not need reminders. |
+| **3–4** | Focus and self-control vary; needs frequent reminders to stay on track and keep the class safe. | My focus and self-control vary, and I often need reminders to stay on track. | Today I lost focus sometimes; needed some reminders. |
+| **1–2** | Behaviour or lack of focus regularly disrupts learning or safety, even after reminders. | My behaviour or focus often gets in the way of learning or safety, even with reminders. | Today I stopped others from learning; did not stop after reminders. |
 
 ---
 
