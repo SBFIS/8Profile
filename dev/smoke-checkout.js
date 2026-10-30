@@ -34,7 +34,7 @@ const shots = path.join(root, 'dev/shots'); fs.mkdirSync(shots, { recursive: tru
   check('kiosk shows the class as first name + last initial', (await page.$$eval('.ko-name', b => b.map(x => x.textContent))).every(t => /^\S+ [A-Z]\.$/.test(t.trim())));
   check('kiosk shows no ratings', !/\b[1-7]\b/.test(await page.textContent('.ko-names')));
   await page.click('.ko-name >> nth=0'); await page.waitForSelector('.ko-band');
-  check('rating screen: four levels in words, worded for today', (await page.$$('.ko-band')).length === 4 && (await page.textContent('.ko-bands')).includes('Got it') && (await page.textContent('.ko-bands')).includes('Today I gave full effort the whole lesson'));
+  check('rating screen: four levels in words, worded for today, sentence first', (await page.$$('.ko-band')).length === 4 && await page.$eval('.ko-band', b => b.firstElementChild.className === 'ko-bt') && (await page.textContent('.ko-bands')).includes('Got it') && (await page.textContent('.ko-bands')).includes('Today I gave full effort from start to finish'));
   check('students see no numbers on the rating screen', !/\d/.test(await page.textContent('.ko-bands')));
   await page.screenshot({ path: path.join(shots, 'checkout-rate.png'), fullPage: true });
   await page.click('[data-kback]'); await page.waitForSelector('.ko-name');
