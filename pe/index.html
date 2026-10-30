@@ -261,6 +261,12 @@ h3.sec .em{font-size:16px;width:31px;height:31px;border-radius:9px;display:inlin
 .tile.a-fund.below .lbar i.on{background:#c0392b}.tile.a-fund.meet .lbar i.on{background:var(--fit)}.tile.a-fund.ok .lbar i.on{background:var(--ap)}
 .btrack.ap{display:flex;gap:3px;margin:8px 0 6px}.btrack.ap i{height:7px;flex:1;border-radius:2px;background:var(--line)}.btrack.ap i.on{background:var(--ap)}
 .tile.a-ap.below .btrack.ap i.on{background:#c0392b}.tile.a-ap.meet .btrack.ap i.on{background:var(--fit)}
+.band:has(.rpos){display:flex;flex-direction:column;justify-content:flex-start}
+.rpos{display:flex;flex-direction:column;gap:5px;margin-top:10px}
+.rpo{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 6px;font-size:12px;line-height:1.3;color:#e9dfe3;background:rgba(255,255,255,.07);border-radius:8px;padding:5px 8px;border-left:3px solid #8a7a80}
+.rpo b{font-family:var(--disp);font-weight:800;color:#fff}.rpo em{font-style:normal;font-weight:700;color:#fff}.rpo i{font-style:normal;color:#a8979d;margin-left:auto;font-size:11px}
+.rpo.off{opacity:.55;border-left-style:dashed}.rpo.b0{border-left-color:#c9a48f}.rpo.b1{border-left-color:#f3a54a}.rpo.b2{border-left-color:#7fe0a6}.rpo.b3{border-left-color:#f3cf5a}
+.band .blab b{color:#fff}
 .band.ok .btrack i.on{background:#7fe0a6}.band.meet .btrack i.on{background:#f3c07a}.band.below .btrack i.on{background:#f0a097}
 /* overlay trend */
 .ovtrend{display:flex;gap:8px;margin-top:10px}
@@ -1536,9 +1542,9 @@ const D = {
   'ap-growth':{ e: '🌱', t: 'Growth mindset', m: 'Keep trying; learn from setbacks', what: 'Embrace challenges, try new things, stay positive after setbacks.', when: 'Every lesson, all year.' },
   'ap-team':  { e: '🙌', t: 'Great teammate', m: 'Include, encourage, communicate', what: 'Communicate positively, encourage others, help teammates take part.', when: 'Every lesson, all year.' },
   'ap-manage':{ e: '🧘', t: 'Manage myself & my feelings', m: 'Listen · safe environment · take responsibility', what: 'Manage behaviour and emotions positively without reminders.', when: 'Every lesson, all year.' },
-  'rp-know':  { e: '🧠', t: 'Knowledge', m: 'Understanding fitness, health & safety', what: 'Best fit across: fitness concepts (K4), safe practice (K5), health.', when: 'Reported on Canvas, 1–7.' },
-  'rp-skill': { e: '🎯', t: 'Skills', m: 'Performing movements & using them in games', what: 'Best fit across: fundamental skills (S1), game skills (S1/S3), planning (S2), team contribution (S4).', when: 'Reported on Canvas, 1–7.' },
-  'rp-ct':    { e: '🔄', t: 'Concept transfer', m: 'Using what you know in new sports & situations', what: 'Best fit across: Tactics Cup transfer (C2), meaningful participation (C1), health decisions (C3).', when: 'Reported on Canvas, 1–7.' }
+  'rp-know':  { e: '🧠', t: 'Knowledge', m: 'Understanding fitness, health & safety', what: 'Best fit across: fitness concepts (K4), safe practice (K5), health.', when: 'Each unit adds its outcome grades. Until the report, this shows where you are on track; then it shows your report grade.' },
+  'rp-skill': { e: '🎯', t: 'Skills', m: 'Performing movements & using them in games', what: 'Best fit across: fundamental skills (S1), game skills (S1/S3), planning (S2), team contribution (S4).', when: 'Each unit adds its outcome grades. Until the report, this shows where you are on track; then it shows your report grade.' },
+  'rp-ct':    { e: '🔄', t: 'Concept transfer', m: 'Using what you know in new sports & situations', what: 'Best fit across: Tactics Cup transfer (C2), meaningful participation (C1), health decisions (C3).', when: 'Each unit adds its outcome grades. Until the report, this shows where you are on track; then it shows your report grade.' }
 };
 
 // ═══════════════ Combine Intro: strengths & challenges self-prediction ═══════════════
@@ -1639,12 +1645,42 @@ function ladderBar(lv) {
   return s + '</div>';
 }
 const LBL = { 1: 'Not yet', 2: 'Not yet', 3: 'Approaching', 4: 'Approaching', 5: 'Got it', 6: 'Got it', 7: 'Leading' };
+// Outcomes behind each report grade (rubric bank §1): the unit that assesses each one.
+const REP_OUTCOMES = {
+  knowledge: [['K4', 'Fitness concepts', 'Fitness'], ['K5', 'Safe practice', 'Parkour'], ['K1', 'Health', 'Health', 1], ['K2', 'Health', 'Health', 1], ['K3', 'Health', 'Health', 1]],
+  skills:    [['S1', 'Movement skills', 'Combine · Badminton · Parkour'], ['S2', 'Assess & improve myself', 'Fitness'], ['S3', 'Game skills', 'Badminton · Tactics Cup'], ['S4', 'Team contribution', 'Tchoukball · AP']],
+  concept:   [['C1', 'Meaningful participation', 'AP · Badminton'], ['C2', 'Transfer to new games', 'Tactics Cup'], ['C3', 'Health decisions', 'Health', 1]]
+};
+const UNIT_NAME = k => (UNITS.find(u => u.key === k) || {}).name || '';
+// One report grade: the official Canvas grade when it's in, else "on track" = best fit (average) of the outcomes assessed so far.
+function repPicture(m, repKey) {
+  const o = (m && m.outcomes) || {}, log = (m && m.outcomeLog) || [];
+  const official = m && m.bands && m.bands[repKey] != null ? m.bands[repKey] : null;
+  const rows = REP_OUTCOMES[repKey].filter(r => !r[3] || o[r[0]] != null).map(([code, name, where]) => {
+    const steps = log.filter(x => x.code === code), seq = [];
+    steps.forEach(x => { const b = bandOf(x.v); if (b && (!seq.length || seq[seq.length - 1].b !== b)) seq.push({ b, unit: x.unit }); });
+    return { code, name, where, v: o[code] != null ? o[code] : null, seq };
+  });
+  const got = rows.filter(r => r.v != null);
+  const avg = got.length ? got.reduce((a, r) => a + r.v, 0) / got.length : null;
+  return { official, avg, rows, n: got.length };
+}
 function bandV(ovKey, em, name, repKey) {
-  const m = measured(), v = m && m.bands && m.bands[repKey] != null ? m.bands[repKey] : null;
-  const cls = v == null ? '' : (v >= 5 ? 'ok' : v >= 4 ? 'meet' : 'below');
-  const bar = '<div class="btrack">' + [1, 2, 3, 4, 5, 6, 7].map(i => '<i class="' + (v && i <= v ? 'on' : '') + '"></i>').join('') + '</div>';
+  const p = repPicture(measured(), repKey), v = p.official != null ? p.official : p.avg, b = bandOf(v);
+  const cls = v == null ? '' : (v >= 4.5 ? 'ok' : v >= 2.5 ? 'meet' : 'below');
+  const fill = v == null ? 0 : Math.round(v);
+  const bar = '<div class="btrack">' + [1, 2, 3, 4, 5, 6, 7].map(i => '<i class="' + (i <= fill ? 'on' : '') + '"></i>').join('') + '</div>';
+  const lab = p.official != null ? '<b>' + b.e + ' ' + b.name + '</b> · ' + p.official + ' on your report'
+    : p.avg != null ? 'On track for <b>' + b.e + ' ' + b.name + '</b> · from ' + p.n + ' outcome' + (p.n === 1 ? '' : 's') + ' so far'
+    : 'Not assessed yet';
+  const chip = r => {
+    if (r.v == null) return '<span class="rpo off"><b>' + r.code + '</b> ' + esc(r.name) + '<i>' + esc(r.where) + '</i></span>';
+    const path = r.seq.length > 1 ? r.seq.map(x => x.b.e).join('→') + ' ' + r.seq[r.seq.length - 1].b.name : bandOf(r.v).e + ' ' + bandOf(r.v).name;
+    const last = r.seq.length ? UNIT_NAME(r.seq[r.seq.length - 1].unit) : '';
+    return '<span class="rpo ' + AP_BANDS[bandIx(r.v)].cls + '"><b>' + r.code + '</b> ' + esc(r.name) + '<em>' + path + '</em>' + (last ? '<i>' + esc(last) + '</i>' : '') + '</span>';
+  };
   return '<button type="button" class="band ' + cls + '" data-ov="' + ovKey + '"><span class="plus">⊕</span><div class="bn">' + em + ' ' + esc(name) + '</div>' + bar +
-    '<div class="blab">' + (v == null ? 'not yet reported' : v + ' · ' + LBL[v]) + '</div></button>';
+    '<div class="blab">' + lab + '</div><div class="rpos">' + p.rows.map(chip).join('') + '</div></button>';
 }
 
 function avatar(st, cls) {
@@ -1695,7 +1731,7 @@ function profileView(b) {
     '<div class="grid3">' + fund + '</div>' +
     '<h3 class="sec sec-ap"><span class="em">🤝</span> Active participation <span class="tap">· all year</span>' + (AP_SELF_IN_APP ? '<button type="button" class="secbtn" id="toapself">✎ Rate myself</button>' : '') + '</h3><p class="seclede">Your shape: how you see yourself at the end of each lesson, how your coach sees you, and where you started.</p>' +
     '<div class="aptrend" id="aptrend">' + apShape() + '</div>' +
-    '<h3 class="sec sec-rep"><span class="em">🧠</span> My report picture <span class="tap">· tap for how it’s built</span></h3><p class="seclede">The three grades on your Canvas report — a best fit across the descriptors.</p>' +
+    '<h3 class="sec sec-rep"><span class="em">🧠</span> My report picture <span class="tap">· tap for how it’s built</span></h3><p class="seclede">The three grades on your Canvas report. Each unit’s outcomes add to them, so you can see where you’re on track before the report comes out.</p>' +
     '<div class="grid3">' + bandV('rp-know', '🧠', 'Knowledge', 'knowledge') + bandV('rp-skill', '🎯', 'Skills', 'skills') + bandV('rp-ct', '🔄', 'Concept transfer', 'concept') + '</div>' +
     '<div class="foot"><span class="arrow">↻</span><div><b>How this grows:</b> September sets the baseline; the same measures repeat in January and May. Always <b>you vs. your past self</b> — and it maps straight to your report.</div></div>' +
     '<button type="button" class="archlink" id="toarchive">📚 <b>My archive</b><span>past predictions, reflections &amp; self-checks' + (archiveCount() ? ' · ' + archiveCount() : '') + '</span><span class="sg-go">↗</span></button>' +

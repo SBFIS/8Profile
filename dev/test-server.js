@@ -261,6 +261,15 @@ check('Learning Mastery outcome columns import per standard (not mastery points)
 check('re-import updates outcomes, never duplicates', (() => { importApRows_(LM, 's1-end'); return readTab_('Outcomes').filter(r => r.Email === 'sample.one@example.edu' && r.Outcome === 'K4').length === 1; })());
 check('student sees own outcomes only', (() => { const a = as(S1, 'bootstrap').data.student.combine.outcomes, b = as(S2, 'bootstrap').data.student.combine.outcomes; return a.S3 === 6 && b.K4 === 3 && b.S3 === undefined && !JSON.stringify(as(S2, 'bootstrap')).includes('sample.one'); })());
 
+check('outcomes are labelled with the unit (from the date when not given)', readTab_('Outcomes').filter(r => r.Email === 'sample.one@example.edu').every(r => r.Unit === unitForDate_(ymd_(new Date()))));
+const LM2 = [['Student name', 'PE.G6-10.K4 result', 'PE.G6-10.S3 result'], ['Sample One', 6, 7]];
+importApRows_(LM2, 's1-end', 'Badminton');
+check('a later unit adds a step, never overwrites the earlier unit', (() => { const k4 = readTab_('Outcomes').filter(r => r.Email === 'sample.one@example.edu' && r.Outcome === 'K4'); return k4.length === 2 && k4.some(r => r.Unit === 'fitness' && r.Value === 5) && k4.some(r => r.Unit === 'badminton' && r.Value === 6); })());
+check('latest unit wins, and the story is in year order', (() => { const c = as(S1, 'bootstrap').data.student.combine; const k4 = c.outcomeLog.filter(x => x.code === 'K4'); return c.outcomes.K4 === 6 && c.outcomes.S3 === 7 && k4.length === 2 && k4[0].unit === 'fitness' && k4[1].unit === 'badminton' && c.outcomes.C1 === 5; })());
+check('unknown unit refused', (() => { try { importApRows_(LM2, 's1-end', 'netball'); return false; } catch (e) { return /Unit/.test(e.message); } })());
+check('an old row with no unit sorts first and still counts', (() => { upsert_('Outcomes', { Email: 'sample.one@example.edu', Outcome: 'S2', Unit: '' }, { Value: 4, Updated: '2026-09-01' }); const c = as(S1, 'bootstrap').data.student.combine; return c.outcomes.S2 === 4 && c.outcomeLog[0].code === 'S2' && c.outcomeLog[0].unit === ''; })());
+check('a student\'s outcome story holds only their own rows', (() => { const l = as(S2, 'bootstrap').data.student.combine.outcomeLog; return l.some(x => x.code === 'K4' && x.v === 3) && !l.some(x => x.unit === 'badminton' || x.code === 'S3' || x.code === 'S2'); })());
+
 console.log('teacher assessment view');
 check('student saves a plan with whys, a 4-part reflection and a logged number', (() => { const plan = { v: 3, warmup: [{ n: 'Light jog', min: 3, int: 'easy' }], cardio: [], strength: [], focus: [], cooldown: [], why: { warmup: 'raise my heart rate' }, ref: { strength: 'push-ups 18', worked: 'yes', change: 'more sets', matters: 'rugby' }, log: [{ date: '2026-10-27', who: 'me', where: 'home', feel: 'ok', num: '22 push-ups' }] };
   const r = as(S2, 'savePlan', { plan }); return r.ok && r.data.plan.ref.worked === 'yes' && r.data.plan.log.some(e => e.num === '22 push-ups'); })());

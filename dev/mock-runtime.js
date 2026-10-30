@@ -86,6 +86,9 @@
       setRow('APLog', ['sample.one@example.edu', ago(r[0]), 'self', '', r[1], r[2], r[3], r[4], r[5], new Date()]));
     importApRows_([['Student name', 'PE.G6-10.C1 result', 'ATL.SM.manageself result', 'Growthmindset result', 'PE.G6-10.S4 result', 'ATL.SC.self result'],
       ['Sample One', 4, 5, 5, 5, 4], ['Sample Two', 5, 5, 4, 5, 5]], 's1-mid');
+    // Unit outcomes: an early S2 grade, then the Fitness unit's Learning Mastery export (K4, S2) → S2 shows its step up
+    setRow('Outcomes', ['sample.one@example.edu', 'S2', 3, ago(30), '']);
+    importApRows_([['Student name', 'PE.G6-10.K4 result', 'PE.G6-10.S2 result'], ['Sample One', 5, 5]], 's1-mid', 'fitness');
     importApRows_([['Student', 'SIS Login ID', 'Assignment -  Am I an Active Participant in PE? (139255)'], ['    Points Possible', '', 7], ['Sample Four', 'sample.four@example.edu', 6]], 's1-mid'); // overall only, like the Grades export
     // AP check-out: the teacher's lesson ratings on the day's focus (Source 'lesson', never Canvas)
     const KI = { ready: 4, effort: 5, growth: 6, team: 7, manage: 8 };
