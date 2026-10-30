@@ -1010,7 +1010,8 @@ body.demo{padding-top:52px}
 .ko-name .tick{position:absolute;top:6px;right:9px;font-size:16px}
 .ko-bands{display:flex;flex-direction:column;gap:10px;max-width:820px;margin:0 auto}
 .ko-band{display:flex;align-items:center;gap:16px;width:100%;text-align:left;background:#fff;border:2px solid var(--line);border-radius:16px;padding:16px 18px;min-height:84px;cursor:pointer;color:var(--ink)}
-.ko-bt{flex:1;font-family:var(--disp);font-weight:700;font-size:22px;line-height:1.3;color:var(--ink)}
+.ko-bt{flex:1;font-family:var(--disp);font-weight:700;font-size:24px;line-height:1.25;color:var(--ink)}
+.ko-hi{font-weight:600;margin:0 0 2px}
 .ko-lv{flex:none;white-space:nowrap;font-size:12.5px;font-weight:600;color:var(--muted);background:#f6f2f1;border-radius:999px;padding:3px 10px}
 .kb3{--bc:#b8860b}.kb2{--bc:#1f9d57}.kb1{--bc:#e8730c}.kb0{--bc:#9a6b55}
 .ko-band.kb3,.ko-band.kb2,.ko-band.kb1,.ko-band.kb0{border-left:4px solid var(--bc)}
@@ -1187,10 +1188,10 @@ window.RUBRICS = {
     "I participate actively and consistently show that I understand why regular participation in a wide variety of activities matters, including in activities I don't naturally enjoy"
    ],
    "today": [
-    "Today I found it hard to get involved and did very little",
-    "Today my effort came and went: some parts I worked hard, some parts I coasted",
-    "Today I worked hard for most of the lesson, with only a few short breaks",
-    "Today I gave full effort from start to finish, including the parts I don't enjoy, and kept going when others stopped"
+    "Today I hardly joined in",
+    "Today I worked hard sometimes and coasted sometimes",
+    "Today I worked hard most of the lesson",
+    "Today I gave full effort all lesson, even in the parts I don't like"
    ]
   },
   "team": {
@@ -1209,10 +1210,10 @@ window.RUBRICS = {
     "I always communicate positively, encourage others and help my teammates take part"
    ],
    "today": [
-    "Today I didn't help my team much, or I wasn't positive with others",
-    "Today I helped my team some of the time, but not the whole lesson",
-    "Today I was respectful, did my part and worked well with my team",
-    "Today I made my team better: I encouraged others and helped someone join in or improve"
+    "Today I didn't help my team much",
+    "Today I helped my team some of the time",
+    "Today I was respectful and did my part",
+    "Today I made my team better: I encouraged and helped others"
    ]
   },
   "ready": {
@@ -1231,10 +1232,10 @@ window.RUBRICS = {
     "I am always ready and on time, and I help get the lesson going for everyone"
    ],
    "today": [
-    "Today I was late, not ready to start, or had no kit",
-    "Today I was a bit late or slow to start, or I was missing some kit",
-    "Today I had my kit, was on time and started without needing a reminder",
-    "Today I was ready early and helped get the lesson going (set-up, equipment or getting others ready)"
+    "Today I was late and not ready, or had no kit",
+    "Today I was late, slow to start or missing kit",
+    "Today I had my kit, was on time and started straight away",
+    "Today I was ready early and helped get the lesson going"
    ]
   },
   "growth": {
@@ -1254,9 +1255,9 @@ window.RUBRICS = {
    ],
    "today": [
     "Today I refused a task or gave up quickly",
-    "Today I avoided a challenge, or gave up for a while when I got frustrated",
-    "Today I had a go at the challenges and kept trying after mistakes",
-    "Today I chose something harder than I had to, and stayed positive when it went wrong"
+    "Today I avoided a challenge or gave up for a bit",
+    "Today I had a go and kept trying after mistakes",
+    "Today I chose a harder challenge and stayed positive"
    ]
   },
   "manage": {
@@ -1275,10 +1276,10 @@ window.RUBRICS = {
     "I stay focused and in control, even when things get hard, and I help keep our class positive and safe for everyone"
    ],
    "today": [
-    "Today my behaviour or lack of focus got in the way of the lesson or made it less safe, even after reminders",
-    "Today I lost focus at times and needed a few reminders to get back on track",
-    "Today I stayed focused, listened and learned, and kept myself and others safe, without needing a reminder",
-    "Today I stayed focused and in control the whole lesson, and helped keep the class positive and safe (for example calming things down or including someone)"
+    "Today I got in the way of the lesson, even after reminders",
+    "Today I needed a few reminders to refocus",
+    "Today I stayed focused and safe without reminders",
+    "Today I stayed focused and helped keep the class calm and safe"
    ]
   }
  },
@@ -3721,9 +3722,9 @@ function kioskView() {
   if (co.step === 'rate' || co.step === 'word') {
     const s = coStudent(co.sel); if (!s) { co.step = 'names'; return kioskView(); }
     if (co.step === 'rate') {
-      const rows = AP_BANDS.map((b, i) => '<button type="button" class="ko-band kb' + i + '" data-rate="' + b.v + '"><span class="ko-bt">' + esc(coMine(co.focus, i)) + '</span><span class="ko-lv">' + b.e + ' ' + esc(b.name) + '</span></button>').reverse().join('');
+      const rows = AP_BANDS.map((b, i) => '<button type="button" class="ko-band kb' + i + '" data-rate="' + b.v + '"><span class="ko-bt">…' + esc(coMine(co.focus, i).replace(/^Today I\s+/, '').replace(/\.$/, '')) + '</span><span class="ko-lv">' + b.e + ' ' + esc(b.name) + '</span></button>').reverse().join('');
       return '<div class="wrap kiosk">' + kioskTop() +
-        '<div class="ko-q"><h1>Hi ' + esc(s.first) + ' 👋</h1><p>' + f[0] + ' <b>' + esc(f[1]) + '</b>: read them all, then tap the one that is most like you today. It doesn’t have to match every word.</p></div>' +
+        '<div class="ko-q"><p class="ko-hi">Hi ' + esc(s.first) + ' 👋 · ' + f[0] + ' <b>' + esc(f[1]) + '</b></p><h1>Today I…</h1><p>Pick the one most like you.</p></div>' +
         '<div class="ko-bands">' + rows + '</div>' +
         '<button type="button" class="back light ko-back" data-kback="1">← Not me</button></div>';
     }
