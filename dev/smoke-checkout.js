@@ -90,7 +90,7 @@ const shots = path.join(root, 'dev/shots'); fs.mkdirSync(shots, { recursive: tru
   await page.click('[data-cofocus="team"]'); await page.waitForSelector('#cokiosk:not([disabled])');
   await page.click('#cokiosk'); await page.click('.ko-name >> nth=0'); await page.waitForSelector('.ko-band');
   check('no horizontal scroll on phone (kiosk)', await noHScroll());
-  check('every criterion shows a "Today I…" line', (await page.textContent('.ko-bands')).includes('was respectful and did my part'));
+  check('every criterion shows a "Today I…" line', (await page.textContent('.ko-bands')).includes('was respectful to everyone'));
 
   check('no page errors', errors.length === 0, errors.join(' | '));
   await browser.close();
