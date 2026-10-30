@@ -65,7 +65,8 @@ were drafted in Oct 2026 from the teacher descriptors for the AP Check-out kiosk
 Revised 30 Oct 2026: in Self Management (be ready), Growth Mindset and Self Awareness (manage myself),
 5–6 is now the full expectation without reminders, and 7 means lifting the lesson or others, not only
 meeting the expectation every time. Self Awareness now covers focus, being a learner and a positive,
-safe class. Active Participation (C1) and Social Skills (S4) are school outcomes and are unchanged.*
+safe class. Active Participation (C1) and Social Skills (S4) are school outcomes and are unchanged.
+The official slide (G8 Active Participation Rubric - Where am I at now?) carries the same wording.*
 
 ### Active Participation — PE.G6-10.C1 (ACT) → **Concept Transfer**
 | Band | Descriptor | Student "I…" (term) | Today I… (iPad check-out) |
@@ -102,9 +103,9 @@ safe class. Active Participation (C1) and Social Skills (S4) are school outcomes
 ### Self Awareness — ATL.SC.self → **ATL**
 | Band | Descriptor | Student "I…" (term) | Today I… (iPad check-out) |
 |---|---|---|---|
-| **7** | Consistently focused and in control, including when things get hard; actively helps keep the class positive, inclusive and safe (calms situations, includes others, models how to learn). | I stay focused and in control, even when things get hard, and I help keep our class positive and safe for everyone. | Today I stayed focused and in control the whole lesson, and helped keep the class positive and safe (for example calming things down or including someone). |
-| **5–6** | Stays focused, listens and learns, and manages behaviour and emotions so that self and others are safe, without reminders; rare lapses are quickly corrected. | I stay focused, keep learning and manage my behaviour and feelings without reminders, so I am safe and positive with others. | Today I stayed focused, listened and learned, and kept myself and others safe, without needing a reminder. |
-| **3–4** | Focus and self-control vary; needs frequent reminders to stay on track or to keep the class safe and positive. | My focus and self-control vary, and I often need reminders to stay on track. | Today I lost focus at times and needed a few reminders to get back on track. |
+| **7** | Consistently focused and in control, even when things get hard; actively helps keep the class positive, inclusive and safe. | I stay focused and in control, even when things get hard, and I help keep our class positive and safe for everyone. | Today I stayed focused and in control the whole lesson, and helped keep the class positive and safe (for example calming things down or including someone). |
+| **5–6** | Stays focused, keeps learning and manages behaviour and emotions safely without reminders; lapses are rare. | I stay focused, keep learning and manage my behaviour and feelings without reminders, so I am safe and positive with others. | Today I stayed focused, listened and learned, and kept myself and others safe, without needing a reminder. |
+| **3–4** | Focus and self-control vary; needs frequent reminders to stay on track and keep the class safe. | My focus and self-control vary, and I often need reminders to stay on track. | Today I lost focus at times and needed a few reminders to get back on track. |
 | **1–2** | Behaviour or lack of focus regularly disrupts learning or safety, even after reminders. | My behaviour or focus often gets in the way of learning or safety, even with reminders. | Today my behaviour or lack of focus got in the way of the lesson or made it less safe, even after reminders. |
 
 ---
