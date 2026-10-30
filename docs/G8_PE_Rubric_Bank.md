@@ -61,8 +61,11 @@ The three reported bands are **Knowledge · Skills · Concept Transfer**. Each i
 
 *Source: G8 Active Participation Rubric — teacher and student ("I…") versions both exist.
 The student "I…" lines for Social Skills, Self Management, Growth Mindset and Self Awareness
-were drafted in Oct 2026 from the teacher descriptors for the AP Check-out kiosk; check them
-against the G8 student rubric.*
+were drafted in Oct 2026 from the teacher descriptors for the AP Check-out kiosk.
+Revised 30 Oct 2026: in Self Management (be ready), Growth Mindset and Self Awareness (manage myself),
+5–6 is now the full expectation without reminders, and 7 means lifting the lesson or others, not only
+meeting the expectation every time. Self Awareness now covers focus, being a learner and a positive,
+safe class. Active Participation (C1) and Social Skills (S4) are school outcomes and are unchanged.*
 
 ### Active Participation — PE.G6-10.C1 (ACT) → **Concept Transfer**
 | Band | Descriptor | Student "I…" (term) | Today I… (iPad check-out) |
@@ -83,26 +86,26 @@ against the G8 student rubric.*
 ### Self Management — ATL.SM.manageself → **ATL**
 | Band | Descriptor | Student "I…" (term) | Today I… (iPad check-out) |
 |---|---|---|---|
-| **7** | Always prepared with full kit, on time, ready to start without reminders. | I am always ready with full kit, on time, and start without reminders. | Today I was ready early and helped get the lesson going (set-up, equipment or getting others ready). |
-| **5–6** | Usually prepared and on time; may need rare reminders. | I am usually ready and on time; I rarely need a reminder. | Today I had my kit, was on time and started without needing a reminder. |
-| **3–4** | Sometimes unprepared or late to start; occasionally missing kit. | I am sometimes late or not ready to start, and sometimes I forget kit. | Today I was a bit late or slow to start, or I was missing some kit. |
-| **1–2** | Often unprepared, late, or missing kit. | I am often late, not ready, or missing kit. | Today I was late, not ready to start, or had no kit. |
+| **7** | Always prepared and on time, starts without reminders, and helps the lesson get going (set-up, equipment, getting others ready). | I am always ready and on time, and I help get the lesson going for everyone. | Today I was ready early and helped get the lesson going (set-up, equipment or getting others ready). |
+| **5–6** | Prepared with kit, on time and starts without reminders; rare lapses. | I am ready with my kit, on time and start without reminders, with only rare slips. | Today I had my kit, was on time and started without needing a reminder. |
+| **3–4** | Sometimes late or slow to start, or missing kit; needs reminders to get going. | I am sometimes late or slow to start, or I forget kit, and I need reminders to get going. | Today I was a bit late or slow to start, or I was missing some kit. |
+| **1–2** | Often late, unprepared or missing kit. | I am often late, not ready or missing kit. | Today I was late, not ready to start, or had no kit. |
 
 ### Growth Mindset — ATL.SM.growthmindset → **ATL**
 | Band | Descriptor | Student "I…" (term) | Today I… (iPad check-out) |
 |---|---|---|---|
-| **7** | Embraces challenges, tries new things, stays positive even after setbacks. | I take on challenges, try new things and stay positive even when things go wrong. | Today I chose something harder than I had to, and stayed positive when it went wrong. |
-| **5–6** | Open to challenges and generally keeps trying after mistakes. | I am open to challenges and usually keep trying after mistakes. | Today I had a go at the challenges and kept trying after mistakes. |
+| **7** | Seeks out challenges beyond what is set, tries new things and stays positive after setbacks, using mistakes to improve. | I look for harder challenges, try new things and stay positive when things go wrong, using mistakes to get better. | Today I chose something harder than I had to, and stayed positive when it went wrong. |
+| **5–6** | Takes on the challenges set, tries new things and keeps trying after mistakes. | I take on the challenges set and keep trying after mistakes. | Today I had a go at the challenges and kept trying after mistakes. |
 | **3–4** | Sometimes avoids challenges or gives up when frustrated. | I sometimes avoid challenges or give up when I get frustrated. | Today I avoided a challenge, or gave up for a while when I got frustrated. |
 | **1–2** | Avoids challenges, refuses tasks, or gives up quickly. | I avoid challenges, refuse tasks, or give up quickly. | Today I refused a task or gave up quickly. |
 
 ### Self Awareness — ATL.SC.self → **ATL**
 | Band | Descriptor | Student "I…" (term) | Today I… (iPad check-out) |
 |---|---|---|---|
-| **7** | Consistently manages behaviour and emotions positively without reminders. | I always manage my behaviour and feelings in a positive way, without reminders. | Today I stayed focused and in control the whole lesson, and helped keep the class positive and safe (for example calming things down or including someone). |
-| **5–6** | Usually self-manages well; responds to reminders. | I usually manage myself well, and I respond when I am reminded. | Today I stayed focused, listened and learned, and kept myself and others safe, without needing a reminder. |
-| **3–4** | Needs frequent reminders to stay on track. | I need a lot of reminders to stay on track. | Today I lost focus at times and needed a few reminders to get back on track. |
-| **1–2** | Disruptive or unable to manage behaviour despite reminders. | I find it hard to manage my behaviour, even with reminders. | Today my behaviour or lack of focus got in the way of the lesson or made it less safe, even after reminders. |
+| **7** | Consistently focused and in control, including when things get hard; actively helps keep the class positive, inclusive and safe (calms situations, includes others, models how to learn). | I stay focused and in control, even when things get hard, and I help keep our class positive and safe for everyone. | Today I stayed focused and in control the whole lesson, and helped keep the class positive and safe (for example calming things down or including someone). |
+| **5–6** | Stays focused, listens and learns, and manages behaviour and emotions so that self and others are safe, without reminders; rare lapses are quickly corrected. | I stay focused, keep learning and manage my behaviour and feelings without reminders, so I am safe and positive with others. | Today I stayed focused, listened and learned, and kept myself and others safe, without needing a reminder. |
+| **3–4** | Focus and self-control vary; needs frequent reminders to stay on track or to keep the class safe and positive. | My focus and self-control vary, and I often need reminders to stay on track. | Today I lost focus at times and needed a few reminders to get back on track. |
+| **1–2** | Behaviour or lack of focus regularly disrupts learning or safety, even after reminders. | My behaviour or focus often gets in the way of learning or safety, even with reminders. | Today my behaviour or lack of focus got in the way of the lesson or made it less safe, even after reminders. |
 
 ---
 
