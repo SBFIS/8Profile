@@ -99,10 +99,10 @@ against the G8 student rubric.*
 ### Self Awareness — ATL.SC.self → **ATL**
 | Band | Descriptor | Student "I…" (term) | Today I… (iPad check-out) |
 |---|---|---|---|
-| **7** | Consistently manages behaviour and emotions positively without reminders. | I always manage my behaviour and feelings in a positive way, without reminders. | Today I stayed calm and in control when things got hard (losing, a mistake, a bad call), and helped others stay calm too. |
-| **5–6** | Usually self-manages well; responds to reminders. | I usually manage myself well, and I respond when I am reminded. | Today I managed my behaviour and feelings without needing a reminder. |
-| **3–4** | Needs frequent reminders to stay on track. | I need a lot of reminders to stay on track. | Today I needed a few reminders to get back on track. |
-| **1–2** | Disruptive or unable to manage behaviour despite reminders. | I find it hard to manage my behaviour, even with reminders. | Today my behaviour got in the way of the lesson, even after reminders. |
+| **7** | Consistently manages behaviour and emotions positively without reminders. | I always manage my behaviour and feelings in a positive way, without reminders. | Today I stayed focused and in control the whole lesson, and helped keep the class positive and safe (for example calming things down or including someone). |
+| **5–6** | Usually self-manages well; responds to reminders. | I usually manage myself well, and I respond when I am reminded. | Today I stayed focused, listened and learned, and kept myself and others safe, without needing a reminder. |
+| **3–4** | Needs frequent reminders to stay on track. | I need a lot of reminders to stay on track. | Today I lost focus at times and needed a few reminders to get back on track. |
+| **1–2** | Disruptive or unable to manage behaviour despite reminders. | I find it hard to manage my behaviour, even with reminders. | Today my behaviour or lack of focus got in the way of the lesson or made it less safe, even after reminders. |
 
 ---
 
