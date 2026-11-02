@@ -2137,6 +2137,7 @@ function hlView() {
     body = '<h2 class="hl-h">1 · Log my training</h2>' +
       '<p class="hl-p">Log <b>every</b> session since you started your workout:</p><ul class="hl-ul"><li>🏫 the PE lesson(s) where you tried your workout</li><li>🏠 every session at home</li></ul><p class="hl-p">For each one, write <b>one change</b>: what you changed, or will change, and why.</p>' +
       '<div class="hl-card"><div class="hl-ct sm">My sessions since 22 October <span class="hl-cnt">' + pe + ' in PE · ' + home + ' at home</span></div>' + (rows || '<p class="hl-empty">Nothing logged yet.</p>') + '</div>' +
+      '<p class="hl-p"><b>Missing a session?</b> Add it here. <b>Everything already there?</b> Skip this box and tick below.</p>' +
       '<div class="hl-card hl-form"><div class="hl-ct sm">✍️ Add a session</div>' +
         '<div class="hl-fr"><label>Date<input type="date" class="hl-in" id="lf-date" min="2026-10-14" max="' + todayIso() + '" value="' + esc(f.date) + '"></label></div>' +
         '<div class="hl-fr"><span>Where</span>' + ch('where', 'class', '🏫 In PE') + ch('where', 'home', '🏠 At home') + '</div>' +
@@ -2999,7 +3000,7 @@ function partNeeds(part, p) {
   const rows = p[part] || [], mins = partMins(part, p), tgt = WK_PARTS.find(w => w[0] === part)[2];
   if ((part === 'strength' && !p.sChoice) || (part === 'focus' && !p.fChoice)) return 'pick one first';
   if (!rows.length) return 'add an exercise';
-  if (mins < tgt) return 'add ' + (Math.round((tgt - mins) * 10) / 10) + ' min more';
+  if (mins < tgt) { const n = Math.max(1, Math.ceil(tgt - mins - 0.01)); return 'add ' + n + ' more minute' + (n === 1 ? '' : 's'); }
   if (part === 'cardio' && !String(p.hr || '').trim()) return 'add your heart-rate zone';
   if (part === 'focus' && !String(p.fWhy || '').trim()) return 'say how it meets your goal';
   if (!String((p.why || {})[part] || '').trim()) return 'say how it trains it';
@@ -3149,7 +3150,7 @@ const REF_PROMPTS = [
 ];
 // ── Plan check (Knowledge K4): do the student's choices match the component each part trains?
 // Shown to the student before the assessment and to the teacher in the assessment view.
-function repsOf(r) { const t = String(r.reps || '').trim(); return /s$|sec|min|:/.test(t) ? { secs: parseSecs(t) } : { n: parseInt(t, 10) || 0 }; }
+function repsOf(r) { const t = String(r.reps || '').trim().toLowerCase(); if (/^\d+(\.\d+)?\s*(m|metres?|meters?)$/.test(t)) return { dist: parseFloat(t) }; return /s$|sec|min|:/.test(t) ? { secs: parseSecs(t) } : { n: parseInt(t, 10) || 0 }; } // "20 m" is a distance, not 20 reps
 function planChecks(p, goals) {
   const out = [], ok = t => out.push({ ok: true, t }), warn = t => out.push({ ok: false, t });
   const rows = k => p[k] || [], ints = k => rows(k).map(r => r.int);
@@ -3161,22 +3162,22 @@ function planChecks(p, goals) {
     else ok('② Cardio has a heart-rate zone and enough effort to reach it.');
   }
   if (p.sChoice === 'strength' && rows('strength').length) {
-    const bad = rows('strength').filter(r => { const x = repsOf(r); return x.secs || x.n > 8 || r.int !== 'hard'; });
-    if (bad.length) warn('③ Strength = few, hard reps (3–8) with about a minute’s rest. Check: ' + bad.map(r => r.n).join(', ') + '.'); else ok('③ Strength: few, hard reps.');
+    const bad = rows('strength').filter(r => { const x = repsOf(r); return x.secs || x.dist || x.n > 8 || r.int !== 'hard'; });
+    if (bad.length) warn('③ Muscular strength: do a few hard reps (3–8), set to Hard, with about 1 minute rest. Change: ' + bad.map(r => r.n).join(', ') + '.'); else ok('③ Strength: few, hard reps.');
   }
   if (p.sChoice === 'endurance' && rows('strength').length) {
-    const bad = rows('strength').filter(r => { const x = repsOf(r); return (x.secs ? x.secs < 20 : x.n < 12) || r.int === 'easy'; });
-    if (bad.length) warn('③ Muscular endurance = many reps (12+) or 30–45 s, with short rest. Check: ' + bad.map(r => r.n).join(', ') + '.'); else ok('③ Muscular endurance: long sets, short rest.');
+    const bad = rows('strength').filter(r => { const x = repsOf(r); return (x.dist ? false : x.secs ? x.secs < 20 : x.n < 12) || r.int === 'easy'; });
+    if (bad.length) warn('③ Muscular endurance: do many reps (12 or more) or 30–45 seconds, not Easy, with short rest. Change: ' + bad.map(r => r.n).join(', ') + '.'); else ok('③ Muscular endurance: long sets, short rest.');
   }
   if ((p.fChoice === 'speed' || p.fChoice === 'power') && rows('focus').length) {
-    const bad = rows('focus').filter(r => { const x = repsOf(r); return (x.secs ? x.secs > 15 : x.n > 6) || r.int !== 'hard'; });
-    if (bad.length) warn('④ ' + CHOICE_NAME[p.fChoice][0].toUpperCase() + CHOICE_NAME[p.fChoice].slice(1) + ' = short, fast, hard efforts (3–6 reps) with full rest. Check: ' + bad.map(r => r.n).join(', ') + '.'); else ok('④ Short, fast, hard efforts for ' + CHOICE_NAME[p.fChoice] + '.');
+    const bad = rows('focus').filter(r => { const x = repsOf(r); return (x.dist ? x.dist > 60 : x.secs ? x.secs > 15 : x.n > 6) || r.int !== 'hard'; });
+    if (bad.length) warn('④ ' + CHOICE_NAME[p.fChoice][0].toUpperCase() + CHOICE_NAME[p.fChoice].slice(1) + ': do short, fast efforts (3–6 reps, or 60 m or less), set to Hard, with full rest. Change: ' + bad.map(r => r.n).join(', ') + '.'); else ok('④ Short, fast, hard efforts for ' + CHOICE_NAME[p.fChoice] + '.');
   }
   const gf = goalFocusFrom(goals);
-  if (p.fChoice) { if (gf && gf !== p.fChoice) warn('④ Your goals point to ' + CHOICE_NAME[gf] + ' but you chose ' + CHOICE_NAME[p.fChoice] + '. Explain the link in “How does this help my goal?”.'); else if (gf) ok('④ Your focus matches one of your goals.'); }
+  if (p.fChoice) { if (gf && gf !== p.fChoice) warn('④ Your goals are about ' + CHOICE_NAME[gf] + ', but you chose ' + CHOICE_NAME[p.fChoice] + '. In “How does this help my goal?”, explain how ' + CHOICE_NAME[p.fChoice] + ' helps your goal.'); else if (gf) ok('④ Your focus matches one of your goals.'); }
   if (rows('cooldown').length) { if (ints('cooldown').some(i => i !== 'easy')) warn('⑤ Cool-down should be Easy, to bring your heart rate down.'); else ok('⑤ Cool-down is easy.'); }
   const thin = WK_PARTS.filter(w => rows(w[0]).length && why(w[0]).length < 25).map(w => w[1].split(' ')[0]);
-  if (thin.length) warn('🧠 ' + thin.join(' ') + ': say more about how each part trains it (which exercises, how hard, reps, rest).'); else if (WK_PARTS.every(w => why(w[0]))) ok('🧠 Every part explains how it trains its component.');
+  if (thin.length) warn('🧠 Part' + (thin.length > 1 ? 's ' : ' ') + thin.join(' ') + ': write more in “How does this part train it?” (which exercises, how hard, how many reps or minutes, how much rest).'); else if (WK_PARTS.every(w => why(w[0]))) ok('🧠 Every part explains how it trains its component.');
   return out;
 }
 function planCheckHtml(p, goals, title) {
