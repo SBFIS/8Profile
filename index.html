@@ -1072,6 +1072,15 @@ body.demo{padding-top:52px}
 .hl-done{text-align:center;padding:20px 0 10px}.hl-done .big{font-size:64px}.hl-done h2{font-family:var(--disp);font-size:32px;margin:6px 0}
 .as-ul{margin:8px 0 0;padding-left:18px;font-size:14px;line-height:1.6}
 @media(max-width:640px){.hl-stats,.hl-fitt{grid-template-columns:repeat(2,minmax(0,1fr))}.hl-steps em{display:none}.hl-nn{flex-direction:column;align-items:stretch}.hl-nn>span{display:none}.hl-ban{flex-wrap:wrap}}
+.hl-ul{margin:0 0 8px;padding-left:22px;font-size:16px;line-height:1.5}
+.hl-ct.sm{font-size:17px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}.hl-cnt{font-family:Inter,sans-serif;font-size:13px;font-weight:700;color:var(--muted)}
+.hl-lg{display:grid;grid-template-columns:62px 1fr;gap:2px 10px;padding:8px 0;border-top:1px solid var(--line);font-size:14.5px}.hl-ld{font-weight:800;grid-row:span 2}.hl-lw{font-weight:600}.hl-lc{color:#4a3f41}.hl-lc em{color:#b4552f}
+.hl-empty{color:var(--muted);margin:4px 0}
+.hl-form{background:#f6f9fc;border-color:#c9dbea}.hl-fr{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 10px}.hl-fr>span{font-weight:700;font-size:14px;min-width:120px}
+.hl-fr label,.hl-fl{display:flex;flex-direction:column;gap:4px;font-weight:700;font-size:14px;margin:0 0 10px}.hl-fr label{margin:0}.hl-fr input[type=date]{width:auto}
+.hl-chip.sm{font-size:14.5px;padding:7px 12px}
+.hl-add{margin:4px 0 0;font-size:16px;padding:11px 20px}
+.hl-tick{display:flex;gap:10px;align-items:flex-start;font-weight:700;font-size:16px;background:#fff;border:2px solid var(--line);border-radius:14px;padding:12px 14px;margin:6px 0;cursor:pointer}.hl-tick input{width:22px;height:22px;flex:none;margin-top:1px}
 </style>
 
 </head>
@@ -2053,12 +2062,29 @@ const HL = {
   }
 };
 function fmtDayMonth(iso) { const d = new Date(String(iso).slice(0, 10) + 'T12:00:00'); return isNaN(d) ? String(iso) : d.getDate() + ' ' + d.toLocaleDateString('en-GB', { month: 'short' }); }
-const HL_STEPS = ['My training so far', 'Learn', 'Check', 'Use it on my plan', 'Exit ticket'];
+const HL_STEPS = ['Log my training', 'Learn', 'Check', 'Use it on my plan', 'Exit ticket'];
 const HL_FEEL = [['good', '😀', 'Going well'], ['ok', '🙂', 'OK'], ['hard', '😕', 'Hard to find time']];
 const HL_HOW = [['F', 'More often', 'train more times a week'], ['I', 'Harder', 'more reps, less rest, harder version'], ['T', 'Longer', 'more time or more sets'], ['Ty', 'New exercise', 'a harder exercise for the same muscles']];
 const HL_REST = [['sleep', '🛌', 'Sleep 8–10 hours'], ['day', '📅', 'Rest day after hard sessions'], ['food', '🍎', 'Eat well and drink water'], ['easy', '🧘', 'Easy stretching on rest days']];
 const HL_PRIN = [['overload', '🏋️', 'Overload'], ['progression', '📈', 'Progression'], ['rest', '😴', 'Rest and recovery']];
 let hlKey = 'train', hlDraft = null, hlSaving = false;
+let hlForm = { date: '', where: 'class', who: 'me', feel: '', hr: '', num: '', chg: '' };
+function hlSince() { const m = measured(); return ((m && m.plan && m.plan.log) || []).filter(e => String(e.date) >= '2026-10-22'); }
+async function hlLogAdd() {
+  hlRead(); const f = hlForm;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f.date) || f.date > todayIso()) return toast('Pick the date of the session.', true);
+  if ((f.chg || '').trim().length < 5) return toast('Write one change: what you changed or will change, and why.', true);
+  const entry = { id: logId(), date: f.date, who: f.where === 'home' ? f.who || 'me' : 'me', where: f.where === 'home' ? 'home' : 'class', feel: f.feel || '', hr: f.hr || '', num: (f.num || '').trim().slice(0, 40), chg: f.chg.trim().slice(0, 160) };
+  const m = measured(), base = normPlan(m && m.plan); base.log = (base.log || []).slice(-59); base.log.push(entry);
+  const btn = $('#lf-add'); if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    const res = await call('savePlan', { plan: base });
+    const mm = state.student.combine || { fitness: {}, skills: {} }; mm.plan = res.plan; state.student.combine = mm;
+    if (planDraft && !planDraft.log.some(x => x.id === entry.id)) planDraft.log.push(entry);
+    hlForm = { date: todayIso(), where: f.where, who: 'me', feel: '', hr: '', num: '', chg: '' };
+    toast('Session logged ✓'); const y = window.scrollY; show('hlesson'); window.scrollTo(0, y);
+  } catch (e) { if (e.authRequired) return; if (btn) { btn.disabled = false; btn.textContent = '＋ Add this session'; } toast('Couldn’t save (' + e.message + '). Press Add again.', true); }
+}
 function hlSaved(k) { const m = measured(); return (m && m.plan && m.plan.lessons && m.plan.lessons[k]) || null; }
 function hlActive(k) { const L = HL[k], t = todayIso(); return t >= L.from && t <= L.to; }
 function hlDone(k) { const s = hlSaved(k); return !!(s && s.done); }
@@ -2076,7 +2102,7 @@ function hlBanner(where) {
   return '<button type="button" class="hl-ban' + (d ? ' done' : '') + '" data-hl="' + k + '"><span class="hl-be">' + L.e + '</span><span class="hl-bt"><span class="hl-bk">HEALTH LESSON' + (d ? ' · DONE ✓' : ' · ABOUT ' + L.mins + ' MIN') + '</span><b>' + esc(L.name) + '</b><span>' +
     (d ? 'Your answers are saved. Open to look again.' : stepN ? 'Step ' + (stepN + 1) + ' of 5 · carry on where you stopped' : 'Five short steps. Work on your own; your answers save as you go.') + '</span></span><span class="hl-go">' + (d ? 'Open' : stepN ? 'Continue' : 'Start') + '</span></button>';
 }
-function hlOpen(k) { hlKey = k; const s = hlSaved(k); hlDraft = JSON.parse(JSON.stringify(s || { step: 0, quiz: {}, rest: [] })); if (hlDraft.done) hlDraft.step = 5; show('hlesson'); }
+function hlOpen(k) { hlKey = k; if (!hlForm.date) hlForm.date = todayIso(); const s = hlSaved(k); hlDraft = JSON.parse(JSON.stringify(s || { step: 0, quiz: {}, rest: [] })); if (hlDraft.done) hlDraft.step = 5; show('hlesson'); }
 function hlPlanRows() {
   const m = measured(), p = m && m.plan ? normPlan(m.plan) : null, out = [];
   if (p) ['cardio', 'strength', 'focus'].forEach(k => (p[k] || []).forEach(r => { if (r.n && !out.some(x => x.n === r.n)) out.push({ n: r.n, dose: r.sets && r.reps ? r.sets + ' × ' + r.reps + ' ' + r.n.toLowerCase() : (r.min ? r.min + ' min ' + r.n.toLowerCase() : '') }); }));
@@ -2091,15 +2117,27 @@ function hlView() {
     '<button type="button" class="ct-btn hl-next" id="hl-next"' + (ok ? '' : ' disabled') + '>' + (label || 'Save and next →') + '</button></div>';
   let body = '';
   if (st === 0) {
-    const log = (m && m.plan && m.plan.log) || [], since = log.filter(e => e.date >= '2026-10-22'), home = since.filter(e => e.where !== 'class');
-    const withHr = since.filter(e => e.hr === 'y').length, withChg = since.filter(e => e.chg).length;
-    const stat = (n, t) => '<div class="hl-stat"><b>' + n + '</b><span>' + t + '</span></div>';
-    body = '<h2 class="hl-h">1 · My training so far</h2><p class="hl-p">Your sessions since 22 October, from your log.</p>' +
-      (m && m.plan ? '<div class="hl-stats">' + stat(since.length, 'sessions logged') + stat(home.length, 'at home') + stat(withHr, 'in my heart-rate zone') + stat(withChg, 'with a change') + '</div>' +
-        '<p class="hl-p">Did you train and not log it? <button type="button" class="lnk" id="hl-log">Log a session now</button> (then come back here).</p>'
-        : '<p class="hl-warn">You have no workout plan yet. Finish this lesson, then build your plan in Fitness &amp; Training.</p>') +
-      '<h3 class="hl-q">How is your training going?</h3><div class="hl-chips">' + HL_FEEL.map(f => '<button type="button" class="hl-chip' + (d.feel === f[0] ? ' on' : '') + '" data-feel="' + f[0] + '">' + f[1] + ' ' + f[2] + '</button>').join('') + '</div>' +
-      nav(!!d.feel);
+    const since = hlSince(), f = hlForm, ch = (key, val, lab) => '<button type="button" class="hl-chip sm' + (f[key] === val ? ' on' : '') + '" data-lf="' + key + '" data-lv="' + val + '">' + lab + '</button>';
+    const rows = since.slice().sort((a, b) => a.date < b.date ? 1 : -1).map(e => { const w = e.where === 'class' ? '🏫 In PE' : '🏠 At home' + (e.who === 'friend' ? ' · with a friend' : e.who === 'family' ? ' · with family' : '');
+      return '<div class="hl-lg"><span class="hl-ld">' + esc(fmtDayMonth(e.date)) + '</span><span class="hl-lw">' + w + (e.hr === 'y' ? ' · ❤️ in zone' : e.hr === 'n' ? ' · ❤️ not quite' : '') + (e.num ? ' · ' + esc(e.num) : '') + '</span>' +
+        '<span class="hl-lc">' + (e.chg ? '🔧 ' + esc(e.chg) : '<em>no change written</em>') + '</span></div>'; }).join('');
+    const pe = since.filter(e => e.where === 'class').length, home = since.length - pe;
+    body = '<h2 class="hl-h">1 · Log my training</h2>' +
+      '<p class="hl-p">Log <b>every</b> session since you started your workout:</p><ul class="hl-ul"><li>🏫 the PE lesson(s) where you tried your workout</li><li>🏠 every session at home</li></ul><p class="hl-p">For each one, write <b>one change</b>: what you changed, or will change, and why.</p>' +
+      '<div class="hl-card"><div class="hl-ct sm">My sessions since 22 October <span class="hl-cnt">' + pe + ' in PE · ' + home + ' at home</span></div>' + (rows || '<p class="hl-empty">Nothing logged yet.</p>') + '</div>' +
+      '<div class="hl-card hl-form"><div class="hl-ct sm">✍️ Add a session</div>' +
+        '<div class="hl-fr"><label>Date<input type="date" class="hl-in" id="lf-date" min="2026-10-14" max="' + todayIso() + '" value="' + esc(f.date) + '"></label></div>' +
+        '<div class="hl-fr"><span>Where</span>' + ch('where', 'class', '🏫 In PE') + ch('where', 'home', '🏠 At home') + '</div>' +
+        (f.where === 'home' ? '<div class="hl-fr"><span>Who with</span>' + ch('who', 'me', '🙂 Just me') + ch('who', 'friend', '🤝 A friend') + ch('who', 'family', '👪 Family') + '</div>' : '') +
+        '<div class="hl-fr"><span>It felt</span>' + WO_FEEL.map(x => ch('feel', x[0], x[1] + ' ' + x[2])).join('') + '</div>' +
+        '<div class="hl-fr"><span>Heart-rate zone?</span>' + ch('hr', 'y', '✅ Reached it') + ch('hr', 'n', '❌ Not quite') + '</div>' +
+        '<label class="hl-fl">One number from the session<input class="hl-in" id="lf-num" maxlength="40" placeholder="for example 22 push-ups or 12 min run" value="' + esc(f.num) + '"></label>' +
+        '<label class="hl-fl">One change, and why<input class="hl-in" id="lf-chg" maxlength="160" placeholder="for example: more rest between sprints, I was too tired" value="' + esc(f.chg) + '"></label>' +
+        '<button type="button" class="ct-btn hl-add" id="lf-add">＋ Add this session</button></div>' +
+      '<label class="hl-tick"><input type="checkbox" id="hl-all"' + (d.logAll ? ' checked' : '') + '> I have logged every session: my try in PE and all my home sessions (or I did none at home).</label>' +
+      (!since.length ? '<p class="hl-tip">Log at least your first try in PE to go on.</p>' : '') +
+      '<h3 class="hl-q">How is your training going?</h3><div class="hl-chips">' + HL_FEEL.map(x => '<button type="button" class="hl-chip' + (d.feel === x[0] ? ' on' : '') + '" data-feel="' + x[0] + '">' + x[1] + ' ' + x[2] + '</button>').join('') + '</div>' +
+      nav(hlCanNext());
   } else if (st === 1) {
     body = '<h2 class="hl-h">2 · Learn: three training principles</h2><p class="hl-p">Read each card. You will use them in the next steps.</p>' +
       L.learn.map(c => '<div class="hl-card"><div class="hl-ct">' + c.e + ' ' + esc(c.t) + '</div><p class="hl-cs">' + esc(c.s) + '</p>' +
@@ -2147,7 +2185,7 @@ function hlView() {
 }
 function hlCanNext() {
   const d = hlDraft, st = d.step || 0, L = HL[hlKey];
-  if (st === 0) return !!d.feel;
+  if (st === 0) return !!(d.feel && d.logAll && hlSince().length);
   if (st === 2) return L.quiz.every((q, i) => d.quiz[i] != null);
   if (st === 3) return !!(d.ex && String(d.ex).trim() && d.how && (d.now || '').trim().length >= 2 && (d.next || '').trim().length >= 2 && (d.rest || []).length);
   if (st === 4) return !!(d.prin && (d.exit || '').trim().length >= 15);
@@ -2156,6 +2194,8 @@ function hlCanNext() {
 function hlRead() { // keep typed text across re-renders
   const g = id => { const el = $('#' + id); return el ? el.value : null; };
   [['hl-now', 'now'], ['hl-nx', 'next'], ['hl-exit', 'exit'], ['hl-ex', 'ex']].forEach(([id, k]) => { const v = g(id); if (v !== null) hlDraft[k] = v.slice(0, k === 'exit' ? 400 : 60); });
+  [['lf-date', 'date'], ['lf-num', 'num'], ['lf-chg', 'chg']].forEach(([id, k]) => { const v = g(id); if (v !== null) hlForm[k] = v; });
+  const all = $('#hl-all'); if (all) hlDraft.logAll = all.checked;
 }
 async function hlSave(step, done) {
   if (hlSaving) return false;
@@ -2178,6 +2218,9 @@ async function hlSave(step, done) {
 }
 function hlHandle(e) {
   const t = e.target, d = hlDraft, rer = () => { const y = window.scrollY; show('hlesson'); window.scrollTo(0, y); };
+  if (t.closest('#lf-add')) { hlLogAdd(); return; }
+  const lf = t.closest('[data-lf]'); if (lf) { hlRead(); hlForm[lf.dataset.lf] = lf.dataset.lv; return rer(); }
+  if (t.closest('#hl-all')) { hlRead(); const nb = $('#hl-next'); if (nb && !hlSaving) nb.disabled = !hlCanNext(); return; }
   const c = t.closest('[data-feel],[data-ex],[data-how],[data-rest],[data-prin],[data-q]');
   if (c) {
     hlRead();
@@ -3832,6 +3875,7 @@ function hlTeacher(p) {
   return '<div class="as-card"><h3>' + L.e + ' Health lesson · ' + esc(L.name) + '</h3><div class="as-chips">' +
     '<span class="as-chip' + (d.done ? ' ok' : '') + '">' + (d.done ? 'done ' + esc(fmtDayMonth(d.done)) : 'step ' + Math.min((d.step || 0) + 1, 5) + ' of 5') + '</span>' +
     '<span class="as-chip' + (sc >= 4 ? ' ok' : '') + '">check ' + sc + ' / ' + L.quiz.length + '</span>' + (fe ? '<span class="as-chip">' + fe[1] + ' ' + esc(fe[2]) + '</span>' : '') + '</div><ul class="as-ul">' +
+    '<li><b>Logged since 22 Oct:</b> ' + (function () { const lg = ((p && p.log) || []).filter(e => String(e.date) >= '2026-10-22'), pe = lg.filter(e => e.where === 'class').length; return lg.length ? pe + ' in PE · ' + (lg.length - pe) + ' at home · ' + lg.filter(e => e.chg).length + ' with a change' : '<span class="as-miss">none</span>'; })() + (d.logAll ? ' · ticked “logged everything”' : '') + '</li>' +
     '<li><b>Progression:</b> ' + (d.ex ? esc(d.ex) + (how ? ' · ' + esc(how[1].toLowerCase()) : '') + ' · ' + esc(d.now || '?') + ' → ' + esc(d.next || '?') : miss('not yet')) + '</li>' +
     '<li><b>Recovery:</b> ' + ((d.rest || []).length ? d.rest.map(r => esc((HL_REST.find(x => x[0] === r) || [, , r])[2])).join(', ') : miss('not yet')) + '</li>' +
     '<li><b>Exit ticket:</b> ' + (pr ? esc(pr[2]) + ': “' + esc(d.exit || '') + '”' : miss('not yet')) + '</li></ul></div>';
