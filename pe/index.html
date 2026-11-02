@@ -1081,6 +1081,9 @@ body.demo{padding-top:52px}
 .hl-chip.sm{font-size:14.5px;padding:7px 12px}
 .hl-add{margin:4px 0 0;font-size:16px;padding:11px 20px}
 .hl-tick{display:flex;gap:10px;align-items:flex-start;font-weight:700;font-size:16px;background:#fff;border:2px solid var(--line);border-radius:14px;padding:12px 14px;margin:6px 0;cursor:pointer}.hl-tick input{width:22px;height:22px;flex:none;margin-top:1px}
+.hl-todo{background:#fff7e8;border:2px solid #e9b65a;border-radius:16px;padding:14px 16px;margin:0 0 12px}.hl-todo.ok{background:#eaf6ee;border-color:#8fd0a8}
+.hl-tt{font-family:var(--disp);font-weight:800;font-size:18px;display:flex;justify-content:space-between;gap:8px;align-items:center}.hl-tt span{font-family:Inter,sans-serif;font-size:12.5px;background:#e9b65a;color:#3b2a0a;border-radius:999px;padding:2px 10px}
+.hl-todo ul{margin:8px 0;padding-left:20px;font-size:15px;line-height:1.5}.hl-todo p{margin:6px 0 10px;font-size:15px}.hl-pbtn{margin:0;font-size:16px;padding:11px 20px}
 </style>
 
 </head>
@@ -2103,6 +2106,15 @@ function hlBanner(where) {
     (d ? 'Your answers are saved. Open to look again.' : stepN ? 'Step ' + (stepN + 1) + ' of 5 · carry on where you stopped' : 'Five short steps. Work on your own; your answers save as you go.') + '</span></span><span class="hl-go">' + (d ? 'Open' : stepN ? 'Continue' : 'Start') + '</span></button>';
 }
 function hlOpen(k) { hlKey = k; if (!hlForm.date) hlForm.date = todayIso(); const s = hlSaved(k); hlDraft = JSON.parse(JSON.stringify(s || { step: 0, quiz: {}, rest: [] })); if (hlDraft.done) hlDraft.step = 5; show('hlesson'); }
+// The same "workout builder" to-do list the profile shows, so the lesson and the builder line up.
+function hlTodoHtml(title) {
+  const m = measured(), plan = m && m.plan;
+  if (!plan) return '<div class="hl-todo"><div class="hl-tt">🛠️ ' + title + '</div><p>You have no workout plan yet. Build it now: it is your assessment.</p><button type="button" class="ct-btn hl-pbtn" id="hl-plan">Build my workout plan →</button></div>';
+  const todo = planTodo(plan, (m && m.goals) || []);
+  if (!todo.length) return '<div class="hl-todo ok"><div class="hl-tt">✅ ' + title + '</div><p>Your workout builder has nothing left to fix. Put your step 4 change into it.</p><button type="button" class="ct-btn hl-pbtn" id="hl-plan">Open my workout plan →</button></div>';
+  return '<div class="hl-todo"><div class="hl-tt">🛠️ ' + title + ' <span>' + todo.length + ' to do</span></div><ul>' + todo.slice(0, 6).map(t => '<li>' + esc(t) + '</li>').join('') + (todo.length > 6 ? '<li>…and ' + (todo.length - 6) + ' more</li>' : '') + '</ul>' +
+    '<p>Fix these in your workout builder, and put in your step 4 change too. Your lesson answers are saved first.</p><button type="button" class="ct-btn hl-pbtn" id="hl-plan">Open my workout plan →</button></div>';
+}
 function hlPlanRows() {
   const m = measured(), p = m && m.plan ? normPlan(m.plan) : null, out = [];
   if (p) ['cardio', 'strength', 'focus'].forEach(k => (p[k] || []).forEach(r => { if (r.n && !out.some(x => x.n === r.n)) out.push({ n: r.n, dose: r.sets && r.reps ? r.sets + ' × ' + r.reps + ' ' + r.n.toLowerCase() : (r.min ? r.min + ' min ' + r.n.toLowerCase() : '') }); }));
@@ -2162,7 +2174,8 @@ function hlView() {
       '<h3 class="hl-q">c) Now and next week</h3><div class="hl-nn"><label>Now<input class="hl-in" id="hl-now" maxlength="60" placeholder="3 × 10 squats" value="' + esc(d.now || '') + '"></label><span>→</span><label>Next week<input class="hl-in" id="hl-nx" maxlength="60" placeholder="3 × 12 squats" value="' + esc(d.next || '') + '"></label></div>' +
       '<p class="hl-tip">Only a small step: about 10% more.</p>' +
       '<h3 class="hl-q">d) How will you recover? Pick one or more</h3><div class="hl-chips">' + HL_REST.map(r => '<button type="button" class="hl-chip' + ((d.rest || []).indexOf(r[0]) !== -1 ? ' on' : '') + '" data-rest="' + r[0] + '">' + r[1] + ' ' + esc(r[2]) + '</button>').join('') + '</div>' +
-      (m && m.plan ? '<p class="hl-p">Now change it in your plan too: <button type="button" class="lnk" id="hl-plan">Open my workout plan</button>. Your answers here are saved first.</p>' : '') +
+      '<h3 class="hl-q">e) Finish your workout builder</h3>' + hlTodoHtml('My workout builder') +
+      '<p class="hl-tip">You can open your plan now and come back: your answers are saved. Or finish the lesson first.</p>' +
       nav(ok);
   } else if (st === 4) {
     const ok = hlCanNext();
@@ -2178,8 +2191,9 @@ function hlView() {
         (d.ex ? '<li>Progress <b>' + esc(d.ex) + '</b>' + (how ? ' (' + esc(how[1].toLowerCase()) + ')' : '') + ': ' + esc(d.now || '') + ' → <b>' + esc(d.next || '') + '</b></li>' : '') +
         ((d.rest || []).length ? '<li>Recovery: ' + d.rest.map(r => esc((HL_REST.find(x => x[0] === r) || [, , r])[2])).join(', ') + '</li>' : '') +
         (pr ? '<li>Most helpful: <b>' + esc(pr[2]) + '</b>. ' + esc(d.exit || '') + '</li>' : '') + '</ul></div>' +
-      '<div class="hl-card"><div class="hl-ct">⏱️ Finished early?</div><ul><li>Open your workout plan and make the change from step 4.</li><li>Check your Plan check has no ⚠ warnings.</li><li>Log any session you have not logged yet.</li><li>Read your assessment task: what do you still need to do before your assessment lesson?</li></ul></div>' +
-      '<div class="hl-nav"><button type="button" class="hl-back" id="hl-edit">Change my answers</button>' + (m && m.plan ? '<button type="button" class="ct-btn hl-next" id="hl-plan">Update my workout plan →</button>' : '<button type="button" class="ct-btn hl-next" id="tohub2">Back to my profile</button>') + '</div>';
+      hlTodoHtml('Now: finish my workout builder') +
+      '<div class="hl-card"><div class="hl-ct">⏱️ All done?</div><ul><li>Check your change from step 4 is in your plan.</li><li>Log any session you have not logged yet.</li><li>Read your assessment task: what do you still need to do before your assessment lesson?</li></ul></div>' +
+      '<div class="hl-nav"><button type="button" class="hl-back" id="hl-edit">Change my answers</button><button type="button" class="hl-back" id="tohub2">Back to my profile</button></div>';
   }
   return '<div class="wrap hlw">' + head + body + '</div>';
 }
@@ -3876,6 +3890,7 @@ function hlTeacher(p) {
     '<span class="as-chip' + (d.done ? ' ok' : '') + '">' + (d.done ? 'done ' + esc(fmtDayMonth(d.done)) : 'step ' + Math.min((d.step || 0) + 1, 5) + ' of 5') + '</span>' +
     '<span class="as-chip' + (sc >= 4 ? ' ok' : '') + '">check ' + sc + ' / ' + L.quiz.length + '</span>' + (fe ? '<span class="as-chip">' + fe[1] + ' ' + esc(fe[2]) + '</span>' : '') + '</div><ul class="as-ul">' +
     '<li><b>Logged since 22 Oct:</b> ' + (function () { const lg = ((p && p.log) || []).filter(e => String(e.date) >= '2026-10-22'), pe = lg.filter(e => e.where === 'class').length; return lg.length ? pe + ' in PE · ' + (lg.length - pe) + ' at home · ' + lg.filter(e => e.chg).length + ' with a change' : '<span class="as-miss">none</span>'; })() + (d.logAll ? ' · ticked “logged everything”' : '') + '</li>' +
+    '<li><b>Workout builder:</b> ' + (function () { const t = p ? planTodo(p, (assessData && assessData.goals && assessData.goals.items) || []) : null; return !p ? '<span class="as-miss">no plan</span>' : t.length ? '<span class="as-miss">' + t.length + ' still to do</span>' : '✓ nothing left to fix'; })() + '</li>' +
     '<li><b>Progression:</b> ' + (d.ex ? esc(d.ex) + (how ? ' · ' + esc(how[1].toLowerCase()) : '') + ' · ' + esc(d.now || '?') + ' → ' + esc(d.next || '?') : miss('not yet')) + '</li>' +
     '<li><b>Recovery:</b> ' + ((d.rest || []).length ? d.rest.map(r => esc((HL_REST.find(x => x[0] === r) || [, , r])[2])).join(', ') : miss('not yet')) + '</li>' +
     '<li><b>Exit ticket:</b> ' + (pr ? esc(pr[2]) + ': “' + esc(d.exit || '') + '”' : miss('not yet')) + '</li></ul></div>';
