@@ -37,6 +37,7 @@ const PERMANENT = /Unknown style|Unknown action|Incomplete|class list|not connec
 const TRANSIENT = /too many|lock|timed? ?out|server error|temporar|try again|unavailable|busy|Failed to fetch|NetworkError|Load failed|network|JSON|Unexpected token|Request failed|Service .*failed/i;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function call(action, payload) {
+  if (action === 'savePlan' && payload && payload.plan && state && state.student) payload = Object.assign({}, payload, { plan: withLessons(payload.plan) });
   if (demo) return demoCall(action, payload || {});
   let delay = (window.__preview && window.__preview.fastRetry) ? 30 : 1200;
   for (let attempt = 0; ; attempt++) {
@@ -391,6 +392,7 @@ function profileView(b) {
     (function () { const ns = nextStep(); return '<div class="hello"><div class="hello-l"><h1 class="hi">' + greeting() + ', ' + esc(st.first) + ' 👋</h1>' +
       '<button type="button" class="nextstep" id="hubnext" data-go="' + ns[0] + '"><span class="ns-l">Your next step</span><span class="ns-t">' + ns[1] + ' ' + esc(ns[2]) + '</span><span class="ns-go">Go</span></button></div>' +
       '<span class="yearlab">GRADE 8 PE · ' + esc(b.config.yearLabel) + '</span></div>'; })() +
+    hlBanner('hub') +
     '<div class="cardteaser">' + avatar(st, 'ct-av') +
       '<div class="ct-id"><div class="ct-name">' + esc(st.name) + ' <span class="ct-tier">◆ ' + tierOf(earned().length) + '</span></div>' + (st.klass ? '<div class="ct-sub">' + esc(st.klass) + '</div>' : '') +
       '<div class="ct-arch">' + (skin ? skin.e + ' ' + esc(styles[k]).toUpperCase() : '✨ PICK YOUR PE STYLE') + '</div></div>' +
@@ -470,7 +472,7 @@ function fitnessView(b) {
   const fitGrid = ['pushups', 'sitstand', 'broad', 'grip', 'sprint', 'illinois', 'stork'].map(fitTileV).join('');
   return '<div class="wrap">' +
     '<button type="button" class="back light" id="tohub">← Back to my profile</button>' +
-    '<div class="phero"><div class="k">UNIT · ' + esc(u.when.toUpperCase()) + '</div><h1>🏃 Fitness &amp; Training</h1><p>Find out where your fitness is now, try training methods in class, then build a workout that targets your goals — and do it at home too.</p></div>' +
+    '<div class="phero"><div class="k">UNIT · ' + esc(u.when.toUpperCase()) + '</div><h1>🏃 Fitness &amp; Training</h1><p>Find out where your fitness is now, try training methods in class, then build a workout that targets your goals — and do it at home too.</p></div>' + hlBanner('fitness') +
     (function () { const done = [!!pred, hasFit, hasSk, !!refl, !!goals.length, !!plan].filter(Boolean).length;
       return '<h3 class="sec sec-fit"><span class="em">🧭</span> Your steps</h3><div class="fprog' + (done === 6 ? ' all' : '') + '"><div class="fp-bar"><i style="width:' + Math.round(done / 6 * 100) + '%"></i></div><span>' + (done === 6 ? '🏆 All six done — now keep training!' : done + ' of 6 done') + '</span></div>'; })() +
     '<div class="fsteps">' +
@@ -640,6 +642,7 @@ function celebrate(em) {
 // The one thing to do next, so a student never has to guess.
 function nextStep() {
   const m = measured(), plan = m && m.plan, wk = homeLog(m).filter(e => weekKey(e.date) === weekKey(todayIso())).length;
+  if (hlActive('train') && !hlDone('train')) return ['tolesson', '📈', 'Health lesson: Training principles'];
   if (!predictionSaved()) return ['topredict', '🔮', 'Predict yourself'];
   if (!(m && m.fitness && Object.keys(m.fitness).length)) return ['toentry', '📝', 'Enter your Combine results'];
   if (!reflections()['compare-intro']) return ['tocompare', '🔍', 'Compare & reflect'];
@@ -648,6 +651,187 @@ function nextStep() {
   if (!planReady(plan)) return ['toplan', '🏋️', 'Finish building your workout'];
   if (!wk) return ['towo', '🏠', 'Do your workout at home this week'];
   return ['towo', '💪', 'Do your workout again'];
+}
+// ═══════════════ Health lessons inside the profile (self-paced, e.g. with a cover teacher) ═══════════════
+// Answers live in plan.lessons[key] (saved with savePlan, so no new server action). Each lesson
+// stamps `at` on every save; whenever a plan is sent, the newest copy of each lesson wins.
+const HL = {
+  train: {
+    key: 'train', e: '📈', name: 'Training principles', from: '2026-11-02', to: '2026-11-13', mins: 35,
+    lede: 'How do you make your workout keep working? Learn three training principles and use them on your own plan.',
+    learn: [
+      { e: '🏋️', t: 'Overload', s: 'To get fitter, your body must work a little harder than it is used to.',
+        pts: ['Example: 10 squats feel easy → do 12.', 'If a workout always feels easy, you stop improving.'] },
+      { e: '📈', t: 'Progression', s: 'Make it a little harder, step by step. Change one thing at a time.',
+        fitt: [['F', 'Frequency', 'how often', '2 → 3 times a week'], ['I', 'Intensity', 'how hard', 'walk → jog, less rest, harder version'], ['T', 'Time', 'how long', 'plank 20 s → 30 s'], ['T', 'Type', 'which exercise', 'knee push-up → full push-up']],
+        pts: ['Small steps: about 10% more each week.', 'A big jump can hurt you.'] },
+      { e: '😴', t: 'Rest and recovery', s: 'Your body gets stronger when you rest, not while you train.',
+        pts: ['Sleep 8–10 hours a night.', 'Give the same muscles about 48 hours after hard training.', 'Eat well and drink water.', 'Too little rest → tired, sore, more injuries.'] }
+    ],
+    quiz: [
+      { q: 'Mia does 10 push-ups every PE lesson. After 6 weeks she can still only do 10. Why?',
+        o: ['She needs more rest days.', 'Her body is not working harder than it is used to.', 'Push-ups are not a good exercise.'], a: 1,
+        why: 'Overload: the same work every time gives her body no reason to change.' },
+      { q: 'Leo can run for 10 minutes. What is the best plan for next week?',
+        o: ['Run for 30 minutes tomorrow.', 'Run for 12 minutes.', 'Stay at 10 minutes.'], a: 1,
+        why: 'Progression: a small step (about 10%). A big jump can cause an injury.' },
+      { q: 'Sam does hard leg training every day. His legs are always sore and he is getting slower. What does he need?',
+        o: ['More training.', 'Rest and recovery.', 'Heavier weights.'], a: 1,
+        why: 'Rest: muscles get stronger while you rest. Give them about 48 hours after hard training.' },
+      { q: 'Which change is progression for a plank?',
+        o: ['30 seconds → 40 seconds', '30 seconds → 30 seconds', '30 seconds → 2 minutes'], a: 0,
+        why: 'A little longer each time. 2 minutes is too big a jump; 30 → 30 is no change.' },
+      { q: 'FITT gives four ways to progress. Which one is NOT a way to progress?',
+        o: ['Train more often (Frequency).', 'Train harder (Intensity).', 'Train for longer (Time).', 'Do the same workout the same way every time.'], a: 3,
+        why: 'Doing the same thing every time is no progression, so no overload.' }
+    ]
+  }
+};
+function fmtDayMonth(iso) { const d = new Date(String(iso).slice(0, 10) + 'T12:00:00'); return isNaN(d) ? String(iso) : d.getDate() + ' ' + d.toLocaleDateString('en-GB', { month: 'short' }); }
+const HL_STEPS = ['My training so far', 'Learn', 'Check', 'Use it on my plan', 'Exit ticket'];
+const HL_FEEL = [['good', '😀', 'Going well'], ['ok', '🙂', 'OK'], ['hard', '😕', 'Hard to find time']];
+const HL_HOW = [['F', 'More often', 'train more times a week'], ['I', 'Harder', 'more reps, less rest, harder version'], ['T', 'Longer', 'more time or more sets'], ['Ty', 'New exercise', 'a harder exercise for the same muscles']];
+const HL_REST = [['sleep', '🛌', 'Sleep 8–10 hours'], ['day', '📅', 'Rest day after hard sessions'], ['food', '🍎', 'Eat well and drink water'], ['easy', '🧘', 'Easy stretching on rest days']];
+const HL_PRIN = [['overload', '🏋️', 'Overload'], ['progression', '📈', 'Progression'], ['rest', '😴', 'Rest and recovery']];
+let hlKey = 'train', hlDraft = null, hlSaving = false;
+function hlSaved(k) { const m = measured(); return (m && m.plan && m.plan.lessons && m.plan.lessons[k]) || null; }
+function hlActive(k) { const L = HL[k], t = todayIso(); return t >= L.from && t <= L.to; }
+function hlDone(k) { const s = hlSaved(k); return !!(s && s.done); }
+// newest copy of each lesson wins whenever a plan is sent (an older plan draft never wipes lesson answers)
+function withLessons(plan) {
+  const m = measured(), cur = (m && m.plan && m.plan.lessons) || {}, mine = (plan && plan.lessons) || {}, out = {};
+  Object.keys(cur).concat(Object.keys(mine)).forEach(k => { const a = cur[k], b = mine[k]; out[k] = !a ? b : !b ? a : ((b.at || '') >= (a.at || '') ? b : a); });
+  return Object.keys(out).length ? Object.assign({}, plan, { lessons: out }) : plan;
+}
+function hlBanner(where) {
+  const k = 'train', L = HL[k];
+  if (!state.student || !hlActive(k)) return '';
+  const d = hlDone(k), s = hlSaved(k), stepN = s && s.step ? Math.min(s.step, 5) : 0;
+  if (d && where === 'hub') return '';
+  return '<button type="button" class="hl-ban' + (d ? ' done' : '') + '" data-hl="' + k + '"><span class="hl-be">' + L.e + '</span><span class="hl-bt"><span class="hl-bk">HEALTH LESSON' + (d ? ' · DONE ✓' : ' · ABOUT ' + L.mins + ' MIN') + '</span><b>' + esc(L.name) + '</b><span>' +
+    (d ? 'Your answers are saved. Open to look again.' : stepN ? 'Step ' + (stepN + 1) + ' of 5 · carry on where you stopped' : 'Five short steps. Work on your own; your answers save as you go.') + '</span></span><span class="hl-go">' + (d ? 'Open' : stepN ? 'Continue' : 'Start') + '</span></button>';
+}
+function hlOpen(k) { hlKey = k; const s = hlSaved(k); hlDraft = JSON.parse(JSON.stringify(s || { step: 0, quiz: {}, rest: [] })); if (hlDraft.done) hlDraft.step = 5; show('hlesson'); }
+function hlPlanRows() {
+  const m = measured(), p = m && m.plan ? normPlan(m.plan) : null, out = [];
+  if (p) ['cardio', 'strength', 'focus'].forEach(k => (p[k] || []).forEach(r => { if (r.n && !out.some(x => x.n === r.n)) out.push({ n: r.n, dose: r.sets && r.reps ? r.sets + ' × ' + r.reps + ' ' + r.n.toLowerCase() : (r.min ? r.min + ' min ' + r.n.toLowerCase() : '') }); }));
+  return out;
+}
+function hlView() {
+  const L = HL[hlKey], d = hlDraft, st = d.step || 0, m = measured();
+  const bar = '<div class="hl-steps">' + HL_STEPS.map((t, i) => '<span class="' + (i < st ? 'ok' : i === st ? 'now' : '') + '">' + (i < st ? '✓' : i + 1) + '<em>' + esc(t) + '</em></span>').join('') + '</div>';
+  const head = '<button type="button" class="back light" id="tohub">← Back to my profile</button>' +
+    '<div class="phero"><div class="k">HEALTH LESSON · FITNESS &amp; TRAINING</div><h1>' + L.e + ' ' + esc(L.name) + '</h1><p>' + esc(L.lede) + '</p></div>' + (st < 5 ? bar : '');
+  const nav = (ok, label) => '<div class="hl-nav">' + (st > 0 ? '<button type="button" class="hl-back" id="hl-prev">← Back</button>' : '<span></span>') +
+    '<button type="button" class="ct-btn hl-next" id="hl-next"' + (ok ? '' : ' disabled') + '>' + (label || 'Save and next →') + '</button></div>';
+  let body = '';
+  if (st === 0) {
+    const log = (m && m.plan && m.plan.log) || [], since = log.filter(e => e.date >= '2026-10-22'), home = since.filter(e => e.where !== 'class');
+    const withHr = since.filter(e => e.hr === 'y').length, withChg = since.filter(e => e.chg).length;
+    const stat = (n, t) => '<div class="hl-stat"><b>' + n + '</b><span>' + t + '</span></div>';
+    body = '<h2 class="hl-h">1 · My training so far</h2><p class="hl-p">Your sessions since 22 October, from your log.</p>' +
+      (m && m.plan ? '<div class="hl-stats">' + stat(since.length, 'sessions logged') + stat(home.length, 'at home') + stat(withHr, 'in my heart-rate zone') + stat(withChg, 'with a change') + '</div>' +
+        '<p class="hl-p">Did you train and not log it? <button type="button" class="lnk" id="hl-log">Log a session now</button> (then come back here).</p>'
+        : '<p class="hl-warn">You have no workout plan yet. Finish this lesson, then build your plan in Fitness &amp; Training.</p>') +
+      '<h3 class="hl-q">How is your training going?</h3><div class="hl-chips">' + HL_FEEL.map(f => '<button type="button" class="hl-chip' + (d.feel === f[0] ? ' on' : '') + '" data-feel="' + f[0] + '">' + f[1] + ' ' + f[2] + '</button>').join('') + '</div>' +
+      nav(!!d.feel);
+  } else if (st === 1) {
+    body = '<h2 class="hl-h">2 · Learn: three training principles</h2><p class="hl-p">Read each card. You will use them in the next steps.</p>' +
+      L.learn.map(c => '<div class="hl-card"><div class="hl-ct">' + c.e + ' ' + esc(c.t) + '</div><p class="hl-cs">' + esc(c.s) + '</p>' +
+        (c.fitt ? '<div class="hl-fitt">' + c.fitt.map(f => '<div><b>' + f[0] + '</b><span><em>' + esc(f[1]) + '</em> · ' + esc(f[2]) + '</span><small>' + esc(f[3]) + '</small></div>').join('') + '</div>' : '') +
+        '<ul>' + c.pts.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul></div>').join('') + nav(true, 'I have read them →');
+  } else if (st === 2) {
+    const all = L.quiz.every((q, i) => d.quiz[i] != null);
+    body = '<h2 class="hl-h">3 · Check</h2><p class="hl-p">Tap an answer. You see straight away if it is right.</p>' +
+      L.quiz.map((q, i) => { const pick = d.quiz[i];
+        return '<div class="hl-qz"><div class="hl-qq"><b>' + (i + 1) + '.</b> ' + esc(q.q) + '</div>' + q.o.map((o, j) => {
+          const cls = pick == null ? '' : j === q.a ? ' right' : j === pick ? ' wrong' : ' dim';
+          return '<button type="button" class="hl-opt' + cls + '" data-q="' + i + '" data-o="' + j + '"' + (pick != null ? ' disabled' : '') + '>' + esc(o) + '</button>'; }).join('') +
+          (pick != null ? '<p class="hl-why ' + (pick === q.a ? 'ok' : 'no') + '">' + (pick === q.a ? '✅ Right. ' : '❌ Not quite. ') + esc(q.why) + '</p>' : '') + '</div>'; }).join('') +
+      (all ? '<p class="hl-score">You got <b>' + L.quiz.filter((q, i) => d.quiz[i] === q.a).length + ' of ' + L.quiz.length + '</b> right first time.</p>' : '') + nav(all);
+  } else if (st === 3) {
+    const rows = hlPlanRows(), ok = hlCanNext();
+    body = '<h2 class="hl-h">4 · Use it on my plan</h2>' +
+      '<h3 class="hl-q">a) Pick one exercise from your plan to progress</h3>' +
+      (rows.length ? '<div class="hl-chips">' + rows.map(r => '<button type="button" class="hl-chip' + (d.ex === r.n ? ' on' : '') + '" data-ex="' + esc(r.n) + '" data-dose="' + esc(r.dose) + '">' + esc(r.n) + '</button>').join('') + '</div>'
+        : '<input class="hl-in" id="hl-ex" maxlength="40" placeholder="Exercise, for example squats" value="' + esc(d.ex || '') + '">') +
+      '<h3 class="hl-q">b) How will you make it harder? (FITT)</h3><div class="hl-chips">' + HL_HOW.map(h => '<button type="button" class="hl-chip big' + (d.how === h[0] ? ' on' : '') + '" data-how="' + h[0] + '"><b>' + esc(h[1]) + '</b><small>' + esc(h[2]) + '</small></button>').join('') + '</div>' +
+      '<h3 class="hl-q">c) Now and next week</h3><div class="hl-nn"><label>Now<input class="hl-in" id="hl-now" maxlength="60" placeholder="3 × 10 squats" value="' + esc(d.now || '') + '"></label><span>→</span><label>Next week<input class="hl-in" id="hl-nx" maxlength="60" placeholder="3 × 12 squats" value="' + esc(d.next || '') + '"></label></div>' +
+      '<p class="hl-tip">Only a small step: about 10% more.</p>' +
+      '<h3 class="hl-q">d) How will you recover? Pick one or more</h3><div class="hl-chips">' + HL_REST.map(r => '<button type="button" class="hl-chip' + ((d.rest || []).indexOf(r[0]) !== -1 ? ' on' : '') + '" data-rest="' + r[0] + '">' + r[1] + ' ' + esc(r[2]) + '</button>').join('') + '</div>' +
+      (m && m.plan ? '<p class="hl-p">Now change it in your plan too: <button type="button" class="lnk" id="hl-plan">Open my workout plan</button>. Your answers here are saved first.</p>' : '') +
+      nav(ok);
+  } else if (st === 4) {
+    const ok = hlCanNext();
+    body = '<h2 class="hl-h">5 · Exit ticket</h2><h3 class="hl-q">Which principle will help you most before your workout assessment?</h3>' +
+      '<div class="hl-chips">' + HL_PRIN.map(p => '<button type="button" class="hl-chip' + (d.prin === p[0] ? ' on' : '') + '" data-prin="' + p[0] + '">' + p[1] + ' ' + esc(p[2]) + '</button>').join('') + '</div>' +
+      '<h3 class="hl-q">Why? Write one or two sentences.</h3><textarea class="hl-ta" id="hl-exit" maxlength="400" placeholder="It will help me because …">' + esc(d.exit || '') + '</textarea>' +
+      nav(ok, 'Finish ✓');
+  } else {
+    const sc = L.quiz.filter((q, i) => d.quiz[i] === q.a).length, how = HL_HOW.find(h => h[0] === d.how), pr = HL_PRIN.find(p => p[0] === d.prin);
+    body = '<div class="hl-done"><div class="big">🎉</div><h2>Lesson done</h2><p>Your answers are saved. Your teacher will see them.</p></div>' +
+      '<div class="hl-card"><div class="hl-ct">📋 My lesson</div><ul>' +
+        '<li>Check: <b>' + sc + ' of ' + L.quiz.length + '</b> right first time</li>' +
+        (d.ex ? '<li>Progress <b>' + esc(d.ex) + '</b>' + (how ? ' (' + esc(how[1].toLowerCase()) + ')' : '') + ': ' + esc(d.now || '') + ' → <b>' + esc(d.next || '') + '</b></li>' : '') +
+        ((d.rest || []).length ? '<li>Recovery: ' + d.rest.map(r => esc((HL_REST.find(x => x[0] === r) || [, , r])[2])).join(', ') + '</li>' : '') +
+        (pr ? '<li>Most helpful: <b>' + esc(pr[2]) + '</b>. ' + esc(d.exit || '') + '</li>' : '') + '</ul></div>' +
+      '<div class="hl-card"><div class="hl-ct">⏱️ Finished early?</div><ul><li>Open your workout plan and make the change from step 4.</li><li>Check your Plan check has no ⚠ warnings.</li><li>Log any session you have not logged yet.</li><li>Read your assessment task: what do you still need to do before your assessment lesson?</li></ul></div>' +
+      '<div class="hl-nav"><button type="button" class="hl-back" id="hl-edit">Change my answers</button>' + (m && m.plan ? '<button type="button" class="ct-btn hl-next" id="hl-plan">Update my workout plan →</button>' : '<button type="button" class="ct-btn hl-next" id="tohub2">Back to my profile</button>') + '</div>';
+  }
+  return '<div class="wrap hlw">' + head + body + '</div>';
+}
+function hlCanNext() {
+  const d = hlDraft, st = d.step || 0, L = HL[hlKey];
+  if (st === 0) return !!d.feel;
+  if (st === 2) return L.quiz.every((q, i) => d.quiz[i] != null);
+  if (st === 3) return !!(d.ex && String(d.ex).trim() && d.how && (d.now || '').trim().length >= 2 && (d.next || '').trim().length >= 2 && (d.rest || []).length);
+  if (st === 4) return !!(d.prin && (d.exit || '').trim().length >= 15);
+  return true;
+}
+function hlRead() { // keep typed text across re-renders
+  const g = id => { const el = $('#' + id); return el ? el.value : null; };
+  [['hl-now', 'now'], ['hl-nx', 'next'], ['hl-exit', 'exit'], ['hl-ex', 'ex']].forEach(([id, k]) => { const v = g(id); if (v !== null) hlDraft[k] = v.slice(0, k === 'exit' ? 400 : 60); });
+}
+async function hlSave(step, done) {
+  if (hlSaving) return false;
+  hlRead();
+  const m = measured(), base = normPlan(m && m.plan);
+  const lesson = Object.assign({}, hlDraft, { step: step, at: new Date().toISOString() });
+  if (done) { lesson.done = lesson.done || todayIso(); lesson.score = HL[hlKey].quiz.filter((q, i) => lesson.quiz[i] === q.a).length; }
+  const plan = Object.assign({}, base, { lessons: Object.assign({}, base.lessons || {}, { [hlKey]: lesson }) });
+  hlSaving = true; const btn = $('#hl-next'); if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    const res = await call('savePlan', { plan: plan });
+    const mm = state.student.combine || { fitness: {}, skills: {} }; mm.plan = res.plan; state.student.combine = mm;
+    if (planDraft) planDraft.lessons = res.plan.lessons;
+    hlDraft = JSON.parse(JSON.stringify(res.plan.lessons[hlKey])); hlSaving = false; return true;
+  } catch (e) {
+    hlSaving = false; if (e.authRequired) return false;
+    if (btn) { btn.disabled = false; btn.textContent = 'Try again'; }
+    toast('Couldn’t save (' + e.message + '). Check the Wi-Fi and press the button again.', true); return false;
+  }
+}
+function hlHandle(e) {
+  const t = e.target, d = hlDraft, rer = () => { const y = window.scrollY; show('hlesson'); window.scrollTo(0, y); };
+  const c = t.closest('[data-feel],[data-ex],[data-how],[data-rest],[data-prin],[data-q]');
+  if (c) {
+    hlRead();
+    if (c.dataset.feel) d.feel = c.dataset.feel;
+    else if (c.dataset.ex) { const was = d.ex; d.ex = c.dataset.ex; if (c.dataset.dose && (!(d.now || '').trim() || was !== d.ex)) d.now = c.dataset.dose; }
+    else if (c.dataset.how) d.how = c.dataset.how;
+    else if (c.dataset.rest) { d.rest = d.rest || []; const i = d.rest.indexOf(c.dataset.rest); if (i === -1) d.rest.push(c.dataset.rest); else d.rest.splice(i, 1); }
+    else if (c.dataset.prin) d.prin = c.dataset.prin;
+    else if (c.dataset.q != null) { if (d.quiz[c.dataset.q] == null) d.quiz[c.dataset.q] = +c.dataset.o; }
+    return rer();
+  }
+  if (t.closest('#hl-prev')) { hlRead(); d.step = Math.max(0, (d.step || 0) - 1); show('hlesson'); return; }
+  if (t.closest('#hl-edit')) { d.step = 0; show('hlesson'); return; }
+  if (t.closest('#hl-next')) { const next = (d.step || 0) + 1; hlSave(next, next >= 5).then(ok => { if (ok) { hlDraft.step = next; show('hlesson'); window.scrollTo(0, 0); } }); return; }
+  if (t.closest('#hl-log') || t.closest('#hl-plan')) { const go = t.closest('#hl-log') ? 'train' : 'plan';
+    const after = () => { lastHub = 'profile'; planStep = go; show('plan'); };
+    if ((d.step || 0) >= 5) return after();
+    hlSave(d.step || 0, false).then(ok => { if (ok) after(); }); return; }
+  if (t.closest('#tohub2')) show('profile');
 }
 function greeting() { const h = new Date().getHours(); return h < 12 ? 'Good morning' : (h < 18 ? 'Good afternoon' : 'Good evening'); }
 function goalLabel(c) { const f = fitMeta(c); if (f && f.label && (state.meta.fitness || []).some(x => x.key === c)) return f.label; if (RUBRICS.ladders[c]) return RUBRICS.ladders[c].name; return c === 'overall' ? 'Overall' : c; }
@@ -1358,7 +1542,7 @@ function normPlan(p) {
   p = p || {};
   const out = { v: PLAN_V, warmup: [], cardio: [], strength: [], focus: [], cooldown: [], sChoice: p.sChoice || '', fChoice: p.fChoice || '', hr: p.hr || '', fWhy: p.fWhy || '',
     equip: (p.equip || []).slice(0, 20), days: p.days || {}, log: (p.log || []).slice(), logRemoved: (p.logRemoved || []).slice(), reflection: p.reflection || p.notes || '',
-    why: Object.assign({}, p.why || {}), ref: Object.assign({}, p.ref || {}) };
+    why: Object.assign({}, p.why || {}), ref: Object.assign({}, p.ref || {}), lessons: Object.assign({}, p.lessons || {}) };
   // an older single reflection box carries into "Did it work?"
   if (out.reflection && !out.ref.worked) out.ref.worked = out.reflection;
   const ch = k => k === 'strength' ? out.sChoice : (k === 'focus' ? out.fChoice : '');
@@ -2271,7 +2455,21 @@ function assessView(sid) {
       '<p class="as-look">Look for: strengths and areas backed by numbers, a judgement of whether the workout worked (numbers, heart-rate zone), changes that follow from what happened, a personal reason.</p></div>' +
     '<div class="as-card"><h3>🧭 Self-Management · training independently</h3><div class="as-chips">' + chip(home.length > 0, home.length + ' home sessions') + chip(spanW && Object.keys(weeks).length >= spanW, Object.keys(weeks).length + ' of ' + spanW + ' weeks with a home session') + chip(buddy > 0, buddy + ' with a friend or family') + '</div>' + lg +
       '<p class="as-look">Also use what you saw in lessons and in the assessment: organised, on task without reminders, consistent effort.</p></div>' +
+    hlTeacher(p) +
   '</div>';
+}
+// Teacher: a student's self-paced Health lesson (stored with the plan).
+function hlTeacher(p) {
+  const d = p && p.lessons && p.lessons.train, L = HL.train;
+  if (!d) return '<div class="as-card"><h3>' + L.e + ' Health lesson · ' + esc(L.name) + '</h3><p class="as-miss">Not started.</p></div>';
+  const sc = L.quiz.filter((q, i) => (d.quiz || {})[i] === q.a).length, how = HL_HOW.find(h => h[0] === d.how), pr = HL_PRIN.find(x => x[0] === d.prin), fe = HL_FEEL.find(f => f[0] === d.feel);
+  const miss = t => '<span class="as-miss">' + t + '</span>';
+  return '<div class="as-card"><h3>' + L.e + ' Health lesson · ' + esc(L.name) + '</h3><div class="as-chips">' +
+    '<span class="as-chip' + (d.done ? ' ok' : '') + '">' + (d.done ? 'done ' + esc(fmtDayMonth(d.done)) : 'step ' + Math.min((d.step || 0) + 1, 5) + ' of 5') + '</span>' +
+    '<span class="as-chip' + (sc >= 4 ? ' ok' : '') + '">check ' + sc + ' / ' + L.quiz.length + '</span>' + (fe ? '<span class="as-chip">' + fe[1] + ' ' + esc(fe[2]) + '</span>' : '') + '</div><ul class="as-ul">' +
+    '<li><b>Progression:</b> ' + (d.ex ? esc(d.ex) + (how ? ' · ' + esc(how[1].toLowerCase()) : '') + ' · ' + esc(d.now || '?') + ' → ' + esc(d.next || '?') : miss('not yet')) + '</li>' +
+    '<li><b>Recovery:</b> ' + ((d.rest || []).length ? d.rest.map(r => esc((HL_REST.find(x => x[0] === r) || [, , r])[2])).join(', ') : miss('not yet')) + '</li>' +
+    '<li><b>Exit ticket:</b> ' + (pr ? esc(pr[2]) + ': “' + esc(d.exit || '') + '”' : miss('not yet')) + '</li></ul></div>';
 }
 async function saveSkillsUI(sid) {
   const btn = $('#sksave'); btn.disabled = true; btn.textContent = 'Saving…';
@@ -2665,7 +2863,13 @@ function show(v, arg) {
     wire('tocompare', () => show('compare')); wire('togoals', () => show('goals')); wire('toplan', () => show('plan'));
     goalSel = null; planDraft = null;
     wire('towo', () => { woStart('fitness'); show('workout'); });
-    onWrap(e => { const t = e.target.closest('[data-ov]'); if (t) openOv(t.dataset.ov); });
+    onWrap(e => { const h = e.target.closest('[data-hl]'); if (h) return hlOpen(h.dataset.hl); const t = e.target.closest('[data-ov]'); if (t) openOv(t.dataset.ov); });
+  } else if (v === 'hlesson') {
+    if (!hlDraft) return hlOpen(hlKey);
+    app.innerHTML = hlView();
+    wire('tohub', () => { hlRead(); show('profile'); });
+    onWrap(hlHandle);
+    app.firstElementChild.addEventListener('input', () => { hlRead(); const nb = $('#hl-next'); if (nb && !hlSaving) nb.disabled = !hlCanNext(); });
   } else if (v === 'archive') {
     app.innerHTML = archiveView(state);
     wire('tohub', () => show('profile')); wire('tocompare', () => { lastHub = 'fitness'; show('compare'); });
@@ -2816,8 +3020,8 @@ function show(v, arg) {
     wire('toapself', () => { apDraft = null; show('apself'); }); wire('toapself2', () => { apDraft = null; show('apself'); });
     const apt = $('#aptrend'); if (apt) apt.addEventListener('click', e => { const c = e.target.closest('[data-apkey]'); if (!c) return; e.stopPropagation(); apKey = c.dataset.apkey; const d = apt.querySelector('.aps-time'); if (d) d.innerHTML = '<summary>📈 See it over time</summary>' + apTrend(); });
     wire('hubnext', () => { const g = $('#hubnext').dataset.go, to = { topredict: 'predict', toentry: 'entry', tocompare: 'compare', togoals: 'goals', toplan: 'plan' }[g];
-      if (g === 'towo') { woStart('profile'); return show('workout'); } lastHub = 'fitness'; show(to); });
-    onWrap(e => { if (openUnit(e)) return; const t = e.target.closest('[data-ov]'); if (t) openOv(t.dataset.ov); });
+      if (g === 'towo') { woStart('profile'); return show('workout'); } if (g === 'tolesson') return hlOpen('train'); lastHub = 'fitness'; show(to); });
+    onWrap(e => { const h = e.target.closest('[data-hl]'); if (h) return hlOpen(h.dataset.hl); if (openUnit(e)) return; const t = e.target.closest('[data-ov]'); if (t) openOv(t.dataset.ov); });
   }
   if (!(v === 'plan' && prevView === 'plan') && !(v === 'apself' && prevView === 'apself')) window.scrollTo(0, 0);
   badgeCheck();
