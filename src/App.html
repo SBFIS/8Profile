@@ -668,26 +668,68 @@ const HL = {
       { e: '😴', t: 'Rest and recovery', s: 'Your body gets stronger when you rest, not while you train.',
         pts: ['Sleep 8–10 hours a night.', 'Give the same muscles about 48 hours after hard training.', 'Eat well and drink water.', 'Too little rest → tired, sore, more injuries.'] }
     ],
-    quiz: [
-      { q: 'Mia does 10 push-ups every PE lesson. After 6 weeks she can still only do 10. Why?',
-        o: ['She needs more rest days.', 'Her body is not working harder than it is used to.', 'Push-ups are not a good exercise.'], a: 1,
-        why: 'Overload: the same work every time gives her body no reason to change.' },
-      { q: 'Leo can run for 10 minutes. What is the best plan for next week?',
-        o: ['Run for 30 minutes tomorrow.', 'Run for 12 minutes.', 'Stay at 10 minutes.'], a: 1,
-        why: 'Progression: a small step (about 10%). A big jump can cause an injury.' },
-      { q: 'Sam does hard leg training every day. His legs are always sore and he is getting slower. What does he need?',
-        o: ['More training.', 'Rest and recovery.', 'Heavier weights.'], a: 1,
-        why: 'Rest: muscles get stronger while you rest. Give them about 48 hours after hard training.' },
-      { q: 'Which change is progression for a plank?',
-        o: ['30 seconds → 40 seconds', '30 seconds → 30 seconds', '30 seconds → 2 minutes'], a: 0,
-        why: 'A little longer each time. 2 minutes is too big a jump; 30 → 30 is no change.' },
-      { q: 'FITT gives four ways to progress. Which one is NOT a way to progress?',
-        o: ['Train more often (Frequency).', 'Train harder (Intensity).', 'Train for longer (Time).', 'Do the same workout the same way every time.'], a: 3,
-        why: 'Doing the same thing every time is no progression, so no overload.' }
+    // Five questions; each student gets one version of each, answers shuffled (kept once chosen). Version 0 = the paper backup sheet.
+    bank: [
+      [ { q: 'Mia does 10 push-ups every PE lesson. After 6 weeks she can still only do 10. Why?',
+          o: ['She needs more rest days.', 'Her body is not working harder than it is used to.', 'Push-ups are not a good exercise.'], a: 1,
+          why: 'Overload: the same work every time gives her body no reason to change.' },
+        { q: 'Tom runs the same 1 km at the same speed every week. After a month he is not getting fitter. Why?',
+          o: ['He runs too often.', 'His body is not working harder than it is used to.', 'Running is not good for fitness.'], a: 1,
+          why: 'Overload: the same run every time gives his body no reason to change.' },
+        { q: 'Aya holds a 30-second plank every lesson. Now it feels easy. What should she do to keep improving?',
+          o: ['Keep doing 30 seconds.', 'Make it a little harder than she is used to.', 'Stop doing planks.'], a: 1,
+          why: 'Overload: when it feels easy, add a little more so your body has to change.' } ],
+      [ { q: 'Leo can run for 10 minutes. What is the best plan for next week?',
+          o: ['Run for 30 minutes tomorrow.', 'Run for 12 minutes.', 'Stay at 10 minutes.'], a: 1,
+          why: 'Progression: a small step (about 10%). A big jump can cause an injury.' },
+        { q: 'Nina does 3 × 8 squats. What is a good next step?',
+          o: ['3 × 9 squats', '3 × 30 squats', '1 × 8 squats'], a: 0,
+          why: 'Progression: a small step up. A big jump can cause an injury.' },
+        { q: 'Max can skip rope for 2 minutes. Which plan is best?',
+          o: ['5 minutes tomorrow, then 10 minutes the next day.', 'Add about 15 seconds each week.', 'Keep 2 minutes for the whole year.'], a: 1,
+          why: 'Progression: small steps, week by week. Too fast can hurt you; no change means no progress.' } ],
+      [ { q: 'Sam does hard leg training every day. His legs are always sore and he is getting slower. What does he need?',
+          o: ['More training.', 'Rest and recovery.', 'Heavier weights.'], a: 1,
+          why: 'Rest: muscles get stronger while you rest. Give them about 48 hours after hard training.' },
+        { q: 'Lea trains hard every day and sleeps 6 hours. She is tired and her times are getting worse. What will help most?',
+          o: ['Train even harder.', 'More sleep and a rest day.', 'Train late at night.'], a: 1,
+          why: 'Rest and recovery: your body gets stronger while it rests. Teenagers need 8–10 hours of sleep.' },
+        { q: 'When does your body get stronger after a hard workout?',
+          o: ['During the workout.', 'While it rests and recovers after the workout.', 'Only at the weekend.'], a: 1,
+          why: 'Rest and recovery: training is the signal, rest is when your body builds itself up.' } ],
+      [ { q: 'Which change is progression for a plank?',
+          o: ['30 seconds → 40 seconds', '30 seconds → 30 seconds', '30 seconds → 2 minutes'], a: 0,
+          why: 'A little longer each time. 2 minutes is too big a jump; 30 → 30 is no change.' },
+        { q: 'Which change is progression for a run?',
+          o: ['10 minutes → 11 minutes', '10 minutes → 10 minutes', '10 minutes → 40 minutes'], a: 0,
+          why: 'A little longer each time. 40 minutes is too big a jump; 10 → 10 is no change.' },
+        { q: 'Which change makes push-ups a little harder?',
+          o: ['Knee push-ups → full push-ups', 'Full push-ups → knee push-ups', 'Same push-ups, with more rest'], a: 0,
+          why: 'Intensity: a harder version of the same exercise.' } ],
+      [ { q: 'FITT gives four ways to progress. Which one is NOT a way to progress?',
+          o: ['Train more often (Frequency).', 'Train harder (Intensity).', 'Train for longer (Time).', 'Do the same workout the same way every time.'], a: 3,
+          why: 'Doing the same thing every time is no progression, so no overload.' },
+        { q: 'You train 3 times a week instead of 2. Which part of FITT did you change?',
+          o: ['Frequency (how often)', 'Intensity (how hard)', 'Time (how long)', 'Type (which exercise)'], a: 0,
+          why: 'Frequency: how often you train.' },
+        { q: 'You hold your plank for 40 seconds instead of 30. Which part of FITT did you change?',
+          o: ['Frequency (how often)', 'Intensity (how hard)', 'Time (how long)', 'Type (which exercise)'], a: 2,
+          why: 'Time: how long you do it.' },
+        { q: 'You swap jogging for swimming. Which part of FITT did you change?',
+          o: ['Frequency (how often)', 'Intensity (how hard)', 'Time (how long)', 'Type (which exercise)'], a: 3,
+          why: 'Type: a different exercise.' } ]
     ]
   }
 };
 function fmtDayMonth(iso) { const d = new Date(String(iso).slice(0, 10) + 'T12:00:00'); return isNaN(d) ? String(iso) : d.getDate() + ' ' + d.toLocaleDateString('en-GB', { month: 'short' }); }
+// The student's 5 questions: [group, version, order of options]. Chosen once, then kept with their answers.
+function hlQs(d) {
+  const B = HL[hlKey].bank;
+  if (!d.qs || d.qs.length !== B.length) d.qs = B.map((g, gi) => { const v = Math.floor(Math.random() * g.length), n = g[v].o.length, ord = [...Array(n).keys()];
+    for (let k = n - 1; k > 0; k--) { const r = Math.floor(Math.random() * (k + 1)); [ord[k], ord[r]] = [ord[r], ord[k]]; } return [gi, v, ord]; });
+  return d.qs.map(x => Object.assign({ ord: x[2] }, B[x[0]][x[1]]));
+}
+function hlScore(d) { const B = HL.train.bank, qs = (d.qs && d.qs.length === B.length) ? d.qs : B.map((g, i) => [i, 0]); return qs.filter((x, i) => (d.quiz || {})[i] === B[x[0]][x[1]].a).length; }
 const HL_STEPS = ['Log my training', 'Learn', 'Check', 'Use it on my plan', 'Exit ticket'];
 const HL_FEEL = [['good', '😀', 'Going well'], ['ok', '🙂', 'OK'], ['hard', '😕', 'Hard to find time']];
 const HL_HOW = [['F', 'More often', 'train more times a week'], ['I', 'Harder', 'more reps, less rest, harder version'], ['T', 'Longer', 'more time or more sets'], ['Ty', 'New exercise', 'a harder exercise for the same muscles']];
@@ -779,14 +821,14 @@ function hlView() {
         (c.fitt ? '<div class="hl-fitt">' + c.fitt.map(f => '<div><b>' + f[0] + '</b><span><em>' + esc(f[1]) + '</em> · ' + esc(f[2]) + '</span><small>' + esc(f[3]) + '</small></div>').join('') + '</div>' : '') +
         '<ul>' + c.pts.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul></div>').join('') + nav(true, 'I have read them →');
   } else if (st === 2) {
-    const all = L.quiz.every((q, i) => d.quiz[i] != null);
+    const Q = hlQs(d), all = Q.every((q, i) => d.quiz[i] != null);
     body = '<h2 class="hl-h">3 · Check</h2><p class="hl-p">Tap an answer. You see straight away if it is right.</p>' +
-      L.quiz.map((q, i) => { const pick = d.quiz[i];
-        return '<div class="hl-qz"><div class="hl-qq"><b>' + (i + 1) + '.</b> ' + esc(q.q) + '</div>' + q.o.map((o, j) => {
+      Q.map((q, i) => { const pick = d.quiz[i];
+        return '<div class="hl-qz"><div class="hl-qq"><b>' + (i + 1) + '.</b> ' + esc(q.q) + '</div>' + q.ord.map(j => {
           const cls = pick == null ? '' : j === q.a ? ' right' : j === pick ? ' wrong' : ' dim';
-          return '<button type="button" class="hl-opt' + cls + '" data-q="' + i + '" data-o="' + j + '"' + (pick != null ? ' disabled' : '') + '>' + esc(o) + '</button>'; }).join('') +
+          return '<button type="button" class="hl-opt' + cls + '" data-q="' + i + '" data-o="' + j + '"' + (pick != null ? ' disabled' : '') + '>' + esc(q.o[j]) + '</button>'; }).join('') +
           (pick != null ? '<p class="hl-why ' + (pick === q.a ? 'ok' : 'no') + '">' + (pick === q.a ? '✅ Right. ' : '❌ Not quite. ') + esc(q.why) + '</p>' : '') + '</div>'; }).join('') +
-      (all ? '<p class="hl-score">You got <b>' + L.quiz.filter((q, i) => d.quiz[i] === q.a).length + ' of ' + L.quiz.length + '</b> right first time.</p>' : '') + nav(all);
+      (all ? '<p class="hl-score">You got <b>' + hlScore(d) + ' of ' + Q.length + '</b> right first time.</p>' : '') + nav(all);
   } else if (st === 3) {
     const rows = hlPlanRows(), ok = hlCanNext();
     body = '<h2 class="hl-h">4 · Use it on my plan</h2>' +
@@ -807,10 +849,10 @@ function hlView() {
       '<h3 class="hl-q">Why? Write one or two sentences.</h3><textarea class="hl-ta" id="hl-exit" maxlength="400" placeholder="It will help me because …">' + esc(d.exit || '') + '</textarea>' +
       nav(ok, 'Finish ✓');
   } else {
-    const sc = L.quiz.filter((q, i) => d.quiz[i] === q.a).length, how = HL_HOW.find(h => h[0] === d.how), pr = HL_PRIN.find(p => p[0] === d.prin);
+    const sc = hlScore(d), how = HL_HOW.find(h => h[0] === d.how), pr = HL_PRIN.find(p => p[0] === d.prin);
     body = '<div class="hl-done"><div class="big">🎉</div><h2>Lesson done</h2><p>Your answers are saved. Your teacher will see them.</p></div>' +
       '<div class="hl-card"><div class="hl-ct">📋 My lesson</div><ul>' +
-        '<li>Check: <b>' + sc + ' of ' + L.quiz.length + '</b> right first time</li>' +
+        '<li>Check: <b>' + sc + ' of ' + L.bank.length + '</b> right first time</li>' +
         (d.ex ? '<li>Progress <b>' + esc(d.ex) + '</b>' + (how ? ' (' + esc(how[1].toLowerCase()) + ')' : '') + ': ' + esc(d.now || '') + ' → <b>' + esc(d.next || '') + '</b></li>' : '') +
         ((d.rest || []).length ? '<li>Recovery: ' + d.rest.map(r => esc((HL_REST.find(x => x[0] === r) || [, , r])[2])).join(', ') + '</li>' : '') +
         (pr ? '<li>Most helpful: <b>' + esc(pr[2]) + '</b>. ' + esc(d.exit || '') + '</li>' : '') + '</ul></div>' +
@@ -823,7 +865,7 @@ function hlView() {
 function hlCanNext() {
   const d = hlDraft, st = d.step || 0, L = HL[hlKey];
   if (st === 0) return !!(d.feel && d.logAll && hlSince().length);
-  if (st === 2) return L.quiz.every((q, i) => d.quiz[i] != null);
+  if (st === 2) return L.bank.every((q, i) => d.quiz[i] != null);
   if (st === 3) return !!(d.ex && String(d.ex).trim() && d.how && (d.now || '').trim().length >= 2 && (d.next || '').trim().length >= 2 && (d.rest || []).length);
   if (st === 4) return !!(d.prin && (d.exit || '').trim().length >= 15);
   return true;
@@ -839,7 +881,7 @@ async function hlSave(step, done) {
   hlRead();
   const m = measured(), base = normPlan(m && m.plan);
   const lesson = Object.assign({}, hlDraft, { step: step, at: new Date().toISOString() });
-  if (done) { lesson.done = lesson.done || todayIso(); lesson.score = HL[hlKey].quiz.filter((q, i) => lesson.quiz[i] === q.a).length; }
+  if (done) { lesson.done = lesson.done || todayIso(); lesson.score = hlScore(lesson); }
   const plan = Object.assign({}, base, { lessons: Object.assign({}, base.lessons || {}, { [hlKey]: lesson }) });
   hlSaving = true; const btn = $('#hl-next'); if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
   try {
@@ -1564,9 +1606,13 @@ function normRow(x, part, choice) {
 const PLAN_V = 4; // v4 (29 Oct): "how" line per part, plan check, heart-rate zone + change in each logged session
 function planIsOld(raw) { return !!raw && (raw.v || 0) < PLAN_V; } // saved before the v4 builder: show what's new
 // What still has to be done before the assessment: unfinished sections, then plan-check warnings.
+// The change from the Health lesson (step 4), if there is one, as one line.
+function lessonChange(p) { const d = p && p.lessons && p.lessons.train; return d && d.ex && (d.next || '').trim() ? d.ex + ': ' + (d.now || '').trim() + ' → ' + d.next.trim() : ''; }
 function planTodo(raw, goals) {
   if (!raw) return [];
   const p = normPlan(raw), out = [];
+  if ((p.cardChg || '').trim().length < 10) out.push('📝 Make the changes you wrote on your printed card, then write what you changed and why.');
+  const lc = lessonChange(p); if (lc && p.lsDone !== lc) out.push('📈 Put your Health lesson change into your plan: ' + lc + '. Then tick it.');
   WK_PARTS.forEach(w => { const need = partNeeds(w[0], p); if (need) out.push(w[1] + ': ' + need); });
   planChecks(p, goals).filter(x => !x.ok).forEach(x => { if (!/^🧠/.test(x.t) || !out.some(o => /say how it trains it/.test(o))) out.push(x.t); });
   return out;
@@ -1587,7 +1633,7 @@ function normPlan(p) {
   p = p || {};
   const out = { v: PLAN_V, warmup: [], cardio: [], strength: [], focus: [], cooldown: [], sChoice: p.sChoice || '', fChoice: p.fChoice || '', hr: p.hr || '', fWhy: p.fWhy || '',
     equip: (p.equip || []).slice(0, 20), days: p.days || {}, log: (p.log || []).slice(), logRemoved: (p.logRemoved || []).slice(), reflection: p.reflection || p.notes || '',
-    why: Object.assign({}, p.why || {}), ref: Object.assign({}, p.ref || {}), lessons: Object.assign({}, p.lessons || {}) };
+    why: Object.assign({}, p.why || {}), ref: Object.assign({}, p.ref || {}), lessons: Object.assign({}, p.lessons || {}), cardChg: p.cardChg || '', lsDone: p.lsDone || '' };
   // an older single reflection box carries into "Did it work?"
   if (out.reflection && !out.ref.worked) out.ref.worked = out.reflection;
   const ch = k => k === 'strength' ? out.sChoice : (k === 'focus' ? out.fChoice : '');
@@ -1740,7 +1786,12 @@ function planView(b) {
       eq.extra.map((e, i) => '<span class="eq-chip own">' + esc(e) + '<button type="button" class="wr-x" data-eqrm="' + i + '" aria-label="remove">✕</button></span>').join('') + '</div>' +
       '<div class="wk-own"><input type="text" id="wk-eqi" class="wk-owni" maxlength="30" placeholder="add equipment, e.g. water bottle"><button type="button" class="wk-ownb" id="wk-eqadd">+ add</button></div>' +
       '<div class="pl-days"><span>Days I’ll train:</span>' + dayChips + '</div></details>';
-    body = planLeft(planDraft, goals, old) + stepAssess(['k4']) + goalLine +
+    const lc = lessonChange(planDraft);
+    const cardBox = '<div class="pcard-chg"><div class="pcc-h">📝 Changes from my first workout</div>' +
+      '<p>After your first workout you wrote on your printed card. Make those changes in your plan below. Then write what you changed and why.</p>' +
+      '<textarea id="wk-card" maxlength="400" placeholder="For example: I added a 4th sprint because it felt too easy, and I changed lunges to step-ups because my knee hurt.">' + esc(planDraft.cardChg || '') + '</textarea>' +
+      (lc ? '<label class="pcc-ls"><input type="checkbox" id="wk-ls"' + (planDraft.lsDone === lc ? ' checked' : '') + '> 📈 My Health lesson change is in my plan: <b>' + esc(lc) + '</b></label>' : '') + '</div>';
+    body = planLeft(planDraft, goals, old) + cardBox + stepAssess(['k4']) + goalLine +
       '<div class="wkcard"><div class="wkcard-h"><span>🏋️ My workout · 40 min</span><span class="wkcard-n' + (ready === WK_PARTS.length ? ' ok' : '') + '">' + ready + ' of ' + WK_PARTS.length + ' parts ready · ' + Math.round(total) + ' min</span></div>' +
       WK_PARTS.map(wkPart).join('') + '</div>' + extras +
       '<button type="button" class="pnext" data-step="train">Next: ② Train &amp; log →</button>';
@@ -1866,6 +1917,8 @@ function syncPlanFromDom() {
     });
   });
   const hr = $('#wk-hr'); if (hr) planDraft.hr = hr.value.trim().slice(0, 30);
+  const cc = $('#wk-card'); if (cc) planDraft.cardChg = cc.value.trim().slice(0, 400);
+  const ls = $('#wk-ls'); if (ls) planDraft.lsDone = ls.checked ? lessonChange(planDraft) : '';
   const wy = $('#wk-why'); if (wy) planDraft.fWhy = wy.value.trim().slice(0, 160);
   const r = $('#wk-ref'); if (r) planDraft.reflection = r.value.trim().slice(0, 600);
   planDraft.why = planDraft.why || {}; planDraft.ref = planDraft.ref || {};
@@ -2494,7 +2547,7 @@ function assessView(sid) {
     '<div class="phero tight"><div class="k">WORKOUT ASSESSMENT EVIDENCE</div><h1>' + esc(st.name) + '</h1><p>' + esc(st.klass) + ' · grade each criterion 1–7 in Canvas. This page only reads the student’s profile.</p></div>' +
     '<div class="as-card"><h3>📘 Knowledge (K4) · planning a workout</h3><div class="as-chips">' + chip(parts === 5, parts + ' / 5 parts filled') + chip(whys === 5, whys + ' / 5 “how” lines') + chip(!!(p && p.hr), 'HR zone') + chip(total >= 40, total + ' min') + '</div>' + (p ? planCheckHtml(p, goals, 'Plan check · do the choices match the component?') : '') + k4 +
       '<p class="as-look">Look for: the “how” lines explain how each part trains its component, and the sets, reps, rest and effort match it. The structure and component names are given by the profile, so they are not evidence on their own.</p></div>' +
-    '<div class="as-card"><h3>🔍 Skills (S2) · assessing and improving</h3><div class="as-chips">' + chip(goals.length >= 2, goals.length + ' goals') + chip(nRef === 4, nRef + ' / 4 reflection prompts') + '</div><h4>Goals</h4>' + gl + (gnote ? '<p class="as-note">“' + esc(gnote) + '”</p>' : '') + '<h4>Evidence from the log</h4>' + evidenceHtml(log, true) + '<h4>Reflection</h4>' + (ref || miss('No reflection yet.')) +
+    '<div class="as-card"><h3>🔍 Skills (S2) · assessing and improving</h3><div class="as-chips">' + chip(goals.length >= 2, goals.length + ' goals') + chip(nRef === 4, nRef + ' / 4 reflection prompts') + '</div><h4>Goals</h4>' + gl + (gnote ? '<p class="as-note">“' + esc(gnote) + '”</p>' : '') + '<h4>Changes from the first workout (printed card)</h4>' + (p && (p.cardChg || '').trim() ? '<p class="as-note">“' + esc(p.cardChg) + '”</p>' : miss('Not written yet.')) + '<h4>Evidence from the log</h4>' + evidenceHtml(log, true) + '<h4>Reflection</h4>' + (ref || miss('No reflection yet.')) +
       '<p class="as-look">Look for: strengths and areas backed by numbers, a judgement of whether the workout worked (numbers, heart-rate zone), changes that follow from what happened, a personal reason.</p></div>' +
     '<div class="as-card"><h3>🧭 Self-Management · training independently</h3><div class="as-chips">' + chip(home.length > 0, home.length + ' home sessions') + chip(spanW && Object.keys(weeks).length >= spanW, Object.keys(weeks).length + ' of ' + spanW + ' weeks with a home session') + chip(buddy > 0, buddy + ' with a friend or family') + '</div>' + lg +
       '<p class="as-look">Also use what you saw in lessons and in the assessment: organised, on task without reminders, consistent effort.</p></div>' +
@@ -2505,11 +2558,11 @@ function assessView(sid) {
 function hlTeacher(p) {
   const d = p && p.lessons && p.lessons.train, L = HL.train;
   if (!d) return '<div class="as-card"><h3>' + L.e + ' Health lesson · ' + esc(L.name) + '</h3><p class="as-miss">Not started.</p></div>';
-  const sc = L.quiz.filter((q, i) => (d.quiz || {})[i] === q.a).length, how = HL_HOW.find(h => h[0] === d.how), pr = HL_PRIN.find(x => x[0] === d.prin), fe = HL_FEEL.find(f => f[0] === d.feel);
+  const sc = hlScore(d), how = HL_HOW.find(h => h[0] === d.how), pr = HL_PRIN.find(x => x[0] === d.prin), fe = HL_FEEL.find(f => f[0] === d.feel);
   const miss = t => '<span class="as-miss">' + t + '</span>';
   return '<div class="as-card"><h3>' + L.e + ' Health lesson · ' + esc(L.name) + '</h3><div class="as-chips">' +
     '<span class="as-chip' + (d.done ? ' ok' : '') + '">' + (d.done ? 'done ' + esc(fmtDayMonth(d.done)) : 'step ' + Math.min((d.step || 0) + 1, 5) + ' of 5') + '</span>' +
-    '<span class="as-chip' + (sc >= 4 ? ' ok' : '') + '">check ' + sc + ' / ' + L.quiz.length + '</span>' + (fe ? '<span class="as-chip">' + fe[1] + ' ' + esc(fe[2]) + '</span>' : '') + '</div><ul class="as-ul">' +
+    '<span class="as-chip' + (sc >= 4 ? ' ok' : '') + '">check ' + sc + ' / ' + L.bank.length + '</span>' + (fe ? '<span class="as-chip">' + fe[1] + ' ' + esc(fe[2]) + '</span>' : '') + '</div><ul class="as-ul">' +
     '<li><b>Logged since 22 Oct:</b> ' + (function () { const lg = ((p && p.log) || []).filter(e => String(e.date) >= '2026-10-22'), pe = lg.filter(e => e.where === 'class').length; return lg.length ? pe + ' in PE · ' + (lg.length - pe) + ' at home · ' + lg.filter(e => e.chg).length + ' with a change' : '<span class="as-miss">none</span>'; })() + (d.logAll ? ' · ticked “logged everything”' : '') + '</li>' +
     '<li><b>Workout builder:</b> ' + (function () { const t = p ? planTodo(p, (assessData && assessData.goals && assessData.goals.items) || []) : null; return !p ? '<span class="as-miss">no plan</span>' : t.length ? '<span class="as-miss">' + t.length + ' still to do</span>' : '✓ nothing left to fix'; })() + '</li>' +
     '<li><b>Progression:</b> ' + (d.ex ? esc(d.ex) + (how ? ' · ' + esc(how[1].toLowerCase()) : '') + ' · ' + esc(d.now || '?') + ' → ' + esc(d.next || '?') : miss('not yet')) + '</li>' +
