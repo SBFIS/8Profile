@@ -767,7 +767,6 @@ function hlView() {
         (f.where === 'home' ? '<div class="hl-fr"><span>Who with</span>' + ch('who', 'me', '🙂 Just me') + ch('who', 'friend', '🤝 A friend') + ch('who', 'family', '👪 Family') + '</div>' : '') +
         '<div class="hl-fr"><span>It felt</span>' + WO_FEEL.map(x => ch('feel', x[0], x[1] + ' ' + x[2])).join('') + '</div>' +
         '<div class="hl-fr"><span>Heart-rate zone?</span>' + ch('hr', 'y', '✅ Reached it') + ch('hr', 'n', '❌ Not quite') + '</div>' +
-        '<label class="hl-fl">One number from the session<input class="hl-in" id="lf-num" maxlength="40" placeholder="for example 22 push-ups or 12 min run" value="' + esc(f.num) + '"></label>' +
         '<label class="hl-fl">One change, and why<input class="hl-in" id="lf-chg" maxlength="160" placeholder="for example: more rest between sprints, I was too tired" value="' + esc(f.chg) + '"></label>' +
         '<button type="button" class="ct-btn hl-add" id="lf-add">＋ Add this session</button></div>' +
       '<label class="hl-tick"><input type="checkbox" id="hl-all"' + (d.logAll ? ' checked' : '') + '> I have logged every session: my try in PE and all my home sessions (or I did none at home).</label>' +
@@ -1828,7 +1827,7 @@ function logEvidence(log) {
 }
 function evidenceHtml(log, teacher) {
   const v = logEvidence(log); const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], sd = d => { const x = String(d).split('-'); return x.length === 3 ? (+x[2]) + ' ' + MON[(+x[1]) - 1] : esc(d); };
-  if (!v.n) return '<div class="evid"><div class="evid-h">📊 Your evidence</div><p class="evid-e">Log your sessions (in PE and at home) and your numbers, heart-rate zone and changes will show up here to use in your reflection.</p></div>';
+  if (!v.n) return '<div class="evid"><div class="evid-h">📊 Your evidence</div><p class="evid-e">Log your sessions (in PE and at home) and your heart-rate zone and changes will show up here to use in your reflection.</p></div>';
   return '<div class="evid"><div class="evid-h">📊 ' + (teacher ? 'From the session log' : 'Your evidence <small>use these in your answers</small>') + '</div>' +
     '<div class="evid-g"><span><b>' + v.n + '</b> sessions logged</span><span><b>' + v.home + '</b> at home · ' + v.weeks + ' of ' + v.span + ' weeks</span>' + (v.hrN ? '<span>❤️ In your zone <b>' + v.hrYes + ' of ' + v.hrN + '</b></span>' : '') + '</div>' +
     (v.nums.length ? '<div class="evid-r"><b>Your numbers</b>' + v.nums.map(x => '<span>' + sd(x[0]) + ': ' + esc(x[1]) + '</span>').join('') + '</div>' : '') +
@@ -1851,7 +1850,6 @@ function homeworkSection() {
       '<label>Who with <select id="hwf-who"><option value="me">🙂 Just me</option><option value="friend">🤝 A friend ⭐</option><option value="family">👪 Family ⭐</option></select></label>' +
       '<label>It felt <select id="hwf-feel"><option value="">–</option>' + WO_FEEL.map(f => '<option value="' + f[0] + '">' + f[1] + ' ' + f[2] + '</option>').join('') + '</select></label>' +
       '<label>Heart-rate zone? <select id="hwf-hr"><option value="">–</option><option value="y">✅ Reached it</option><option value="n">❌ Not quite</option></select></label>' +
-      '<label class="w2">One number from today <input type="text" id="hw-num" maxlength="40" placeholder="e.g. 22 push-ups"></label>' +
       '<label class="w3">What I changed or will change, and why <input type="text" id="hwf-chg" maxlength="160" placeholder="e.g. swapped lunges for step-ups: my knee hurt on lunges"></label>' +
       '<button type="button" class="hw-btn star" id="hwf-save">✓ Log this session</button></div></details>' +
     (rows ? '<div class="hw-lh">My sessions</div><div class="hw-logs">' + rows + '</div>' : '<div class="hw-empty">No sessions logged yet.</div>') +
@@ -2115,7 +2113,6 @@ function woDone() {
     (wo.where === 'home' ? '<div class="wo-q">Who with? <small>⭐ bonus for a friend or family member</small></div>' + pick('who', [['me', '🙂', 'Just me'], ['friend', '🤝', 'A friend ⭐'], ['family', '👪', 'Family ⭐']]) : '') +
     '<div class="wo-q">How did it feel?</div>' + pick('feel', WO_FEEL) +
     '<div class="wo-q">Did you reach your heart-rate zone' + (p && p.hr ? ' (' + esc(p.hr) + ')' : '') + '?</div>' + pick('hr', WO_HR) +
-    '<div class="wo-q">One number from today <small>so you can see your progress</small></div><input type="text" id="wo-num" class="wo-num" maxlength="40" value="' + esc(wo.num || '') + '" placeholder="e.g. 22 push-ups · cardio 10 min at 160 bpm">' +
     '<div class="wo-q">What will you change next time, and why? <small>this is evidence for your reflection</small></div><input type="text" id="wo-chg" class="wo-num" maxlength="160" value="' + esc(wo.chg || '') + '" placeholder="e.g. add a 4th interval: I was only at 140 bpm">' +
     '<button type="button" class="wo-go wide" id="wo-save"' + (ready ? '' : ' disabled') + '>Save &amp; finish</button>' +
     '<button type="button" class="wo-edit big" id="wo-skip">Skip — don’t log it</button></div>';
@@ -2417,10 +2414,10 @@ function cardFront(s) {
       '<div class="pc-why">🧠 ' + (why ? esc(why) : '<span class="pc-miss">How does this part train it? Write it here, then in My PE Profile:</span>') + '</div>' +
       (k === 'focus' && p.fWhy ? '<div class="pc-why">🎯 ' + esc(p.fWhy) + '</div>' : '') + '</div>';
   }).join('');
-  const log = [0, 1, 2, 3].map(() => '<tr><td class="dt"></td>' + '<td><span class="pc-bx"></span></td>'.repeat(5) + '<td class="hr">Y &nbsp; N</td><td class="num"></td><td class="fl">easy · right · hard</td><td></td></tr>').join('');
+  const log = [0, 1, 2, 3].map(() => '<tr><td class="dt"></td>' + '<td><span class="pc-bx"></span></td>'.repeat(5) + '<td class="hr">Y &nbsp; N</td><td class="fl">easy · right · hard</td><td></td></tr>').join('');
   return '<div class="pc-pg"><div class="pc-top"><div><div class="pc-k">PRACTISE · TRIAL · IMPROVE · 40 MIN</div><h1>' + esc(s.name) + '</h1></div><div class="pc-meta"><b>' + esc(s.klass) + '</b><span>Plan saved ' + savedTxt + '</span></div></div>' +
     (goals ? '<div class="pc-goal">🎯 <b>My goals:</b> ' + goals + '</div>' : '') + parts +
-    '<div class="pc-log"><div class="pc-lh">Session log <small>sessions 1–3 are practice · session 4 is your assessment</small></div><table><tr><th class="dt">Date</th><th>①</th><th>②</th><th>③</th><th>④</th><th>⑤</th><th>In my HR zone?</th><th>One number from today</th><th>It felt…</th><th>One change for next time, and why</th></tr>' + log + '</table></div>' +
+    '<div class="pc-log"><div class="pc-lh">Session log <small>sessions 1–3 are practice · session 4 is your assessment</small></div><table><tr><th class="dt">Date</th><th>①</th><th>②</th><th>③</th><th>④</th><th>⑤</th><th>In my HR zone?</th><th>It felt…</th><th>One change for next time, and why</th></tr>' + log + '</table></div>' +
     '<div class="pc-ft"><span>➜ Changed something? Update My PE Profile before next session.' + (cardsBack ? ' How you’re assessed is on the back.' : '') + '</span><span>Updated <span class="pc-bx"></span></span></div></div>';
 }
 function cardBack(s) {
