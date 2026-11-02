@@ -1611,7 +1611,6 @@ function lessonChange(p) { const d = p && p.lessons && p.lessons.train; return d
 function planTodo(raw, goals) {
   if (!raw) return [];
   const p = normPlan(raw), out = [];
-  if ((p.cardChg || '').trim().length < 10) out.push('📝 Make the changes you wrote on your printed card, then write what you changed and why.');
   const lc = lessonChange(p); if (lc && p.lsDone !== lc) out.push('📈 Put your Health lesson change into your plan: ' + lc + '. Then tick it.');
   WK_PARTS.forEach(w => { const need = partNeeds(w[0], p); if (need) out.push(w[1] + ': ' + need); });
   planChecks(p, goals).filter(x => !x.ok).forEach(x => { if (!/^🧠/.test(x.t) || !out.some(o => /say how it trains it/.test(o))) out.push(x.t); });
@@ -1633,7 +1632,7 @@ function normPlan(p) {
   p = p || {};
   const out = { v: PLAN_V, warmup: [], cardio: [], strength: [], focus: [], cooldown: [], sChoice: p.sChoice || '', fChoice: p.fChoice || '', hr: p.hr || '', fWhy: p.fWhy || '',
     equip: (p.equip || []).slice(0, 20), days: p.days || {}, log: (p.log || []).slice(), logRemoved: (p.logRemoved || []).slice(), reflection: p.reflection || p.notes || '',
-    why: Object.assign({}, p.why || {}), ref: Object.assign({}, p.ref || {}), lessons: Object.assign({}, p.lessons || {}), cardChg: p.cardChg || '', lsDone: p.lsDone || '' };
+    why: Object.assign({}, p.why || {}), ref: Object.assign({}, p.ref || {}), lessons: Object.assign({}, p.lessons || {}), lsDone: p.lsDone || '' };
   // an older single reflection box carries into "Did it work?"
   if (out.reflection && !out.ref.worked) out.ref.worked = out.reflection;
   const ch = k => k === 'strength' ? out.sChoice : (k === 'focus' ? out.fChoice : '');
@@ -1787,9 +1786,7 @@ function planView(b) {
       '<div class="wk-own"><input type="text" id="wk-eqi" class="wk-owni" maxlength="30" placeholder="add equipment, e.g. water bottle"><button type="button" class="wk-ownb" id="wk-eqadd">+ add</button></div>' +
       '<div class="pl-days"><span>Days I’ll train:</span>' + dayChips + '</div></details>';
     const lc = lessonChange(planDraft);
-    const cardBox = '<div class="pcard-chg"><div class="pcc-h">📝 Changes from my first workout</div>' +
-      '<p>After your first workout you wrote on your printed card. Make those changes in your plan below. Then write what you changed and why.</p>' +
-      '<textarea id="wk-card" maxlength="400" placeholder="For example: I added a 4th sprint because it felt too easy, and I changed lunges to step-ups because my knee hurt.">' + esc(planDraft.cardChg || '') + '</textarea>' +
+    const cardBox = '<div class="pcard-chg"><div class="pcc-h">📝 Got your printed workout card?</div><p>Make the changes you wrote on it in your plan below.</p>' +
       (lc ? '<label class="pcc-ls"><input type="checkbox" id="wk-ls"' + (planDraft.lsDone === lc ? ' checked' : '') + '> 📈 My Health lesson change is in my plan: <b>' + esc(lc) + '</b></label>' : '') + '</div>';
     body = planLeft(planDraft, goals, old) + cardBox + stepAssess(['k4']) + goalLine +
       '<div class="wkcard"><div class="wkcard-h"><span>🏋️ My workout · 40 min</span><span class="wkcard-n' + (ready === WK_PARTS.length ? ' ok' : '') + '">' + ready + ' of ' + WK_PARTS.length + ' parts ready · ' + Math.round(total) + ' min</span></div>' +
@@ -1917,7 +1914,6 @@ function syncPlanFromDom() {
     });
   });
   const hr = $('#wk-hr'); if (hr) planDraft.hr = hr.value.trim().slice(0, 30);
-  const cc = $('#wk-card'); if (cc) planDraft.cardChg = cc.value.trim().slice(0, 400);
   const ls = $('#wk-ls'); if (ls) planDraft.lsDone = ls.checked ? lessonChange(planDraft) : '';
   const wy = $('#wk-why'); if (wy) planDraft.fWhy = wy.value.trim().slice(0, 160);
   const r = $('#wk-ref'); if (r) planDraft.reflection = r.value.trim().slice(0, 600);
@@ -2547,7 +2543,7 @@ function assessView(sid) {
     '<div class="phero tight"><div class="k">WORKOUT ASSESSMENT EVIDENCE</div><h1>' + esc(st.name) + '</h1><p>' + esc(st.klass) + ' · grade each criterion 1–7 in Canvas. This page only reads the student’s profile.</p></div>' +
     '<div class="as-card"><h3>📘 Knowledge (K4) · planning a workout</h3><div class="as-chips">' + chip(parts === 5, parts + ' / 5 parts filled') + chip(whys === 5, whys + ' / 5 “how” lines') + chip(!!(p && p.hr), 'HR zone') + chip(total >= 40, total + ' min') + '</div>' + (p ? planCheckHtml(p, goals, 'Plan check · do the choices match the component?') : '') + k4 +
       '<p class="as-look">Look for: the “how” lines explain how each part trains its component, and the sets, reps, rest and effort match it. The structure and component names are given by the profile, so they are not evidence on their own.</p></div>' +
-    '<div class="as-card"><h3>🔍 Skills (S2) · assessing and improving</h3><div class="as-chips">' + chip(goals.length >= 2, goals.length + ' goals') + chip(nRef === 4, nRef + ' / 4 reflection prompts') + '</div><h4>Goals</h4>' + gl + (gnote ? '<p class="as-note">“' + esc(gnote) + '”</p>' : '') + '<h4>Changes from the first workout (printed card)</h4>' + (p && (p.cardChg || '').trim() ? '<p class="as-note">“' + esc(p.cardChg) + '”</p>' : miss('Not written yet.')) + '<h4>Evidence from the log</h4>' + evidenceHtml(log, true) + '<h4>Reflection</h4>' + (ref || miss('No reflection yet.')) +
+    '<div class="as-card"><h3>🔍 Skills (S2) · assessing and improving</h3><div class="as-chips">' + chip(goals.length >= 2, goals.length + ' goals') + chip(nRef === 4, nRef + ' / 4 reflection prompts') + '</div><h4>Goals</h4>' + gl + (gnote ? '<p class="as-note">“' + esc(gnote) + '”</p>' : '') + '<h4>Evidence from the log</h4>' + evidenceHtml(log, true) + '<h4>Reflection</h4>' + (ref || miss('No reflection yet.')) +
       '<p class="as-look">Look for: strengths and areas backed by numbers, a judgement of whether the workout worked (numbers, heart-rate zone), changes that follow from what happened, a personal reason.</p></div>' +
     '<div class="as-card"><h3>🧭 Self-Management · training independently</h3><div class="as-chips">' + chip(home.length > 0, home.length + ' home sessions') + chip(spanW && Object.keys(weeks).length >= spanW, Object.keys(weeks).length + ' of ' + spanW + ' weeks with a home session') + chip(buddy > 0, buddy + ' with a friend or family') + '</div>' + lg +
       '<p class="as-look">Also use what you saw in lessons and in the assessment: organised, on task without reminders, consistent effort.</p></div>' +
