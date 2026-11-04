@@ -2822,6 +2822,16 @@ function spotWire(app) {
   });
 }
 
+// The summary always reloads the class when opened, so check-outs from the lesson that just
+// happened show up (it used to reuse the class data from when the dashboard was first opened).
+let apsState = { loading: false, at: null, err: '' };
+async function apsRefresh() {
+  if (apsState.loading) return;
+  apsState.loading = true; apsState.err = ''; if (view === 'apsummary') show('apsummary');
+  try { classData = await call('classOverview'); apsState.at = new Date(); }
+  catch (e) { if (e.authRequired) return; apsState.err = e.message; }
+  apsState.loading = false; if (view === 'apsummary') show('apsummary');
+}
 // Teacher: per-student check-out summary to support the Canvas rubric.
 function apSummaryView() {
   const rows = mxRows();
@@ -2840,7 +2850,7 @@ function apSummaryView() {
   return '<div class="wrap wide">' +
     '<button type="button" class="back light" id="apsback">← Class dashboard</button>' +
     '<div class="phero tight"><div class="k">TEACHER · AP CHECK-OUT SUMMARY</div><h1>Active Participation</h1><p>Lesson check-outs per student and AP criterion: <b>L</b> = your lesson ratings (average and count), <b>S</b> = the student’s own check-ins. The band comes from your average, or the student’s if you haven’t rated them yet. Canvas grades are not in here and are never changed by this: it’s evidence for your summative judgement. Tap a cell for the descriptors.</p></div>' +
-    '<div class="mxbar"><label class="mxf">Class <select id="apsclass">' + classOpts + '</select></label><div class="mxact"><button type="button" class="minib" id="apscsv">⬇ CSV</button></div></div>' +
+    '<div class="mxbar"><label class="mxf">Class <select id="apsclass">' + classOpts + '</select></label><div class="mxact"><span class="aps-upd">' + (apsState.loading ? '<span class="spinner sm"></span> Updating…' : apsState.err ? '⚠ Couldn’t update: ' + esc(apsState.err) : apsState.at ? 'Updated ' + apsState.at.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '') + '</span><button type="button" class="minib" id="apsreload">↻ Refresh</button><button type="button" class="minib" id="apscsv">⬇ CSV</button></div></div>' +
     '<div class="tablewrap mxwrap"><table class="mx aps-t"><thead><tr><th class="mx-nm">Student</th><th class="mx-cl">Class</th>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>' +
   '</div>';
 }
@@ -3122,7 +3132,8 @@ function show(v, arg) {
     return;
   } else if (v === 'apsummary') {
     app.innerHTML = apSummaryView();
-    wire('apsback', () => show('class')); wire('apscsv', apsCsv);
+    wire('apsback', () => show('class')); wire('apscsv', apsCsv); wire('apsreload', apsRefresh);
+    if (prevView !== 'apsummary' && !apsState.loading) apsRefresh(); // fresh data every time it is opened
     const cl = $('#apsclass'); if (cl) cl.addEventListener('change', () => { teacherFilter = cl.value; show('apsummary'); });
     onWrap(e => { const t = e.target.closest('[data-aps]'); if (t) { const p = t.getAttribute('data-aps').split('|'); apsOverlay(p[0], p[1]); } });
   } else if (v === 'skillentry') {
