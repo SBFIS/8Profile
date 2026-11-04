@@ -289,7 +289,7 @@ function doPost(e) {
 }
 // Opening the API URL in a browser is not the app; say so, with no data.
 // Bump with each server change: opening the /exec link in a browser shows which build is live.
-var BUILD = '2026-10-30a · outcomes by unit, report picture on track';
+var BUILD = '2026-11-04a · Health lesson class overview';
 function doGet() {
   return ContentService.createTextOutput(JSON.stringify({ ok: false, build: BUILD, error: 'This is the data service for My PE Profile. Open the app link your PE teacher shared.' }))
     .setMimeType(ContentService.MimeType.JSON);
@@ -314,6 +314,7 @@ function handle_(body) {
     case 'classOverview':   return classOverview_(cfg, id);
     case 'classStudent':    return classStudent_(cfg, id, body.email);
     case 'classPlans':      return classPlans_(cfg, id, body.klass);
+    case 'classLessons':    return classLessons_(cfg, id, body.klass);
     case 'checkoutRoster':  return checkoutRoster_(cfg, id, body.klass, body.focus);
     case 'saveCheckin':     return saveCheckin_(cfg, id, body.email, body.focus, body.who, body.rating, body.word);
     default: throw new Error('Unknown action');
@@ -1029,6 +1030,51 @@ function classPlans_(cfg, id, klass) {
     return { name: str_(r.Name), klass: klass, plan: card, goals: goalsFor_(e).items };
   }).sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
   return { role: 'classPlans', klass: klass, students: students };
+}
+
+// Teacher: one class's (or all classes') self-paced Health lesson in one call, so the overview
+// loads at once. Per student: the lesson answers, a count of sessions logged since the unit's
+// workout started (never the log itself), and the plan's parts for the builder to-do count.
+// The id is the roster email, as in the class dashboard, so a row can open that student's page.
+// No session log, no reflection, no goals notes.
+var LESSON_KEYS = ['train'];
+var LESSON_LOG_FROM = '2026-10-22';
+function lessonOut_(d) {
+  if (!d || typeof d !== 'object') return null;
+  var quiz = {}; Object.keys(d.quiz || {}).slice(0, 8).forEach(function (k) { var n = Number(d.quiz[k]); if (isFinite(n)) quiz[k] = n; });
+  var qs = (d.qs instanceof Array ? d.qs : []).slice(0, 8).map(function (x) { return (x instanceof Array) ? [Number(x[0]) || 0, Number(x[1]) || 0] : [0, 0]; });
+  return { step: Number(d.step) || 0, done: str_(d.done).slice(0, 10), score: d.score == null ? null : Number(d.score), feel: str_(d.feel).slice(0, 10), logAll: !!d.logAll,
+           quiz: quiz, qs: qs, ex: str_(d.ex).slice(0, 60), how: str_(d.how).slice(0, 4), now: str_(d.now).slice(0, 60), next: str_(d.next).slice(0, 60),
+           rest: (d.rest instanceof Array ? d.rest : []).slice(0, 6).map(function (x) { return str_(x).slice(0, 10); }), prin: str_(d.prin).slice(0, 15), exit: str_(d.exit).slice(0, 400) };
+}
+function classLessons_(cfg, id, klass) {
+  requireTeacher_(id);
+  klass = str_(klass);
+  if (!klass) throw new Error('Pick a class first');
+  var roster = readTab_('Students').filter(function (r) { return lower_(r.Email) && (klass === 'all' || str_(r.Class) === klass); });
+  if (!roster.length) throw new Error('No students in that class');
+  var plans = {};
+  readTab_('Plan').forEach(function (r) { var e = lower_(r.Email); if (!e) return; try { plans[e] = JSON.parse(str_(r.Plan) || 'null'); } catch (x) {} });
+  var parts = ['warmup', 'cardio', 'strength', 'focus', 'cooldown'];
+  var students = roster.map(function (r) {
+    var e = lower_(r.Email), p = plans[e], plan = null, lessons = {}, logSum = { pe: 0, home: 0, chg: 0 };
+    if (p && typeof p === 'object') {
+      plan = { v: p.v || 0, sChoice: str_(p.sChoice), fChoice: str_(p.fChoice), hr: str_(p.hr), fWhy: str_(p.fWhy), lsDone: str_(p.lsDone).slice(0, 200), why: {} };
+      parts.forEach(function (k) {
+        plan[k] = ((p[k] instanceof Array) ? p[k] : []).slice(0, 8).map(function (x) { x = x || {}; return { n: str_(x.n).slice(0, 40), sets: str_(x.sets), reps: str_(x.reps), min: str_(x.min), int: str_(x.int) }; });
+        plan.why[k] = str_((p.why || {})[k]).slice(0, 160);
+      });
+      LESSON_KEYS.forEach(function (k) { var o = lessonOut_((p.lessons || {})[k]); if (o) lessons[k] = o; });
+      plan.lessons = lessons;
+      ((p.log instanceof Array) ? p.log : []).forEach(function (x) {
+        if (!x || str_(x.date) < LESSON_LOG_FROM) return;
+        if (str_(x.where) === 'class') logSum.pe++; else logSum.home++;
+        if (str_(x.chg)) logSum.chg++;
+      });
+    }
+    return { sid: e, name: str_(r.Name), klass: str_(r.Class), plan: plan, goals: goalsFor_(e).items, logSum: logSum };
+  }).sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
+  return { role: 'classLessons', klass: klass, students: students };
 }
 
 // ---------- Sheet menu (teacher, inside the Sheet) ----------

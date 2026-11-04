@@ -2357,7 +2357,7 @@ function classView() {
     '<div class="mxbar">' +
       '<label class="mxf">Class <select id="mxclass">' + classOpts + '</select></label>' +
       '<div class="cptabs">' + cpBtns + '</div>' +
-      '<div class="mxact"><button type="button" class="minib" id="mxlockall">🔒 Lock all</button><button type="button" class="minib" id="mxunlockall">🔓 Unlock all</button><button type="button" class="minib" id="mxcsv">⬇ CSV</button><button type="button" class="minib" id="mxcards">🖨 Workout cards</button></div>' +
+      '<div class="mxact"><button type="button" class="minib" id="mxlockall">🔒 Lock all</button><button type="button" class="minib" id="mxunlockall">🔓 Unlock all</button><button type="button" class="minib" id="mxcsv">⬇ CSV</button><button type="button" class="minib" id="mxcards">🖨 Workout cards</button><button type="button" class="minib" id="mxlesson">📈 Health lesson</button></div>' +
     '</div>' +
     '<div class="mxleg"><span class="lk lv-lo"></span>below L4<span class="lk lv-mid"></span>at L4<span class="lk lv-hi"></span>above<span class="sep"></span>7 skills · 3 report bands (K/S/C, 1–7) · 5 participation keys</div>' +
     '<div class="tablewrap mxwrap"><table class="mx"><thead><tr>' +
@@ -2434,6 +2434,45 @@ function skillEntryView(sid) {
     '<div class="enform">' + rows + '</div>' +
     '<div class="pbar"><div class="pcount">Teacher sign-off — the final tick.</div><button type="button" class="ct-btn" id="sksave" data-id="' + esc(sid) + '">Save levels</button></div>' +
   '</div>';
+}
+// ── Teacher: the self-paced Health lesson for a whole class, in one call (classLessons).
+let hlClassData = null, assessFrom = '';
+async function openHlClass() {
+  const k = teacherFilter || 'all';
+  hlClassData = { loading: true, klass: k }; show('hlclass');
+  try { hlClassData = await call('classLessons', { klass: k }); }
+  catch (e) { hlClassData = { error: /Unknown action/i.test(e.message) ? 'The server is still on the old version. Paste the new Code.gs into Apps Script, then Deploy → Manage deployments → ✏️ → Version: New version → Deploy. Then try again.' : e.message, klass: k }; }
+  if (view === 'hlclass') show('hlclass');
+}
+function hlClassView() {
+  const D = hlClassData, L = HL.train;
+  const head = '<button type="button" class="back light" id="tohlback">← Back to class</button><div class="phero tight"><div class="k">TEACHER · HEALTH LESSON</div><h1>' + L.e + ' ' + esc(L.name) + '</h1>' +
+    '<p>' + (D && D.klass && D.klass !== 'all' ? esc(D.klass) : 'All classes') + ' · everyone at once. Tap a name for their full page.</p></div>';
+  if (!D || D.loading) return '<div class="wrap">' + head + '<div class="loading"><div class="spinner"></div>Loading the class…</div></div>';
+  if (D.error) return '<div class="wrap">' + head + '<p class="lockmsg">' + esc(D.error) + '</p></div>';
+  const S = D.students || [];
+  const rows = S.map(st => {
+    const p = st.plan, d = p && p.lessons && p.lessons.train, ls = st.logSum || { pe: 0, home: 0, chg: 0 };
+    const todo = p ? planTodo(p, st.goals || []).length : null, sc = d ? hlScore(d) : null;
+    const stat = !d ? '<span class="hc-no">not started</span>' : d.done ? '<span class="hc-ok">✓ ' + esc(fmtDayMonth(d.done)) + '</span>' : '<span class="hc-mid">step ' + Math.min((d.step || 0) + 1, 5) + ' / 5</span>';
+    const how = d && HL_HOW.find(h => h[0] === d.how), pr = d && HL_PRIN.find(x => x[0] === d.prin), fe = d && HL_FEEL.find(f => f[0] === d.feel);
+    return '<tr><td class="hc-nm"><button type="button" class="lnk" data-hlas="' + esc(st.sid) + '">' + esc(st.name) + '</button><small>' + esc(st.klass) + (fe ? ' · ' + fe[1] : '') + '</small></td>' +
+      '<td>' + stat + '</td>' +
+      '<td class="hc-c">' + (d && d.step >= 3 ? '<span class="' + (sc >= 4 ? 'hc-ok' : sc >= 3 ? 'hc-mid' : 'hc-no') + '">' + sc + '/' + L.bank.length + '</span>' : '–') + '</td>' +
+      '<td class="hc-c">' + ls.pe + ' · ' + ls.home + '<small>' + ls.chg + ' with a change' + (d && d.logAll ? ' · ✓ all' : '') + '</small></td>' +
+      '<td class="hc-c">' + (todo == null ? '<span class="hc-no">no plan</span>' : todo ? '<span class="hc-mid">' + todo + ' to do</span>' : '<span class="hc-ok">✓</span>') + '</td>' +
+      '<td>' + (d && d.ex ? esc(d.ex) + (how ? ' <small>(' + esc(how[1].toLowerCase()) + ')</small>' : '') + '<small>' + esc(d.now || '') + ' → ' + esc(d.next || '') + '</small>' : '–') + '</td>' +
+      '<td class="hc-ex">' + (pr ? '<b>' + esc(pr[2]) + '.</b> ' + esc(d.exit || '') : '–') + '</td></tr>';
+  }).join('');
+  const done = S.filter(st => st.plan && st.plan.lessons && st.plan.lessons.train && st.plan.lessons.train.done).length;
+  const started = S.filter(st => st.plan && st.plan.lessons && st.plan.lessons.train).length;
+  const scs = S.map(st => st.plan && st.plan.lessons && st.plan.lessons.train).filter(d => d && d.step >= 3).map(hlScore);
+  const ready = S.filter(st => st.plan && !planTodo(st.plan, st.goals || []).length).length;
+  const tile = (n, t) => '<div class="hc-tile"><b>' + n + '</b><span>' + t + '</span></div>';
+  return '<div class="wrap hcw">' + head +
+    '<div class="hc-tiles">' + tile(done + ' / ' + S.length, 'finished the lesson') + tile(started - done, 'started, not finished') + tile(scs.length ? (scs.reduce((a, b) => a + b, 0) / scs.length).toFixed(1) + ' / 5' : '–', 'average check score') + tile(ready + ' / ' + S.length, 'workout builder with nothing left to fix') + '</div>' +
+    '<div class="hc-scroll"><table class="hc-t"><tr><th>Student</th><th>Lesson</th><th>Check</th><th>Logged since 22 Oct<small>PE · home</small></th><th>Builder</th><th>Progression</th><th>Exit ticket</th></tr>' + rows + '</table></div>' +
+    '<p class="small"><button type="button" class="lnk" id="hlreload">↻ Refresh</button> · uses the Class menu on the dashboard (pick a class to see only that class).</p></div>';
 }
 // ── Teacher: printable workout cards for a whole class (front: the plan to practise from;
 // back: how it's assessed). One A4 per student; print double-sided for the back page.
@@ -3062,7 +3101,7 @@ function show(v, arg) {
       tbl.addEventListener('change', e => { const sel = e.target.closest('.cellsel'); if (sel) mxSaveCell(sel); });
       tbl.addEventListener('click', e => { const ab = e.target.closest('[data-assess]'); if (ab) return show('assess', ab.getAttribute('data-assess')); const lb = e.target.closest('[data-lock]'); if (lb) mxToggleLock(lb.getAttribute('data-lock')); });
     }
-    wire('mxcards', openCards);
+    wire('mxcards', openCards); wire('mxlesson', openHlClass);
     wire('mxlockall', () => mxLockAll(true)); wire('mxunlockall', () => mxLockAll(false)); wire('mxcsv', mxExportCsv);
   } else if (v === 'checkout') {
     app.innerHTML = checkoutSetupView();
@@ -3096,10 +3135,15 @@ function show(v, arg) {
     wire('tocardsback', () => { document.body.classList.remove('printing-cards'); cardsData = null; show('class'); });
     wire('cardsprint', () => window.print());
     const cb = $('#cardsback'); if (cb) cb.addEventListener('change', () => { cardsBack = cb.checked; show('cards'); });
+  } else if (v === 'hlclass') {
+    app.innerHTML = hlClassView();
+    wire('tohlback', () => { hlClassData = null; show('class'); });
+    wire('hlreload', openHlClass);
+    onWrap(e => { const a = e.target.closest('[data-hlas]'); if (a) { assessFrom = 'hlclass'; assessData = null; show('assess', a.dataset.hlas); } });
   } else if (v === 'assess') {
     currentSid = arg || currentSid;
     app.innerHTML = assessView(currentSid);
-    wire('toclassback', () => { assessData = null; show('class'); });
+    wire('toclassback', () => { assessData = null; show(assessFrom === 'hlclass' && hlClassData ? 'hlclass' : 'class'); assessFrom = ''; });
   } else if (v === 'apself') {
     app.innerHTML = apSelfView();
     wire('toprofile', () => show(lastHub)); wire('apsave', saveApSelfUI);
