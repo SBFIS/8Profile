@@ -2666,7 +2666,11 @@ function coRecall(date) { try { const j = JSON.parse(sessionStorage.getItem(CO_K
 function coName(s) { return s.first + (s.lastInitial ? ' ' + s.lastInitial + '.' : ''); }
 function coStudent(email) { return ((co.roster && co.roster.students) || []).find(s => s.email === email) || null; }
 
+// The check-out has its own address (…#checkout), so it can be saved to the iPad home screen and
+// opens straight into the check-out. Access is still the server's teacher check, not the address.
+function setHash(h) { try { history.replaceState(null, '', location.pathname + location.search + (h ? '#' + h : '')); } catch (e) {} }
 async function openCheckout(from) {
+  setHash('checkout');
   co = { from: from || 'landing', roster: null, klass: '', focus: '', step: 'names', sel: null, rating: null, given: {}, saving: {} };
   $('#app').innerHTML = '<div class="loading"><div class="spinner"></div>Loading classes…</div>';
   try {
@@ -2694,7 +2698,7 @@ async function coLoadClass(klass, quiet) {
   if (view === 'checkout') show('checkout');
   else if (view === 'kiosk' && co.step === 'names') show('kiosk');
 }
-function coLeave() { const from = co ? co.from : 'landing'; co = null; if (from === 'class' && classData) show('class'); else if (state.role === 'student') show('profile'); else renderTeacher(state); }
+function coLeave() { setHash(''); const from = co ? co.from : 'landing'; co = null; if (from === 'class' && classData) show('class'); else if (state.role === 'student') show('profile'); else renderTeacher(state); }
 
 function checkoutSetupView() {
   const r = co.roster, studs = r.students || [];
@@ -3179,7 +3183,8 @@ function show(v, arg) {
 function render(b) {
   state = b; seenBadges = null;
   if (b.role === 'student') { show(b.student.style ? 'profile' : 'card'); return; } // first visit → build your card
-  if (b.role === 'teacher') { renderTeacher(b); return; }
+  if (b.role === 'teacher') { renderTeacher(b); if (location.hash === '#checkout') openCheckout('landing'); return; }
+  if (location.hash === '#checkout') setHash(''); // not a teacher: just the normal page
   document.body.classList.remove('dark'); $('#app').innerHTML = otherView(b); wire('signout', signOut);
 }
 function renderTeacher(b) {
