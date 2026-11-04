@@ -3182,6 +3182,7 @@ function show(v, arg) {
 
 function render(b) {
   state = b; seenBadges = null;
+  if (b.role === 'student' && b.alsoTeacher && location.hash === '#checkout') { openCheckout('landing'); return; } // a teacher who is also on the class list
   if (b.role === 'student') { show(b.student.style ? 'profile' : 'card'); return; } // first visit → build your card
   if (b.role === 'teacher') { renderTeacher(b); if (location.hash === '#checkout') openCheckout('landing'); return; }
   if (location.hash === '#checkout') setHash(''); // not a teacher: just the normal page
