@@ -303,6 +303,8 @@ check('the student\'s own profile never includes the ratings', !/Good how-lines|
 check('ratings must be whole numbers 1–7', !as(T, 'saveAssess', { email: S2, scores: { k4: 8 } }).ok && !as(T, 'saveAssess', { email: S2, scores: { k4: 4.5 } }).ok && !as(T, 'saveAssess', { email: S2, scores: { k4: 0 } }).ok);
 check('saveAssess refuses someone not on the class list, an unknown task, a long note', !as(T, 'saveAssess', { email: 'nobody@example.edu', scores: { k4: 5 } }).ok && !as(T, 'saveAssess', { email: S2, task: 'essay', scores: { k4: 5 } }).ok && !as(T, 'saveAssess', { email: S2, scores: { k4: 5 }, note: 'x'.repeat(301) }).ok);
 check('assessment errors contain no email', ['nobody@example.edu'].every(e => !String(as(T, 'saveAssess', { email: e, scores: { k4: 5 } }).error).includes('@')));
+check('a workout-day flag saves, keeps the ratings, and the day is set once', (() => { const r = as(T, 'saveAssess', { email: S2, task: 'workout', scores: { k4: 6, s2: 6, sm: 7 }, note: 'Good how-lines', flag: 'up' }); const two = as(T, 'classAssess', { klass: '8A' }).data.students.find(s => s.sid === S2); return r.ok && two.flag === 'up' && two.scores.sm === 7 && /^\d{4}-\d{2}-\d{2}$/.test(two.day) && 'planDay' in two && 'ap' in two; })());
+check('a bad flag is refused; an empty flag clears it', !as(T, 'saveAssess', { email: S2, scores: {}, flag: 'sideways' }).ok && as(T, 'saveAssess', { email: S2, scores: {}, flag: '' }).ok && as(T, 'classAssess', { klass: '8A' }).data.students.find(s => s.sid === S2).flag === '');
 check('classAssess needs a real class', !as(T, 'classAssess', { klass: '' }).ok && !as(T, 'classAssess', { klass: 'nope' }).ok);
 
 console.log('AP check-out (teacher iPad → APLog)');
@@ -397,6 +399,7 @@ check('classOverview: per-student checkinSummary of self + lesson (never Canvas)
   const st = as(T, 'classOverview').data.students, s1 = st.find(x => x.id === S1).checkinSummary, c6 = st.find(x => x.id === C(6)).checkinSummary, c5 = st.find(x => x.id === C(5)).checkinSummary;
   return s1.team.selfN === 1 && s1.team.selfAvg === 3 && s1.team.lessonN === 1 && s1.team.lessonAvg === 6 && s1.team.last === TODAY && !c6.team && c5.team.selfAvg === 7 && c5.team.lessonAvg === null;
 })());
+check('classAssess shows the AP check-outs (effort + manage) from the training lessons, only where they exist', (() => { addAp(C(2), TODAY, 'lesson', 'effort', 6); addAp(C(2), TODAY, 'self', 'manage', 4); addAp(C(3), '2026-10-01', 'lesson', 'effort', 2); const st = as(T, 'classAssess', { klass: 'all' }).data.students; const c2 = st.find(x => x.sid === C(2)), c3 = st.find(x => x.sid === C(3)); return c2.ap && c2.ap.lessonAvg === 6 && c2.ap.selfAvg === 4 && c3.ap === null && st.some(x => x.ap === null); })());
 check('check-out error messages contain no email', errs.length > 10 && errs.every(e => !e.includes('@')), errs.filter(e => e.includes('@')));
 
 console.log('retention');

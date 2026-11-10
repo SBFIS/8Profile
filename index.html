@@ -1116,6 +1116,18 @@ body.demo{padding-top:52px}
 .wa-note{width:100%;margin-top:8px;border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;font:inherit;font-size:14px}
 .wa-solo{border:2px solid var(--maroon)}.wa-solo .wa-row{border:none;padding:0;margin:0;background:none}
 @media(max-width:700px){.wa-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.wa-cl{flex-basis:100%}}
+
+.wa-tabs{display:flex;gap:6px;margin:4px 0 14px;flex-wrap:wrap}.wa-tab{border:2px solid var(--maroon);background:#fff;color:var(--maroon);border-radius:999px;padding:9px 16px;font-family:var(--disp);font-weight:700;font-size:15px;cursor:pointer;min-height:44px}.wa-tab.on{background:var(--maroon);color:#fff}
+.wa-tiles3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.wa-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.wa-tc{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:10px 12px}.wa-tc.f-up{border-color:#7b3fb0;background:#faf5fd}.wa-tc.f-down{border-color:#d9822b;background:#fff8f0}
+.wa-tc .wa-nm{font-size:15px}.wa-fl{display:flex;gap:6px}
+.wa-fb{flex:1;min-height:48px;border-radius:11px;border:2px solid var(--line);background:#fff;font-weight:700;font-size:15px;cursor:pointer;color:var(--ink-soft)}
+.wa-fb.up.on{background:#6a1b9a;border-color:#6a1b9a;color:#fff}.wa-fb.down.on{background:#c05a00;border-color:#c05a00;color:#fff}
+.wa-fb:focus-visible,.wa-tab:focus-visible{outline:3px solid var(--gold);outline-offset:1px}
+.wa-n.sg{border-style:dashed;border-width:3px;box-shadow:0 0 0 3px rgba(231,182,75,.55)}
+.wa-bar select{font:inherit;font-size:14px;border:1.5px solid var(--line);border-radius:9px;padding:6px 8px;background:#fff;min-height:40px;max-width:100%}
+.wa-sm{flex-basis:100%;font-size:13px;color:var(--ink-soft);margin:2px 0 0 0}
 </style>
 
 </head>
@@ -3886,7 +3898,7 @@ function hlClassView() {
 // ── Teacher: assess the Personal Workout live, one row per student (classAssess / saveAssess).
 // Tap a number per criterion while the class performs; it saves at once. Ratings stay in the
 // Sheet (teacher-only) and are copied out for Canvas, which is still the official record.
-let waData = null, waOpen = false;
+let waData = null, waMode = 'today', waFilter = 'all';
 const WA_CRIT = [['k4', '📘', 'Planning', 'K4'], ['s2', '🔍', 'Assessing & improving', 'S2'], ['sm', '🧭', 'Training on my own', 'ATL']];
 const WA_BANDS = [[[1, 2], 'Not yet', 'lo'], [[3, 4], 'Approaching', 'ap'], [[5, 6], 'Got it', 'got'], [[7], 'Leading', 'lead']];
 const OLD_SERVER = 'The server is still on the old version. Paste the new Code.gs into Apps Script, then Deploy → Manage deployments → ✏️ → Version: New version → Deploy. Then try again.';
@@ -3897,6 +3909,7 @@ async function openWa() {
   catch (e) { waData = { error: /Unknown action/i.test(e.message) ? OLD_SERVER : e.message, klass: k }; }
   if (view === 'wassess') show('wassess');
 }
+const ymdLocal = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 const waDone = st => WA_CRIT.every(c => st.scores && st.scores[c[0]] != null);
 const waAny = st => WA_CRIT.some(c => st.scores && st.scores[c[0]] != null);
 function waChips(ev) {
@@ -3905,32 +3918,69 @@ function waChips(ev) {
   return chip(ev.parts === 5, ev.parts + '/5 parts') + chip(ev.whys === 5, ev.whys + '/5 how-lines') + chip(ev.hr, ev.hr ? 'HR zone ✓' : 'no HR zone') + chip(ev.fWhy, ev.fWhy ? 'focus → goal ✓' : 'focus not linked') +
     chip(ev.pe + ev.home >= 3, 'logged ' + ev.pe + ' PE · ' + ev.home + ' home') + chip(ev.weeks >= 2, ev.weeks + ' home week' + (ev.weeks === 1 ? '' : 's')) + chip(ev.refs === 4, 'reflection ' + ev.refs + '/4');
 }
+// Plan saved after the workout day (the day the teacher first assessed them) = they acted on it.
+// The class's workout day = the first day any of its students got a flag (or rating) on this screen.
+const waDay = st => st.day || ((waData.students || []).filter(x => x.klass === st.klass && x.day).map(x => x.day).sort()[0] || '');
+const waChanged = st => { const d = waDay(st); return !!(d && st.planDay && st.planDay > d); };
+const waReady = st => !!(st.ev && st.ev.refs === 4 && waChanged(st));
+// Suggested Training on my own: AP lesson average (else their own), ±1 for home weeks, ±1 for today's flag.
+function waSuggest(st) {
+  const ap = st.ap, base = ap ? (ap.lessonAvg != null ? ap.lessonAvg : ap.selfAvg) : null;
+  if (base == null) return null;
+  let n = Math.round(base); const w = st.ev ? st.ev.weeks : 0;
+  if (w >= 3) n++; else if (w <= 1) n--;
+  if (st.flag === 'up') n++; else if (st.flag === 'down') n--;
+  return Math.max(1, Math.min(7, n));
+}
+function waSmLine(st) {
+  const ap = st.ap, w = st.ev ? st.ev.weeks : 0, sg = waSuggest(st), bits = [];
+  if (ap) { if (ap.lessonN) bits.push('your check-outs ' + ap.lessonAvg + ' (' + ap.lessonN + ' lesson' + (ap.lessonN === 1 ? '' : 's') + ')'); if (ap.selfN) bits.push('theirs ' + ap.selfAvg + ' (' + ap.selfN + ')'); }
+  else bits.push('no AP check-outs');
+  bits.push(w + ' home week' + (w === 1 ? '' : 's'));
+  if (st.flag) bits.push(st.flag === 'up' ? '🌟 above on the day' : '⚠ below on the day');
+  return '<div class="wa-sm">🧭 ' + bits.join(' · ') + (sg ? ' → <b>suggested ' + sg + '</b>' : '') + '</div>';
+}
+function waTodayCard(st, i) {
+  const f = st.flag || '';
+  const stt = st._s === 'saving' ? 'Saving…' : st._s === 'err' ? 'Not saved: tap again' : st._s === 'ok' ? 'Saved ✓' : '';
+  return '<div class="wa-tc' + (f ? ' f-' + f : '') + '" data-wi="' + i + '"><div class="wa-hd"><b class="wa-nm">' + esc(st.name) + '</b><small>' + esc(st.klass) + '</small><span class="wa-st' + (st._s === 'err' ? ' err' : st._s === 'ok' ? ' ok' : '') + '">' + stt + '</span></div>' +
+    '<div class="wa-fl"><button type="button" class="wa-fb up' + (f === 'up' ? ' on' : '') + '" data-waflag="' + i + '|up" aria-pressed="' + (f === 'up') + '">🌟 Above</button><button type="button" class="wa-fb down' + (f === 'down' ? ' on' : '') + '" data-waflag="' + i + '|down" aria-pressed="' + (f === 'down') + '">⚠ Below</button></div>' +
+    (f ? '<input class="wa-note" data-wanote="' + i + '" maxlength="300" placeholder="Why? (optional)" value="' + esc(st.note || '') + '">' : '') + '</div>';
+}
 function waRow(st, i, solo) {
   const sc = st.scores || {};
   const crit = WA_CRIT.map(c => {
-    const v = sc[c[0]];
-    const groups = WA_BANDS.map(b => '<span class="wa-g wa-' + b[2] + '"><i>' + b[1] + '</i>' + b[0].map(n => '<button type="button" class="wa-n' + (v === n ? ' on' : '') + '" data-wa="' + i + '|' + c[0] + '|' + n + '" aria-pressed="' + (v === n) + '" aria-label="' + c[2] + ' ' + n + '">' + n + '</button>').join('') + '</span>').join('');
-    return '<div class="wa-c"><div class="wa-cl">' + c[1] + ' <b>' + c[2] + '</b> <small>' + c[3] + '</small></div><div class="wa-bs">' + groups + '</div></div>';
+    const v = sc[c[0]], sg = c[0] === 'sm' ? waSuggest(st) : null;
+    const groups = WA_BANDS.map(b => '<span class="wa-g wa-' + b[2] + '"><i>' + b[1] + '</i>' + b[0].map(n => '<button type="button" class="wa-n' + (v === n ? ' on' : '') + (sg === n && v == null ? ' sg' : '') + '" data-wa="' + i + '|' + c[0] + '|' + n + '" aria-pressed="' + (v === n) + '" aria-label="' + c[2] + ' ' + n + '">' + n + '</button>').join('') + '</span>').join('');
+    return '<div class="wa-c"><div class="wa-cl">' + c[1] + ' <b>' + c[2] + '</b> <small>' + c[3] + '</small></div><div class="wa-bs">' + groups + '</div>' + (c[0] === 'sm' ? waSmLine(st) : '') + '</div>';
   }).join('');
   const stt = st._s === 'saving' ? '<span class="wa-st">Saving…</span>' : st._s === 'err' ? '<span class="wa-st err">Not saved: tap again</span>' : st._s === 'ok' ? '<span class="wa-st ok">Saved ✓</span>' : waDone(st) ? '<span class="wa-st ok">✓ done</span>' : '';
   return '<div class="wa-row' + (waDone(st) ? ' wa-done' : '') + '" data-wi="' + i + '"><div class="wa-hd">' +
     (solo ? '<b class="wa-nm">Rate ' + esc(st.name) + '</b>' : '<button type="button" class="lnk wa-nm" data-waev="' + i + '">' + esc(st.name) + '</button>') + '<small>' + esc(st.klass) + '</small>' + stt + '</div>' +
-    (solo ? '' : '<div class="as-chips">' + waChips(st.ev) + '</div>') + crit +
+    (solo ? '' : '<div class="as-chips">' + waChips(st.ev) + '<span class="as-chip' + (waChanged(st) ? ' ok' : '') + '">' + (waChanged(st) ? 'plan changed since workout day ✓' : waDay(st) ? 'plan not changed since ' + fmtDayMonth(waDay(st)) : 'no workout day recorded') + '</span>' + (st.flag ? '<span class="as-chip">' + (st.flag === 'up' ? '🌟 above on the day' : '⚠ below on the day') + '</span>' : '') + '</div>') + crit +
     '<input class="wa-note" data-wanote="' + i + '" maxlength="300" placeholder="Note for Canvas (optional)" value="' + esc(st.note || '') + '"></div>';
 }
 function waRedraw(i) {
   document.querySelectorAll('.wa-row[data-wi="' + i + '"]').forEach(el => { const solo = !!el.closest('.as-wrap'); el.outerHTML = waRow(waData.students[i], i, solo); });
+  document.querySelectorAll('.wa-tc[data-wi="' + i + '"]').forEach(el => {
+    const st = waData.students[i], typing = el.querySelector('.wa-note') === document.activeElement;
+    if (typing) { const t = document.createElement('div'); t.innerHTML = waTodayCard(st, i); el.querySelector('.wa-st').replaceWith(t.querySelector('.wa-st')); return; } // keep what they are typing
+    el.outerHTML = waTodayCard(st, i);
+    if (st._focus) { st._focus = false; const n = document.querySelector('.wa-tc[data-wi="' + i + '"] .wa-note'); if (n) n.focus(); }
+  });
   const t = $('#watiles'); if (t) t.innerHTML = waTiles();
 }
 function waSave(i) {
   const st = waData.students[i]; st._s = 'saving'; waRedraw(i);
-  const payload = { email: st.sid, task: 'workout', scores: Object.assign({}, st.scores), note: st.note || '' };
+  const payload = { email: st.sid, task: 'workout', scores: Object.assign({}, st.scores), note: st.note || '', flag: st.flag || '' };
   st._p = (st._p || Promise.resolve()).then(() => call('saveAssess', payload)).then(() => { st._s = 'ok'; waRedraw(i); }, e => { st._s = 'err'; waRedraw(i); toast('Couldn’t save ' + st.name + ': ' + e.message, true); });
 }
 function waClick(e) {
   const b = e.target.closest('[data-wa]');
   if (b) { const p = b.dataset.wa.split('|'), i = Number(p[0]), k = p[1], n = Number(p[2]), st = waData.students[i]; st.scores = st.scores || {};
     if (st.scores[k] === n) delete st.scores[k]; else st.scores[k] = n; waSave(i); return true; }
+  const fb = e.target.closest('[data-waflag]');
+  if (fb) { const p = fb.dataset.waflag.split('|'), i = Number(p[0]), st = waData.students[i]; st.flag = st.flag === p[1] ? '' : p[1]; st._focus = !!st.flag; if (!st.day) st.day = ymdLocal(); waSave(i); return true; }
   const ev = e.target.closest('[data-waev]');
   if (ev) { assessFrom = 'wassess'; assessData = null; show('assess', waData.students[Number(ev.dataset.waev)].sid); return true; }
   return false;
@@ -3939,28 +3989,34 @@ function waNoteWire(root) {
   root.addEventListener('change', e => { const n = e.target.closest('[data-wanote]'); if (!n) return; const i = Number(n.dataset.wanote), st = waData.students[i]; if ((st.note || '') === n.value.trim()) return; st.note = n.value.trim(); waSave(i); });
 }
 function waTiles() {
-  const S = waData.students || [], done = S.filter(waDone).length, part = S.filter(st => waAny(st) && !waDone(st)).length;
-  const avg = k => { const v = S.map(st => st.scores && st.scores[k]).filter(x => x != null); return v.length ? (v.reduce((a, b) => a + b, 0) / v.length).toFixed(1) : '–'; };
+  const S = waData.students || [];
   const tile = (n, t) => '<div class="hc-tile"><b>' + n + '</b><span>' + t + '</span></div>';
-  return tile(done + ' / ' + S.length, 'fully rated') + tile(part, 'partly rated') + WA_CRIT.map(c => tile(avg(c[0]), c[1] + ' ' + c[2] + ' average')).join('');
+  if (waMode === 'today') return tile(S.filter(st => st.flag === 'up').length, '🌟 above') + tile(S.filter(st => st.flag === 'down').length, '⚠ below') + tile(S.length - S.filter(st => st.flag).length, 'as expected (no tap)');
+  const done = S.filter(waDone).length, ready = S.filter(waReady).length;
+  const avg = k => { const v = S.map(st => st.scores && st.scores[k]).filter(x => x != null); return v.length ? (v.reduce((a, b) => a + b, 0) / v.length).toFixed(1) : '–'; };
+  return tile(done + ' / ' + S.length, 'fully rated') + tile(ready, 'ready to mark') + WA_CRIT.map(c => tile(avg(c[0]), c[1] + ' ' + c[2] + ' average')).join('');
 }
 function waRubric() {
   const F = RUBRICS.fitness; if (!F) return '';
   return '<details class="wa-rub"><summary>📋 What Got it and Leading look like</summary>' + WA_CRIT.map(c => F[c[0]] ? '<div class="wa-rc"><b>' + c[1] + ' ' + esc(F[c[0]].name) + '</b><div><i>✅ Got it (5–6)</i> ' + esc(F[c[0]].got) + '.</div><div><i>🌟 Leading (7)</i> ' + esc(F[c[0]].leading) + '.</div></div>' : '').join('') + '</details>';
 }
 function wassessView() {
-  const D = waData;
-  const head = '<button type="button" class="back light" id="toWaBack">← Back to class</button><div class="phero tight"><div class="k">TEACHER · ASSESSMENT</div><h1>🏆 Personal Workout</h1>' +
-    '<p>' + (D && D.klass && D.klass !== 'all' ? esc(D.klass) : 'All classes') + ' · tap a number for each criterion; it saves straight away. Tap it again to clear. Tap a name for the full evidence.</p></div>';
+  const D = waData, today = waMode === 'today';
+  const tabs = '<div class="wa-tabs" role="tablist"><button type="button" role="tab" class="wa-tab' + (today ? ' on' : '') + '" aria-selected="' + today + '" data-wamode="today">1 · Workout day</button><button type="button" role="tab" class="wa-tab' + (!today ? ' on' : '') + '" aria-selected="' + !today + '" data-wamode="grade">2 · Mark (after the reflection)</button></div>';
+  const head = '<button type="button" class="back light" id="toWaBack">← Back to class</button><div class="phero tight"><div class="k">TEACHER · ASSESSMENT · ' + (D && D.klass && D.klass !== 'all' ? esc(D.klass) : 'ALL CLASSES') + '</div><h1>🏆 Personal Workout</h1>' +
+    '<p>' + (today ? 'Watch the workout. Tap only the students who clearly stand out: <b>🌟 Above</b> (pushing into overload, fully independent) or <b>⚠ Below</b> (coasting, off plan, needed reminders). Everyone else needs no tap.' : 'Rate each criterion 1–7; it saves straight away (tap again to clear). Training on my own shows your check-outs, their home weeks and the workout-day flag, with a suggested number (dashed). Tap a name for the full evidence.') + '</p></div>' + tabs;
   if (!D || D.loading) return '<div class="wrap">' + head + '<div class="loading"><div class="spinner"></div>Loading the class…</div></div>';
   if (D.error) return '<div class="wrap">' + head + '<p class="lockmsg">' + esc(D.error) + '</p></div>';
   const S = D.students || [];
-  const rows = S.map((st, i) => (waOpen && waDone(st)) ? '' : waRow(st, i)).join('');
+  if (today) return '<div class="wrap hcw">' + head + '<div class="hc-tiles wa-tiles3" id="watiles">' + waTiles() + '</div><div class="wa-grid">' + S.map(waTodayCard).join('') + '</div>' +
+    '<p class="small">Flags only nudge the suggested Training on my own rating by one step. Students never see them.</p></div>';
+  const keep = st => waFilter === 'todo' ? !waDone(st) : waFilter === 'ready' ? waReady(st) : true;
+  const rows = S.map((st, i) => keep(st) ? waRow(st, i) : '').join('');
   return '<div class="wrap hcw">' + head +
     '<div class="hc-tiles wa-tiles" id="watiles">' + waTiles() + '</div>' + waRubric() +
-    '<div class="wa-bar"><label><input type="checkbox" id="waopen"' + (waOpen ? ' checked' : '') + '> Only students still to rate</label>' +
+    '<div class="wa-bar"><label>Show <select id="wafilter"><option value="all"' + (waFilter === 'all' ? ' selected' : '') + '>everyone</option><option value="ready"' + (waFilter === 'ready' ? ' selected' : '') + '>ready to mark (reflection 4/4 + plan changed)</option><option value="todo"' + (waFilter === 'todo' ? ' selected' : '') + '>still to rate</option></select></label>' +
       '<button type="button" class="minib" id="wacopy">📋 Copy for Canvas</button><button type="button" class="minib" id="wacsv">⬇ CSV</button><button type="button" class="minib" id="wareload">↻ Refresh</button></div>' +
-    (rows || '<p class="as-look">Everyone in this list is rated. 🎉</p>') +
+    (rows || '<p class="as-look">Nobody in this list. 🎉</p>') +
     '<p class="small">Ratings are kept in the Sheet (Assess tab) and are never shown to students. Canvas is still the official record: enter them there, or use Copy for Canvas. Pick a class in the Class menu on the dashboard to see only that class.</p></div>';
 }
 function waTable() {
@@ -4663,8 +4719,8 @@ function show(v, arg) {
     app.innerHTML = wassessView();
     wire('toWaBack', () => { waData = null; show('class'); });
     wire('wareload', openWa); wire('wacopy', waCopy); wire('wacsv', waCsv);
-    const wo2 = $('#waopen'); if (wo2) wo2.addEventListener('change', () => { waOpen = wo2.checked; show('wassess'); });
-    onWrap(waClick); waNoteWire(app.firstElementChild);
+    const wf = $('#wafilter'); if (wf) wf.addEventListener('change', () => { waFilter = wf.value; show('wassess'); });
+    onWrap(e => { const m = e.target.closest('[data-wamode]'); if (m) { waMode = m.dataset.wamode; show('wassess'); return; } waClick(e); }); waNoteWire(app.firstElementChild);
   } else if (v === 'assess') {
     currentSid = arg || currentSid;
     app.innerHTML = assessView(currentSid);
