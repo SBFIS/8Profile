@@ -108,7 +108,7 @@ var TABS = {
   Plan:          ['Email', 'Plan', 'Updated'],                                   // the student's personal workout plan (JSON)
   Locks:         ['Email', 'Checkpoint', 'Locked', 'Updated'],                   // teacher finalize-lock per student per checkpoint
   Reflections:   ['Email', 'Key', 'Text', 'Updated'],                            // student reflections + unit self-assessments, one row per key
-  Assess:        ['Email', 'Task', 'k4', 's2', 'sm', 'Note', 'Updated', 'Flag', 'Day'] // teacher's summative ratings (1–7) per task + workout-day flag (up/down) and the day first assessed; teacher-only, never sent to a student
+  Assess:        ['Email', 'Task', 'k4', 's2', 'sm', 'Note', 'Updated', 'Flag', 'Day', 'FlagK4'] // teacher's summative ratings (1–7) per task + workout-day flags (Flag = Training/ATL, FlagK4 = workout quality; up/down) and the day first assessed; teacher-only, never sent to a student
 };
 // Reflection slots a student may write. Unit keys hold a small JSON self-assessment.
 var REFLECT_KEYS = ['compare-intro', 'unit-badminton'];
@@ -290,7 +290,7 @@ function doPost(e) {
 }
 // Opening the API URL in a browser is not the app; say so, with no data.
 // Bump with each server change: opening the /exec link in a browser shows which build is live.
-var BUILD = '2026-11-10b · Workout day flags + Training on my own evidence';
+var BUILD = '2026-11-10c · Workout day flags per criterion (Training, Workout quality)';
 function doGet() {
   return ContentService.createTextOutput(JSON.stringify({ ok: false, build: BUILD, error: 'This is the data service for My PE Profile. Open the app link your PE teacher shared.' }))
     .setMimeType(ContentService.MimeType.JSON);
@@ -317,7 +317,7 @@ function handle_(body) {
     case 'classPlans':      return classPlans_(cfg, id, body.klass);
     case 'classLessons':    return classLessons_(cfg, id, body.klass);
     case 'classAssess':     return classAssess_(cfg, id, body.klass, body.task);
-    case 'saveAssess':      return saveAssess_(cfg, id, body.email, body.task, body.scores, body.note, body.flag);
+    case 'saveAssess':      return saveAssess_(cfg, id, body.email, body.task, body.scores, body.note, body.flag, body.flagK4);
     case 'checkoutRoster':  return checkoutRoster_(cfg, id, body.klass, body.focus);
     case 'saveCheckin':     return saveCheckin_(cfg, id, body.email, body.focus, body.who, body.rating, body.word);
     default: throw new Error('Unknown action');
@@ -1107,7 +1107,8 @@ function classAssess_(cfg, id, klass, task) {
     var e = lower_(r.Email); if (!e || lower_(r.Task) !== task) return;
     var sc = {}; ASSESS_KEYS.forEach(function (k) { var n = numOrNull_(r[k]); if (n !== null && n >= 1 && n <= 7) sc[k] = Math.round(n); });
     var fl = lower_(r.Flag);
-    saved[e] = { scores: sc, note: str_(r.Note).slice(0, ASSESS_NOTE_MAX), updated: ymd_(r.Updated), flag: ASSESS_FLAGS.indexOf(fl) === -1 ? '' : fl, day: ymd_(r.Day) };
+    var fk = lower_(r.FlagK4);
+    saved[e] = { scores: sc, note: str_(r.Note).slice(0, ASSESS_NOTE_MAX), updated: ymd_(r.Updated), flag: ASSESS_FLAGS.indexOf(fl) === -1 ? '' : fl, flagK4: ASSESS_FLAGS.indexOf(fk) === -1 ? '' : fk, day: ymd_(r.Day) };
   });
   var parts = ['warmup', 'cardio', 'strength', 'focus', 'cooldown'];
   var students = roster.map(function (r) {
@@ -1127,8 +1128,8 @@ function classAssess_(cfg, id, klass, task) {
       });
       ev.weeks = Object.keys(weeks).length;
     }
-    var a = saved[e] || { scores: {}, note: '', updated: '', flag: '', day: '' };
-    return { sid: e, name: str_(r.Name), klass: str_(r.Class), ev: ev, scores: a.scores, note: a.note, updated: a.updated, flag: a.flag, day: a.day, planDay: planDay[e] || '', ap: assessAp_(apIdx[e]) };
+    var a = saved[e] || { scores: {}, note: '', updated: '', flag: '', flagK4: '', day: '' };
+    return { sid: e, name: str_(r.Name), klass: str_(r.Class), ev: ev, scores: a.scores, note: a.note, updated: a.updated, flag: a.flag, flagK4: a.flagK4, day: a.day, planDay: planDay[e] || '', ap: assessAp_(apIdx[e]) };
   }).sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
   return { role: 'classAssess', klass: klass, task: task, students: students };
 }
@@ -1152,7 +1153,7 @@ function weekOf_(ymd) {
   d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
   return d.toISOString().slice(0, 10);
 }
-function saveAssess_(cfg, id, targetEmail, task, scores, note, flag) {
+function saveAssess_(cfg, id, targetEmail, task, scores, note, flag, flagK4) {
   requireTeacher_(id);
   task = assessTask_(task);
   var email = lower_(targetEmail);
@@ -1174,6 +1175,11 @@ function saveAssess_(cfg, id, targetEmail, task, scores, note, flag) {
     flag = lower_(flag);
     if (flag && ASSESS_FLAGS.indexOf(flag) === -1) throw new Error('Flag must be up, down or empty');
     fields.Flag = flag;
+  }
+  if (flagK4 !== undefined) {
+    flagK4 = lower_(flagK4);
+    if (flagK4 && ASSESS_FLAGS.indexOf(flagK4) === -1) throw new Error('Flag must be up, down or empty');
+    fields.FlagK4 = flagK4;
   }
   var had = readTab_('Assess').filter(function (r) { return lower_(r.Email) === email && lower_(r.Task) === task; })[0];
   var day = had && ymd_(had.Day);
