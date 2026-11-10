@@ -290,7 +290,7 @@ function doPost(e) {
 }
 // Opening the API URL in a browser is not the app; say so, with no data.
 // Bump with each server change: opening the /exec link in a browser shows which build is live.
-var BUILD = '2026-11-10c · Workout day flags per criterion (Training, Workout quality)';
+var BUILD = '2026-11-10d · Workout day: band per row (Not yet → Leading) feeds the suggestions';
 function doGet() {
   return ContentService.createTextOutput(JSON.stringify({ ok: false, build: BUILD, error: 'This is the data service for My PE Profile. Open the app link your PE teacher shared.' }))
     .setMimeType(ContentService.MimeType.JSON);
@@ -1087,7 +1087,8 @@ function classLessons_(cfg, id, klass) {
 var ASSESS_TASKS = ['workout'];
 var ASSESS_KEYS = ['k4', 's2', 'sm'];
 var ASSESS_NOTE_MAX = 300;
-var ASSESS_FLAGS = ['up', 'down'];
+var ASSESS_FLAGS = ['ny', 'ap', 'got', 'lead']; // workout-day band per row: Not yet, Approaching, Got it, Leading
+var ASSESS_FLAG_OLD = { up: 'lead', down: 'ap' }; // first version's 🌟/⚠
 var REF_KEYS = ['strength', 'worked', 'change', 'matters'];
 function assessTask_(task) {
   task = lower_(task) || 'workout';
@@ -1106,8 +1107,8 @@ function classAssess_(cfg, id, klass, task) {
   readTab_('Assess').forEach(function (r) {
     var e = lower_(r.Email); if (!e || lower_(r.Task) !== task) return;
     var sc = {}; ASSESS_KEYS.forEach(function (k) { var n = numOrNull_(r[k]); if (n !== null && n >= 1 && n <= 7) sc[k] = Math.round(n); });
-    var fl = lower_(r.Flag);
-    var fk = lower_(r.FlagK4);
+    var fl = lower_(r.Flag); fl = ASSESS_FLAG_OLD[fl] || fl;
+    var fk = lower_(r.FlagK4); fk = ASSESS_FLAG_OLD[fk] || fk;
     saved[e] = { scores: sc, note: str_(r.Note).slice(0, ASSESS_NOTE_MAX), updated: ymd_(r.Updated), flag: ASSESS_FLAGS.indexOf(fl) === -1 ? '' : fl, flagK4: ASSESS_FLAGS.indexOf(fk) === -1 ? '' : fk, day: ymd_(r.Day) };
   });
   var parts = ['warmup', 'cardio', 'strength', 'focus', 'cooldown'];
@@ -1173,12 +1174,12 @@ function saveAssess_(cfg, id, targetEmail, task, scores, note, flag, flagK4) {
   fields.Note = note;
   if (flag !== undefined) {
     flag = lower_(flag);
-    if (flag && ASSESS_FLAGS.indexOf(flag) === -1) throw new Error('Flag must be up, down or empty');
+    if (flag && ASSESS_FLAGS.indexOf(flag) === -1) throw new Error('Flag must be ny, ap, got, lead or empty');
     fields.Flag = flag;
   }
   if (flagK4 !== undefined) {
     flagK4 = lower_(flagK4);
-    if (flagK4 && ASSESS_FLAGS.indexOf(flagK4) === -1) throw new Error('Flag must be up, down or empty');
+    if (flagK4 && ASSESS_FLAGS.indexOf(flagK4) === -1) throw new Error('Flag must be ny, ap, got, lead or empty');
     fields.FlagK4 = flagK4;
   }
   var had = readTab_('Assess').filter(function (r) { return lower_(r.Email) === email && lower_(r.Task) === task; })[0];
