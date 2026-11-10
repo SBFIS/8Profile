@@ -290,7 +290,7 @@ function doPost(e) {
 }
 // Opening the API URL in a browser is not the app; say so, with no data.
 // Bump with each server change: opening the /exec link in a browser shows which build is live.
-var BUILD = '2026-11-10d · Workout day: band per row (Not yet → Leading) feeds the suggestions';
+var BUILD = '2026-11-10e · Assess saves queued and sent together (saveAssessMany)';
 function doGet() {
   return ContentService.createTextOutput(JSON.stringify({ ok: false, build: BUILD, error: 'This is the data service for My PE Profile. Open the app link your PE teacher shared.' }))
     .setMimeType(ContentService.MimeType.JSON);
@@ -317,6 +317,7 @@ function handle_(body) {
     case 'classPlans':      return classPlans_(cfg, id, body.klass);
     case 'classLessons':    return classLessons_(cfg, id, body.klass);
     case 'classAssess':     return classAssess_(cfg, id, body.klass, body.task);
+    case 'saveAssessMany':  return saveAssessMany_(cfg, id, body.task, body.rows);
     case 'saveAssess':      return saveAssess_(cfg, id, body.email, body.task, body.scores, body.note, body.flag, body.flagK4);
     case 'checkoutRoster':  return checkoutRoster_(cfg, id, body.klass, body.focus);
     case 'saveCheckin':     return saveCheckin_(cfg, id, body.email, body.focus, body.who, body.rating, body.word);
@@ -1187,6 +1188,73 @@ function saveAssess_(cfg, id, targetEmail, task, scores, note, flag, flagK4) {
   if (!day) fields.Day = ymd_(new Date());
   upsert_('Assess', { Email: email, Task: task }, fields);
   return { ok: true, task: task, scores: out, note: note, flag: fields.Flag !== undefined ? fields.Flag : lower_(had && had.Flag), day: day || fields.Day };
+}
+
+// Several students in one call: one roster read, one lock, one write. The dashboard queues taps and
+// sends them together, so a busy lesson (many quick taps) no longer races dozens of separate saves.
+var ASSESS_MANY_MAX = 60;
+function assessFields_(x) {
+  if (!x || typeof x !== 'object') throw new Error('Bad request');
+  var scores = x.scores || {}, fields = {};
+  if (typeof scores !== 'object') throw new Error('Missing scores');
+  ASSESS_KEYS.forEach(function (k) {
+    var v = scores[k];
+    if (v === '' || v === null || v === undefined) { fields[k] = ''; return; }
+    var n = Number(v);
+    if (!isFinite(n) || n % 1 !== 0 || n < 1 || n > 7) throw new Error('Rating must be a whole number 1–7');
+    fields[k] = n;
+  });
+  var note = str_(x.note);
+  if (note.length > ASSESS_NOTE_MAX) throw new Error('Note too long (max ' + ASSESS_NOTE_MAX + ' characters)');
+  fields.Note = note;
+  ['flag', 'flagK4'].forEach(function (k) {
+    if (x[k] === undefined) return;
+    var f = lower_(x[k]);
+    if (f && ASSESS_FLAGS.indexOf(f) === -1) throw new Error('Flag must be ny, ap, got, lead or empty');
+    fields[k === 'flag' ? 'Flag' : 'FlagK4'] = f;
+  });
+  return fields;
+}
+function saveAssessMany_(cfg, id, task, rows) {
+  requireTeacher_(id);
+  task = assessTask_(task);
+  if (!(rows instanceof Array) || !rows.length) throw new Error('Missing rows');
+  if (rows.length > ASSESS_MANY_MAX) throw new Error('Too many rows at once (max ' + ASSESS_MANY_MAX + ')');
+  var roster = {};
+  readTab_('Students').forEach(function (r) { var e = lower_(r.Email); if (e) roster[e] = true; });
+  var good = [], results = rows.map(function (x) {
+    var email = lower_(x && x.email);
+    try {
+      if (!email) throw new Error('Missing student');
+      if (!roster[email]) throw new Error('That student is not on the class list');
+      good.push({ email: email, fields: assessFields_(x) });
+      return { sid: email, ok: true };
+    } catch (e) { return { sid: email, ok: false, error: e.message }; }
+  });
+  if (good.length) {
+    var lock = LockService.getScriptLock();
+    lock.waitLock(25000);
+    try {
+      var sh = ensureTab_('Assess', TABS.Assess), lastCol = sh.getLastColumn(), lastRow = sh.getLastRow();
+      var headers = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(String), col = {};
+      headers.forEach(function (h, i) { col[h] = i; });
+      var data = lastRow > 1 ? sh.getRange(2, 1, lastRow - 1, lastCol).getValues() : [], at = {}, today = ymd_(new Date()), now = new Date();
+      data.forEach(function (r, i) { at[lower_(r[col.Email]) + '|' + lower_(r[col.Task])] = i; });
+      var added = [], touched = {};
+      good.forEach(function (g) {
+        var key = g.email + '|' + task, i = at[key], row;
+        if (i === undefined) { row = headers.map(function () { return ''; }); row[col.Email] = g.email; row[col.Task] = task; data.push(row); i = data.length - 1; at[key] = i; added.push(i); }
+        row = data[i];
+        Object.keys(g.fields).forEach(function (k) { if (col[k] !== undefined) row[col[k]] = g.fields[k]; });
+        row[col.Updated] = now;
+        if (!ymd_(row[col.Day])) row[col.Day] = today;
+        touched[i] = true;
+      });
+      // Write only the rows that changed (existing ones in place, new ones appended).
+      Object.keys(touched).map(Number).sort(function (a, b) { return a - b; }).forEach(function (i) { sh.getRange(i + 2, 1, 1, lastCol).setValues([data[i]]); });
+    } finally { lock.releaseLock(); }
+  }
+  return { ok: true, task: task, results: results, saved: good.length };
 }
 
 // ---------- Sheet menu (teacher, inside the Sheet) ----------

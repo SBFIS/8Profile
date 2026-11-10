@@ -1143,6 +1143,9 @@ body.demo{padding-top:52px}
 .wg-c{font-size:12.5px;line-height:1.35;border-radius:8px;padding:7px 8px}.wg-c i{display:none;font-style:normal;font-weight:800;margin-bottom:2px}
 .wg-n{font-size:12px;color:var(--muted);margin:8px 0 0}
 @media(max-width:700px){.wg{grid-template-columns:1fr}.wg-h{display:none}.wg-l{margin-top:6px;font-size:14px}.wg-c i{display:block}}
+.wa-sync{position:sticky;top:0;z-index:5;margin:0 0 10px;padding:9px 14px;border-radius:12px;font-weight:700;font-size:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.wa-sync.ok{background:#e9f7ee;color:#1f7a45}.wa-sync.busy{background:#fff6d6;color:#6b4e00}.wa-sync.err{background:#fde8e6;color:#9b2c22}
+.wa-tc .wa-st.err,.wa-row .wa-st.err{max-width:60%;text-align:right}
 .wa-sm{flex-basis:100%;font-size:13px;color:var(--ink-soft);margin:2px 0 0 0}
 </style>
 
@@ -3923,7 +3926,9 @@ async function openWa() {
   waData = { loading: true, klass: k }; show('wassess');
   try { waData = await call('classAssess', { klass: k, task: 'workout' }); }
   catch (e) { waData = { error: /Unknown action/i.test(e.message) ? OLD_SERVER : e.message, klass: k }; }
+  waDirty = {}; const back = waRestore();
   if (view === 'wassess') show('wassess');
+  if (back) { toast(back + ' unsaved card' + (back === 1 ? '' : 's') + ' from before: saving now.'); waFlush(); }
 }
 const ymdLocal = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 const waDone = st => WA_CRIT.every(c => st.scores && st.scores[c[0]] != null);
@@ -3981,7 +3986,7 @@ function waGuide() {
 }
 function waTodayCard(st, i) {
   const any = WA_FLAGS.some(r => st[r[1]]);
-  const stt = st._s === 'saving' ? 'Saving…' : st._s === 'err' ? 'Not saved: tap again' : st._s === 'ok' ? 'Saved ✓' : '';
+  const stt = st._s === 'saving' ? 'Saving…' : st._s === 'err' ? 'Not saved: ' + esc(st._err || 'tap again') : st._s === 'ok' ? 'Saved ✓' : '';
   const rows = WA_FLAGS.map(r => { const f = st[r[1]] || '';
     return '<div class="wa-fr"><div class="wa-frl">' + r[2] + ' <b>' + r[3] + '</b><small>' + r[4] + '</small></div><div class="wa-ob">' +
       WA_OBS.map(o => '<button type="button" class="wa-o wa-' + o[4] + (f === o[0] ? ' on' : '') + '" data-waflag="' + i + '|' + r[0] + '|' + o[0] + '" aria-pressed="' + (f === o[0]) + '" aria-label="' + r[3] + ': ' + o[2] + '"><span>' + o[1] + '</span>' + o[2] + '</button>').join('') + '</div></div>'; }).join('');
@@ -3995,7 +4000,7 @@ function waRow(st, i, solo) {
     const groups = WA_BANDS.map(b => '<span class="wa-g wa-' + b[2] + '"><i>' + b[1] + '</i>' + b[0].map(n => '<button type="button" class="wa-n' + (v === n ? ' on' : '') + (sg && sg.indexOf(n) !== -1 && v == null ? ' sg' : '') + '" data-wa="' + i + '|' + c[0] + '|' + n + '" aria-pressed="' + (v === n) + '" aria-label="' + c[2] + ' ' + n + '">' + n + '</button>').join('') + '</span>').join('');
     return '<div class="wa-c"><div class="wa-cl">' + c[1] + ' <b>' + c[2] + '</b> <small>' + c[3] + '</small></div><div class="wa-bs">' + groups + '</div>' + (c[0] === 'sm' ? waSmLine(st) : c[0] === 'k4' ? '<div class="wa-sm">📘 Workout quality on the day: ' + (st.flagK4 ? waObsWord(st.flagK4) + ' → <b>suggested ' + waObs(st.flagK4)[5].join(' or ') + '</b>. Check it against the final plan.' : 'not rated') + '</div>' : '') + '</div>';
   }).join('');
-  const stt = st._s === 'saving' ? '<span class="wa-st">Saving…</span>' : st._s === 'err' ? '<span class="wa-st err">Not saved: tap again</span>' : st._s === 'ok' ? '<span class="wa-st ok">Saved ✓</span>' : waDone(st) ? '<span class="wa-st ok">✓ done</span>' : '';
+  const stt = st._s === 'saving' ? '<span class="wa-st">Saving…</span>' : st._s === 'err' ? '<span class="wa-st err">Not saved: ' + esc(st._err || 'tap again') + '</span>' : st._s === 'ok' ? '<span class="wa-st ok">Saved ✓</span>' : waDone(st) ? '<span class="wa-st ok">✓ done</span>' : '';
   return '<div class="wa-row' + (waDone(st) ? ' wa-done' : '') + '" data-wi="' + i + '"><div class="wa-hd">' +
     (solo ? '<b class="wa-nm">Rate ' + esc(st.name) + '</b>' : '<button type="button" class="lnk wa-nm" data-waev="' + i + '">' + esc(st.name) + '</button>') + '<small>' + esc(st.klass) + '</small>' + stt + '</div>' +
     (solo ? '' : '<div class="as-chips">' + waChips(st.ev) + '<span class="as-chip' + (waChanged(st) ? ' ok' : '') + '">' + (waChanged(st) ? 'plan changed since workout day ✓' : waDay(st) ? 'plan not changed since ' + fmtDayMonth(waDay(st)) : 'no workout day recorded') + '</span>' + '</div>') + crit +
@@ -4013,10 +4018,63 @@ function waRedraw(i, light) {
   });
   const t = $('#watiles'); if (t) t.innerHTML = waTiles();
 }
+// Saving: every tap marks the student "dirty"; one queue sends all dirty students together
+// (saveAssessMany), one request at a time, and keeps retrying until the server says saved.
+// Unsent taps are also kept on this device, so a refresh or a dropped connection loses nothing.
+const WA_KEEP = 'wa-pending-v1';
+let waDirty = {}, waBusy = false, waTimer = null, waWait = 0, waOldServer = false;
+const waPayload = st => ({ email: st.sid, scores: Object.assign({}, st.scores), note: st.note || '', flag: st.flag || '', flagK4: st.flagK4 || '' });
+function waKeep() {
+  try { const o = {}; Object.keys(waDirty).forEach(sid => { const st = (waData.students || []).find(x => x.sid === sid); if (st) o[sid] = waPayload(st); });
+    if (Object.keys(o).length) localStorage.setItem(WA_KEEP, JSON.stringify(o)); else localStorage.removeItem(WA_KEEP); } catch (e) {}
+}
+function waRestore() {
+  let o = null; try { o = JSON.parse(localStorage.getItem(WA_KEEP) || 'null'); } catch (e) {}
+  if (!o || !waData || !waData.students) return 0;
+  let n = 0;
+  waData.students.forEach(st => { const p = o[st.sid]; if (!p) return; st.scores = p.scores || {}; st.note = p.note || ''; st.flag = p.flag || ''; st.flagK4 = p.flagK4 || ''; st._s = 'saving'; waDirty[st.sid] = true; n++; });
+  return n;
+}
+function waSync() {
+  const el = $('#wasync'); if (!el || !waData || !waData.students) return;
+  const S = waData.students, q = Object.keys(waDirty).length, bad = S.filter(st => st._s === 'err').length;
+  el.className = 'wa-sync' + (bad ? ' err' : q ? ' busy' : ' ok');
+  el.innerHTML = bad ? '⚠ ' + bad + ' not saved (see the red cards). Fix them and they save on the next tap.' :
+    q ? '⏳ Saving ' + q + '…' + (waWait ? ' The connection is slow, retrying by itself. <button type="button" class="minib" id="waretry">Retry now</button>' : '') :
+    '✓ Everything is saved';
+  const r = $('#waretry'); if (r) r.onclick = () => { clearTimeout(waTimer); waWait = 0; waFlush(); };
+}
 function waSave(i, light) {
-  const st = waData.students[i]; st._s = 'saving'; waRedraw(i, light);
-  const payload = { email: st.sid, task: 'workout', scores: Object.assign({}, st.scores), note: st.note || '', flag: st.flag || '', flagK4: st.flagK4 || '' };
-  st._p = (st._p || Promise.resolve()).then(() => call('saveAssess', payload)).then(() => { st._s = 'ok'; waRedraw(i, true); }, e => { st._s = 'err'; waRedraw(i, true); toast('Couldn’t save ' + st.name + ': ' + e.message, true); });
+  const st = waData.students[i]; st._s = 'saving'; waDirty[st.sid] = true; waKeep(); waRedraw(i, light); waSync();
+  clearTimeout(waTimer); waTimer = setTimeout(waFlush, waWait ? waWait : 400);
+}
+async function waFlush() {
+  if (waBusy || !waData || !waData.students) return;
+  const ids = Object.keys(waDirty).slice(0, 40); if (!ids.length) { waSync(); return; }
+  const S = waData.students, idx = sid => S.findIndex(x => x.sid === sid);
+  const rows = ids.map(sid => waPayload(S[idx(sid)])), sent = rows.map(r => JSON.stringify(r));
+  ids.forEach(sid => delete waDirty[sid]);
+  waBusy = true;
+  const done = (sid, ok, msg) => { const i = idx(sid), st = S[i]; if (i === -1) return;
+    if (waDirty[sid]) return; // tapped again while sending: the next round carries it
+    st._s = ok ? 'ok' : 'err'; st._err = msg || ''; waRedraw(i, true); };
+  try {
+    if (waOldServer) { for (const r of rows) { await call('saveAssess', Object.assign({ task: 'workout' }, r)); done(r.email, true); } }
+    else {
+      const res = await call('saveAssessMany', { task: 'workout', rows });
+      (res.results || []).forEach(x => done(x.sid, x.ok, x.error));
+    }
+    waWait = 0;
+  } catch (e) {
+    if (/Unknown action/i.test(e.message) && !waOldServer) { waOldServer = true; }
+    else if (PERMANENT.test(e.message)) { toast('Couldn’t save: ' + e.message, true); }
+    // Not saved: put them back in the queue (unless tapped again meanwhile) and retry with a growing wait.
+    rows.forEach((r, j) => { if (!waDirty[r.email]) waDirty[r.email] = true; });
+    waWait = Math.min(15000, (waWait || 1000) * 2);
+  } finally {
+    waBusy = false; waKeep(); waSync();
+    if (Object.keys(waDirty).length) { clearTimeout(waTimer); waTimer = setTimeout(waFlush, waWait || 300); }
+  }
 }
 function waClick(e) {
   const b = e.target.closest('[data-wa]');
@@ -4045,7 +4103,7 @@ function waRubric() {
 }
 function wassessView() {
   const D = waData, today = waMode === 'today';
-  const tabs = '<div class="wa-tabs" role="tablist"><button type="button" role="tab" class="wa-tab' + (today ? ' on' : '') + '" aria-selected="' + today + '" data-wamode="today">1 · Workout day</button><button type="button" role="tab" class="wa-tab' + (!today ? ' on' : '') + '" aria-selected="' + !today + '" data-wamode="grade">2 · Mark (after the reflection)</button></div>';
+  const tabs = '<div class="wa-sync ok" id="wasync" role="status" aria-live="polite"></div><div class="wa-tabs" role="tablist"><button type="button" role="tab" class="wa-tab' + (today ? ' on' : '') + '" aria-selected="' + today + '" data-wamode="today">1 · Workout day</button><button type="button" role="tab" class="wa-tab' + (!today ? ' on' : '') + '" aria-selected="' + !today + '" data-wamode="grade">2 · Mark (after the reflection)</button></div>';
   const head = '<button type="button" class="back light" id="toWaBack">← Back to class</button><div class="phero tight"><div class="k">TEACHER · ASSESSMENT · ' + (D && D.klass && D.klass !== 'all' ? esc(D.klass) : 'ALL CLASSES') + '</div><h1>🏆 Personal Workout</h1>' +
     '<p>' + (today ? 'Watch the workout and pick a band for each row: <b>🧭 Training</b> (how they work) and <b>📘 Workout quality</b> (what they do). Tap again to clear. The bands become the suggested numbers in the Mark tab. Assessing &amp; improving is marked from the reflection, after Friday.' : 'Rate each criterion 1–7; it saves straight away (tap again to clear). Training on my own shows your check-outs, their home weeks and the workout-day flag, with a suggested number (dashed). Tap a name for the full evidence.') + '</p></div>' + tabs;
   if (!D || D.loading) return '<div class="wrap">' + head + '<div class="loading"><div class="spinner"></div>Loading the class…</div></div>';
@@ -4760,7 +4818,7 @@ function show(v, arg) {
     onWrap(e => { const a = e.target.closest('[data-hlas]'); if (a) { assessFrom = 'hlclass'; assessData = null; show('assess', a.dataset.hlas); } });
   } else if (v === 'wassess') {
     app.innerHTML = wassessView();
-    wire('toWaBack', () => { waData = null; show('class'); });
+    wire('toWaBack', () => { if (Object.keys(waDirty).length) { toast('Still saving: wait for ✓ Everything is saved.', true); return; } waData = null; show('class'); }); waSync();
     wire('wareload', openWa); wire('wacopy', waCopy); wire('wacsv', waCsv);
     const wf = $('#wafilter'); if (wf) wf.addEventListener('change', () => { waFilter = wf.value; show('wassess'); });
     onWrap(e => { const m = e.target.closest('[data-wamode]'); if (m) { waMode = m.dataset.wamode; show('wassess'); return; } waClick(e); }); waNoteWire(app.firstElementChild);
