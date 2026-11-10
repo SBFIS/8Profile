@@ -107,7 +107,8 @@ var TABS = {
 
   Plan:          ['Email', 'Plan', 'Updated'],                                   // the student's personal workout plan (JSON)
   Locks:         ['Email', 'Checkpoint', 'Locked', 'Updated'],                   // teacher finalize-lock per student per checkpoint
-  Reflections:   ['Email', 'Key', 'Text', 'Updated']                             // student reflections + unit self-assessments, one row per key
+  Reflections:   ['Email', 'Key', 'Text', 'Updated'],                            // student reflections + unit self-assessments, one row per key
+  Assess:        ['Email', 'Task', 'k4', 's2', 'sm', 'Note', 'Updated']          // teacher's summative ratings (1–7) per task, entered on the dashboard; teacher-only, never sent to a student
 };
 // Reflection slots a student may write. Unit keys hold a small JSON self-assessment.
 var REFLECT_KEYS = ['compare-intro', 'unit-badminton'];
@@ -289,7 +290,7 @@ function doPost(e) {
 }
 // Opening the API URL in a browser is not the app; say so, with no data.
 // Bump with each server change: opening the /exec link in a browser shows which build is live.
-var BUILD = '2026-11-04a · Health lesson class overview';
+var BUILD = '2026-11-10a · Assess the Personal Workout on the dashboard';
 function doGet() {
   return ContentService.createTextOutput(JSON.stringify({ ok: false, build: BUILD, error: 'This is the data service for My PE Profile. Open the app link your PE teacher shared.' }))
     .setMimeType(ContentService.MimeType.JSON);
@@ -315,6 +316,8 @@ function handle_(body) {
     case 'classStudent':    return classStudent_(cfg, id, body.email);
     case 'classPlans':      return classPlans_(cfg, id, body.klass);
     case 'classLessons':    return classLessons_(cfg, id, body.klass);
+    case 'classAssess':     return classAssess_(cfg, id, body.klass, body.task);
+    case 'saveAssess':      return saveAssess_(cfg, id, body.email, body.task, body.scores, body.note);
     case 'checkoutRoster':  return checkoutRoster_(cfg, id, body.klass, body.focus);
     case 'saveCheckin':     return saveCheckin_(cfg, id, body.email, body.focus, body.who, body.rating, body.word);
     default: throw new Error('Unknown action');
@@ -1077,6 +1080,84 @@ function classLessons_(cfg, id, klass) {
   return { role: 'classLessons', klass: klass, students: students };
 }
 
+// ---------- Summative assessment on the dashboard (teacher only) ----------
+// The teacher rates each criterion 1–7 while the class performs, next to a short evidence
+// summary built from the plan. Ratings live in the Assess tab; no student function reads it,
+// and Canvas stays the official record (the screen copies the ratings out for it).
+var ASSESS_TASKS = ['workout'];
+var ASSESS_KEYS = ['k4', 's2', 'sm'];
+var ASSESS_NOTE_MAX = 300;
+var REF_KEYS = ['strength', 'worked', 'change', 'matters'];
+function assessTask_(task) {
+  task = lower_(task) || 'workout';
+  if (ASSESS_TASKS.indexOf(task) === -1) throw new Error('Unknown task');
+  return task;
+}
+function classAssess_(cfg, id, klass, task) {
+  requireTeacher_(id);
+  task = assessTask_(task);
+  klass = str_(klass);
+  if (!klass) throw new Error('Pick a class first');
+  var roster = readTab_('Students').filter(function (r) { return lower_(r.Email) && (klass === 'all' || str_(r.Class) === klass); });
+  if (!roster.length) throw new Error('No students in that class');
+  var plans = {}, saved = {};
+  readTab_('Plan').forEach(function (r) { var e = lower_(r.Email); if (!e) return; try { plans[e] = JSON.parse(str_(r.Plan) || 'null'); } catch (x) {} });
+  readTab_('Assess').forEach(function (r) {
+    var e = lower_(r.Email); if (!e || lower_(r.Task) !== task) return;
+    var sc = {}; ASSESS_KEYS.forEach(function (k) { var n = numOrNull_(r[k]); if (n !== null && n >= 1 && n <= 7) sc[k] = Math.round(n); });
+    saved[e] = { scores: sc, note: str_(r.Note).slice(0, ASSESS_NOTE_MAX), updated: Object.prototype.toString.call(r.Updated) === '[object Date]' ? ymd_(r.Updated) : str_(r.Updated).slice(0, 10) };
+  });
+  var parts = ['warmup', 'cardio', 'strength', 'focus', 'cooldown'];
+  var students = roster.map(function (r) {
+    var e = lower_(r.Email), p = plans[e], ev = null;
+    if (p && typeof p === 'object') {
+      var weeks = {}, log = (p.log instanceof Array) ? p.log : [];
+      ev = { parts: 0, whys: 0, hr: !!str_(p.hr), fWhy: !!str_(p.fWhy), sChoice: str_(p.sChoice), refs: 0, pe: 0, home: 0, chg: 0, weeks: 0 };
+      parts.forEach(function (k) {
+        if ((p[k] instanceof Array) && p[k].length) ev.parts++;
+        if (str_((p.why || {})[k])) ev.whys++;
+      });
+      REF_KEYS.forEach(function (k) { if (str_((p.ref || {})[k])) ev.refs++; });
+      log.forEach(function (x) {
+        if (!x || !str_(x.date)) return;
+        if (str_(x.where) === 'class') ev.pe++; else { ev.home++; weeks[weekOf_(str_(x.date))] = true; }
+        if (str_(x.chg)) ev.chg++;
+      });
+      ev.weeks = Object.keys(weeks).length;
+    }
+    var a = saved[e] || { scores: {}, note: '', updated: '' };
+    return { sid: e, name: str_(r.Name), klass: str_(r.Class), ev: ev, scores: a.scores, note: a.note, updated: a.updated };
+  }).sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
+  return { role: 'classAssess', klass: klass, task: task, students: students };
+}
+// Monday of the week a yyyy-mm-dd date falls in (for "weeks with a home session").
+function weekOf_(ymd) {
+  var d = new Date(ymd + 'T12:00:00Z'); if (isNaN(d)) return ymd;
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+function saveAssess_(cfg, id, targetEmail, task, scores, note) {
+  requireTeacher_(id);
+  task = assessTask_(task);
+  var email = lower_(targetEmail);
+  if (!email) throw new Error('Missing student');
+  if (!readTab_('Students').some(function (r) { return lower_(r.Email) === email; })) throw new Error('That student is not on the class list');
+  if (!scores || typeof scores !== 'object') throw new Error('Missing scores');
+  var fields = { Updated: new Date() }, out = {};
+  ASSESS_KEYS.forEach(function (k) {
+    var v = scores[k];
+    if (v === '' || v === null || v === undefined) { fields[k] = ''; return; }
+    var n = Number(v);
+    if (!isFinite(n) || n % 1 !== 0 || n < 1 || n > 7) throw new Error('Rating must be a whole number 1–7');
+    fields[k] = n; out[k] = n;
+  });
+  note = str_(note);
+  if (note.length > ASSESS_NOTE_MAX) throw new Error('Note too long (max ' + ASSESS_NOTE_MAX + ' characters)');
+  fields.Note = note;
+  upsert_('Assess', { Email: email, Task: task }, fields);
+  return { ok: true, task: task, scores: out, note: note };
+}
+
 // ---------- Sheet menu (teacher, inside the Sheet) ----------
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('PE Profile')
@@ -1271,7 +1352,7 @@ function clearProfileData() {
   var ui = SpreadsheetApp.getUi();
   var ans = ui.alert('Clear all student data?', 'This deletes every student\'s saved style, goals, self-predictions, Combine, skills, participation (incl. the AP log), bands and workout plan. The Students roster is not touched. Continue?', ui.ButtonSet.YES_NO);
   if (ans !== ui.Button.YES) return;
-  ['Profile', 'Predictions', 'Combine', 'Skills', 'Participation', 'APLog', 'Outcomes', 'Bands', 'Goals', 'Plan', 'Locks', 'Reflections'].forEach(function (n) {
+  ['Profile', 'Predictions', 'Combine', 'Skills', 'Participation', 'APLog', 'Outcomes', 'Bands', 'Goals', 'Plan', 'Locks', 'Reflections', 'Assess'].forEach(function (n) {
     var s = ensureTab_(n, TABS[n]);
     if (s.getLastRow() > 1) s.getRange(2, 1, s.getLastRow() - 1, s.getLastColumn()).clearContent();
   });

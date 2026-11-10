@@ -1084,4 +1084,24 @@ body.demo{padding-top:52px}
 .hc-ok{color:#1f7a45;font-weight:700}.hc-mid{color:#9a5b00;font-weight:700}.hc-no{color:#b0322a;font-weight:600}
 @media(max-width:700px){.hc-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .aps-upd{font-size:12.5px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;margin-right:6px}.spinner.sm{width:14px;height:14px;border-width:2px;margin:0}
+
+/* Teacher: assess the Personal Workout (one row per student, tap 1–7) */
+.wa-tiles{grid-template-columns:repeat(5,minmax(0,1fr))}
+.wa-rub{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:10px 14px;margin:0 0 12px}.wa-rub summary{cursor:pointer;font-weight:700;color:var(--maroon)}
+.wa-rc{margin-top:10px;font-size:13.5px;line-height:1.45}.wa-rc i{font-style:normal;font-weight:700;color:var(--ink-soft)}
+.wa-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px}.wa-bar label{font-size:14px;margin-right:auto;display:flex;gap:6px;align-items:center}
+.wa-row{background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:12px 14px;margin:0 0 10px}.wa-row.wa-done{border-color:#9fd6b4;background:#fbfffc}
+.wa-hd{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}.wa-nm{font-size:17px;font-weight:700;text-decoration:none}.wa-hd small{color:var(--muted)}
+.wa-st{margin-left:auto;font-size:13px;font-weight:700;color:var(--muted)}.wa-st.ok{color:#1f7a45}.wa-st.err{color:#b0322a}
+.wa-c{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:6px 0;border-top:1px dashed var(--line)}
+.wa-cl{flex:0 0 210px;font-size:14px}.wa-cl small{color:var(--muted)}
+.wa-bs{display:flex;flex-wrap:wrap;gap:6px}
+.wa-g{display:flex;align-items:center;gap:4px;border-radius:12px;padding:3px 5px 3px 8px}.wa-g i{font-style:normal;font-size:11px;font-weight:700;margin-right:2px}
+.wa-lo{background:#e8f5e9;color:#2e7d32}.wa-ap{background:#e3f2fd;color:#1565c0}.wa-got{background:#fff8e1;color:#8a5a00}.wa-lead{background:#f3e5f5;color:#6a1b9a}
+.wa-n{width:44px;height:44px;border-radius:10px;border:2px solid currentColor;background:#fff;color:inherit;font-family:var(--disp);font-weight:800;font-size:18px;cursor:pointer}
+.wa-n.on{background:currentColor}.wa-n.on{color:inherit}.wa-lo .wa-n.on,.wa-ap .wa-n.on,.wa-got .wa-n.on,.wa-lead .wa-n.on{color:#fff;background:var(--maroon);border-color:var(--maroon)}
+.wa-n:focus-visible{outline:3px solid var(--gold);outline-offset:1px}
+.wa-note{width:100%;margin-top:8px;border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;font:inherit;font-size:14px}
+.wa-solo{border:2px solid var(--maroon)}.wa-solo .wa-row{border:none;padding:0;margin:0;background:none}
+@media(max-width:700px){.wa-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.wa-cl{flex-basis:100%}}
 </style>

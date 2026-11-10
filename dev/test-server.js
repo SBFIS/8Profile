@@ -291,6 +291,20 @@ check('a student cannot read the class lesson overview', (() => { const r = as(S
 check('classLessons needs a real class', !as(T, 'classLessons', { klass: '' }).ok && !as(T, 'classLessons', { klass: 'nope' }).ok);
 check('classPlans needs a real class', !as(T, 'classPlans', { klass: '' }).ok && !as(T, 'classPlans', { klass: 'nope' }).ok);
 
+console.log('summative assessment on the dashboard (teacher only)');
+check('a teacher saves a student\'s workout ratings', (() => { const r = as(T, 'saveAssess', { email: S2, task: 'workout', scores: { k4: 5, s2: 6, sm: '' }, note: 'Good how-lines' }); return r.ok && r.data.scores.k4 === 5 && r.data.scores.s2 === 6 && !('sm' in r.data.scores); })());
+check('saving again updates the same row', (() => { as(T, 'saveAssess', { email: S2, task: 'workout', scores: { k4: 6, s2: 6, sm: 7 }, note: 'Good how-lines' }); return readTab_('Assess').filter(r => lower_(r.Email) === S2).length === 1; })());
+check('classAssess returns ratings, note and an evidence summary', (() => { const r = as(T, 'classAssess', { klass: '8A', task: 'workout' }); const two = r.ok && r.data.students.find(s => s.name === 'Two, Sample'); return r.ok && two.scores.k4 === 6 && two.scores.sm === 7 && two.note === 'Good how-lines' && two.ev && typeof two.ev.parts === 'number' && two.ev.home >= 1 && two.updated.length === 10; })());
+check('classAssess carries no session log, reflection text or goals', (() => { const j = JSON.stringify(as(T, 'classAssess', { klass: '8A' }).data); return !/"log"|"ref"|more rest|"goals"/.test(j); })());
+check('classAssess can show all classes', (() => { const r = as(T, 'classAssess', { klass: 'all' }); return r.ok && r.data.students.some(s => s.klass === '8A') && r.data.students.some(s => s.klass !== '8A'); })());
+check('a student cannot read the assessments', (() => { const r = as(S1, 'classAssess', { klass: '8A' }); return !r.ok && /teacher/i.test(r.error); })());
+check('a student cannot save an assessment (not even their own)', (() => { const r = as(S1, 'saveAssess', { email: S1, task: 'workout', scores: { k4: 7 } }); return !r.ok && /teacher/i.test(r.error) && !readTab_('Assess').some(x => lower_(x.Email) === S1); })());
+check('the student\'s own profile never includes the ratings', !/Good how-lines|"Assess"/.test(JSON.stringify(as(S2, 'bootstrap').data)));
+check('ratings must be whole numbers 1–7', !as(T, 'saveAssess', { email: S2, scores: { k4: 8 } }).ok && !as(T, 'saveAssess', { email: S2, scores: { k4: 4.5 } }).ok && !as(T, 'saveAssess', { email: S2, scores: { k4: 0 } }).ok);
+check('saveAssess refuses someone not on the class list, an unknown task, a long note', !as(T, 'saveAssess', { email: 'nobody@example.edu', scores: { k4: 5 } }).ok && !as(T, 'saveAssess', { email: S2, task: 'essay', scores: { k4: 5 } }).ok && !as(T, 'saveAssess', { email: S2, scores: { k4: 5 }, note: 'x'.repeat(301) }).ok);
+check('assessment errors contain no email', ['nobody@example.edu'].every(e => !String(as(T, 'saveAssess', { email: e, scores: { k4: 5 } }).error).includes('@')));
+check('classAssess needs a real class', !as(T, 'classAssess', { klass: '' }).ok && !as(T, 'classAssess', { klass: 'nope' }).ok);
+
 console.log('AP check-out (teacher iPad → APLog)');
 const TODAY = ymd_(new Date());
 const ago = n => daysAgoYmd_(n);
@@ -388,7 +402,7 @@ check('check-out error messages contain no email', errs.length > 10 && errs.ever
 console.log('retention');
 FakeSheets.uiAnswer = 'YES';
 clearProfileData();
-check('clearProfileData empties all student data, keeps Students', readTab_('Profile').length === 0 && readTab_('Predictions').length === 0 && readTab_('Combine').length === 0 && readTab_('Skills').length === 0 && readTab_('Goals').length === 0 && readTab_('Plan').length === 0 && readTab_('Reflections').length === 0 && readTab_('APLog').length === 0 && readTab_('Outcomes').length === 0 && readTab_('Students').length === rosterCount);
+check('clearProfileData empties all student data, keeps Students', readTab_('Profile').length === 0 && readTab_('Predictions').length === 0 && readTab_('Combine').length === 0 && readTab_('Skills').length === 0 && readTab_('Goals').length === 0 && readTab_('Plan').length === 0 && readTab_('Reflections').length === 0 && readTab_('APLog').length === 0 && readTab_('Outcomes').length === 0 && readTab_('Assess').length === 0 && readTab_('Students').length === rosterCount);
 check('retention clears check-outs (they live in APLog)', JSON.stringify(as(S1, 'bootstrap').data.student.combine) === 'null' || as(S1, 'bootstrap').data.student.combine.apLog.lesson.length === 0);
 
 console.log(failed ? `\n${failed} check(s) FAILED` : '\nall checks passed');
