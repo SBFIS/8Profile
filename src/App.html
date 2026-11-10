@@ -2525,6 +2525,23 @@ function waSmLine(st) {
   return '<div class="wa-sm">🧭 ' + bits.join(' · ') + (sg ? ' → <b>suggested ' + sg[0] + '</b>' : '') + '</div>';
 }
 const WA_FLAGS = [['sm', 'flag', '🧭', 'Training', 'effort · overload · focus · no reminders'], ['k4', 'flagK4', '📘', 'Workout quality', 'matches the plan · trains the right components']];
+// What each band looks like on workout day (teacher-facing; draft wording built from the rubric bank's K4 and Self-Management lines).
+const WA_GUIDE = {
+  sm: ['Stops often or needs repeated reminders. Little effort; off task.',
+       'Works, but needs some reminders. Effort drops; easy pace, rarely in their heart-rate zone.',
+       'Works the whole workout with few reminders. Reaches their heart-rate zone and pushes in the hard parts.',
+       'Full effort all workout, no reminders. Adds challenge when it gets easy (overload). Came ready; lifts others.'],
+  k4: ['No real plan, or not following it. Parts missing; exercises don’t fit their goals.',
+       'Follows some of the plan. Parts or times missing, or the dose doesn’t fit (fast strength reps, no rest).',
+       'Follows the plan: all five parts with times. The dose fits each part, and they can say what it trains.',
+       'Every part fits its component: strength = few hard reps, long rest; endurance = many reps or 30–45\u00a0s; power = short and fast; cardio in zone. Good form; explains why and adjusts.']
+};
+function waGuide() {
+  const head = '<div class="wg-h"></div>' + WA_OBS.map(o => '<div class="wg-h wa-' + o[4] + '">' + o[1] + ' ' + o[2] + '<small>' + o[5].join('–') + '</small></div>').join('');
+  const rows = WA_FLAGS.map(r => '<div class="wg-l">' + r[2] + ' <b>' + r[3] + '</b><small>' + r[4] + '</small></div>' + WA_GUIDE[r[0]].map((t, j) => '<div class="wg-c wa-' + WA_OBS[j][4] + '"><i>' + WA_OBS[j][1] + ' ' + WA_OBS[j][2] + '</i>' + esc(t) + '</div>').join('')).join('');
+  return '<details class="wa-guide" open><summary>📏 What each level looks like today</summary><div class="wg">' + head + rows + '</div>' +
+    '<p class="wg-n">Training here is what you see in the lesson. Home training comes from their log and is added in the Mark tab.</p></details>';
+}
 function waTodayCard(st, i) {
   const any = WA_FLAGS.some(r => st[r[1]]);
   const stt = st._s === 'saving' ? 'Saving…' : st._s === 'err' ? 'Not saved: tap again' : st._s === 'ok' ? 'Saved ✓' : '';
@@ -2597,7 +2614,7 @@ function wassessView() {
   if (!D || D.loading) return '<div class="wrap">' + head + '<div class="loading"><div class="spinner"></div>Loading the class…</div></div>';
   if (D.error) return '<div class="wrap">' + head + '<p class="lockmsg">' + esc(D.error) + '</p></div>';
   const S = D.students || [];
-  if (today) return '<div class="wrap hcw">' + head + '<div class="hc-tiles wa-tiles3" id="watiles">' + waTiles() + '</div><div class="wa-grid">' + S.map(waTodayCard).join('') + '</div>' +
+  if (today) return '<div class="wrap hcw">' + head + '<div class="hc-tiles wa-tiles3" id="watiles">' + waTiles() + '</div>' + waGuide() + '<div class="wa-grid">' + S.map(waTodayCard).join('') + '</div>' +
     '<p class="small">🧭 Training is averaged with your AP check-outs, then ±1 for home weeks → suggested Training on my own. 📘 Workout quality → suggested Planning (check it against the final plan). Students never see these.</p></div>';
   const keep = st => waFilter === 'todo' ? !waDone(st) : waFilter === 'ready' ? waReady(st) : true;
   const rows = S.map((st, i) => keep(st) ? waRow(st, i) : '').join('');
