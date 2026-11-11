@@ -92,7 +92,7 @@ function apHeaders_() {
 
 var TABS = {
   Config:        ['Key', 'Value', 'What it does'],
-  Students:      ['Email', 'Name', 'Class'],
+  Students:      ['Email', 'Name', 'Class', 'Known as'],                       // Known as (optional, teacher-typed) replaces Name on every screen; Canvas matching still uses Name
   Teachers:      ['Email', 'Name'],
   Profile:       ['Email', 'Style', 'Goal', 'Updated'],
   Predictions:   predictionHeaders_(),
@@ -244,7 +244,7 @@ function identity_(cfg, token) {
   var owner = lower_(Session.getEffectiveUser().getEmail());
   var teacher = email === owner || readTab_('Teachers').some(function (t) { return lower_(t.Email) === email; });
   var me = readTab_('Students').filter(function (r) { return lower_(r.Email) === email; })[0];
-  if (me) return { role: 'student', email: email, name: str_(me.Name), klass: str_(me.Class), picture: v.picture, teacher: teacher };
+  if (me) return { role: 'student', email: email, name: rosterName_(me), klass: str_(me.Class), picture: v.picture, teacher: teacher };
   if (teacher) return { role: 'teacher', email: email };
   return { role: 'unknown', email: email };
 }
@@ -290,7 +290,7 @@ function doPost(e) {
 }
 // Opening the API URL in a browser is not the app; say so, with no data.
 // Bump with each server change: opening the /exec link in a browser shows which build is live.
-var BUILD = '2026-11-10e · Assess saves queued and sent together (saveAssessMany)';
+var BUILD = '2026-11-11a · Known as column + no two check-out buttons read the same';
 function doGet() {
   return ContentService.createTextOutput(JSON.stringify({ ok: false, build: BUILD, error: 'This is the data service for My PE Profile. Open the app link your PE teacher shared.' }))
     .setMimeType(ContentService.MimeType.JSON);
@@ -904,7 +904,7 @@ function classOverview_(cfg, id) {
   var out = [];
   readTab_('Students').forEach(function (r) {
     var email = lower_(r.Email); if (!email) return;
-    out.push({ id: email, name: str_(r.Name), klass: str_(r.Class),
+    out.push({ id: email, name: rosterName_(r), klass: str_(r.Class),
       fitness: combine[email] || {}, skills: skills[email] || {},
       ap: apLatest_(apLog[email] || { self: [], teacher: [] }, null, ap[email]),
       bands: bands[email] || {}, locked: locks[email] || {}, checkinSummary: checkins[email] || {} });
@@ -916,7 +916,7 @@ function classStudent_(cfg, id, targetEmail) {
   var email = lower_(targetEmail);
   var r = readTab_('Students').filter(function (x) { return lower_(x.Email) === email; })[0];
   if (!r) throw new Error('That student is not on the class list');
-  return { role: 'classStudent', student: { id: email, name: str_(r.Name), klass: str_(r.Class),
+  return { role: 'classStudent', student: { id: email, name: rosterName_(r), klass: str_(r.Class),
     fitness: fitnessFor_(email), skills: skillsFor_(email), ap: apFor_(email), apLog: apLogFor_(email), bands: bandsFor_(email),
     plan: planFor_(email), goals: goalsFor_(email) } };  // teacher assessment view: the student's workout, goals, log and reflection
 }
@@ -945,12 +945,25 @@ function checkinSummary_(rows) {
   });
   return out;
 }
-// "Last, First" or "First Last" → first name + last initial, for the name buttons.
-function shortName_(raw) {
+// "Last, First" or "First Last" → first name + last initial, for the name buttons
+// (wholeLast: the whole last-name part instead, used to tell two "Juho L." apart).
+function shortName_(raw, wholeLast) {
   var name = str_(raw).replace(/\s+/g, ' '), first, last;
   if (name.indexOf(',') !== -1) { last = str_(name.split(',')[0]); first = nameParts_(name).first; }
   else { var p = name.split(' '); first = p[0] || ''; last = p.length > 1 ? p[p.length - 1] : ''; }
-  return { first: first, lastInitial: last.charAt(0).toUpperCase() };
+  return { first: first, lastInitial: wholeLast ? last : last.charAt(0).toUpperCase() };
+}
+// The name a screen shows: the teacher's "Known as" if filled, else the roster Name.
+function rosterName_(r) { return str_(r['Known as']) || str_(r.Name); }
+// Two buttons must never read the same: clashing ones show the whole last-name part
+// ("Juho L" / "Juho L2"), and if that still clashes, a number.
+function uniqueButtons_(rows) {
+  var label = function (r) { return lower_(r.first + ' ' + r.lastInitial); }, count = {};
+  rows.forEach(function (r) { count[label(r)] = (count[label(r)] || 0) + 1; });
+  rows.forEach(function (r) { if (count[label(r)] > 1 && !r.known && r.full.lastInitial) r.lastInitial = r.full.lastInitial; });
+  count = {}; rows.forEach(function (r) { count[label(r)] = (count[label(r)] || 0) + 1; });
+  var seen = {};
+  rows.forEach(function (r) { var k = label(r); if (count[k] > 1) { seen[k] = (seen[k] || 0) + 1; r.lastInitial = (r.lastInitial ? r.lastInitial + ' ' : '') + '(' + seen[k] + ')'; } });
 }
 // Teacher-only: one class's names for the kiosk, who has checked out today on the focus, and
 // the spotlight five (fewest lesson ratings in 30 days → oldest last lesson rating → alphabetical).
@@ -976,9 +989,10 @@ function checkoutRoster_(cfg, id, klass, focus) {
     if (src === 'lesson') { if (date >= from) st.recent++; if (date > st.last) st.last = date; }
   });
   var rows = mine.map(function (r) {
-    var email = lower_(r.Email), n = shortName_(r.Name);
-    return { email: email, first: n.first, lastInitial: n.lastInitial, sortName: lower_(r.Name), doneToday: { self: stats[email].self, teacher: stats[email].teacher } };
+    var email = lower_(r.Email), known = str_(r['Known as']), n = known ? { first: known, lastInitial: '' } : shortName_(r.Name);
+    return { email: email, first: n.first, lastInitial: n.lastInitial, sortName: lower_(r.Name), known: !!known, full: shortName_(r.Name, true), doneToday: { self: stats[email].self, teacher: stats[email].teacher } };
   });
+  uniqueButtons_(rows);
   var cmp = function (a, b) { return a < b ? -1 : (a > b ? 1 : 0); };
   out.spotlight = rows.slice().sort(function (a, b) {
     var x = stats[a.email], y = stats[b.email];
@@ -1031,7 +1045,7 @@ function classPlans_(cfg, id, klass) {
         card.why[k] = str_((p.why || {})[k]).slice(0, 160);
       });
     }
-    return { name: str_(r.Name), klass: klass, plan: card, goals: goalsFor_(e).items };
+    return { name: rosterName_(r), klass: klass, plan: card, goals: goalsFor_(e).items };
   }).sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
   return { role: 'classPlans', klass: klass, students: students };
 }
@@ -1076,7 +1090,7 @@ function classLessons_(cfg, id, klass) {
         if (str_(x.chg)) logSum.chg++;
       });
     }
-    return { sid: e, name: str_(r.Name), klass: str_(r.Class), plan: plan, goals: goalsFor_(e).items, logSum: logSum };
+    return { sid: e, name: rosterName_(r), klass: str_(r.Class), plan: plan, goals: goalsFor_(e).items, logSum: logSum };
   }).sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
   return { role: 'classLessons', klass: klass, students: students };
 }
@@ -1131,7 +1145,7 @@ function classAssess_(cfg, id, klass, task) {
       ev.weeks = Object.keys(weeks).length;
     }
     var a = saved[e] || { scores: {}, note: '', updated: '', flag: '', flagK4: '', day: '' };
-    return { sid: e, name: str_(r.Name), klass: str_(r.Class), ev: ev, scores: a.scores, note: a.note, updated: a.updated, flag: a.flag, flagK4: a.flagK4, day: a.day, planDay: planDay[e] || '', ap: assessAp_(apIdx[e]) };
+    return { sid: e, name: rosterName_(r), klass: str_(r.Class), ev: ev, scores: a.scores, note: a.note, updated: a.updated, flag: a.flag, flagK4: a.flagK4, day: a.day, planDay: planDay[e] || '', ap: assessAp_(apIdx[e]) };
   }).sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
   return { role: 'classAssess', klass: klass, task: task, students: students };
 }

@@ -379,6 +379,10 @@ stTab.getRange(stTab.getLastRow() + 1, 1, 7, 3).setValues([
   [C(1), 'Gee, Ann', '8C'], [C(2), 'Fox, Ben', '8C'], [C(3), 'Eve Cole', '8C'], [C(4), 'Dee Dunn', '8C'],
   [C(5), 'Zed, Ann', '8C'], [C(6), 'Zed, Bob', '8C'], [C(7), 'Alpha, Cy', '8C']
 ]);
+const D = n => 'd' + n + '@example.edu';
+stTab.getRange(stTab.getLastRow() + 1, 1, 6, 4).setValues([
+  [D(1), 'L, Juho', '8D', ''], [D(2), 'L2, Juho', '8D', ''], [D(3), 'Ko, Mia', '8D', ''], [D(4), 'Ko, Mia', '8D', ''], [D(5), 'Z, F', '8D', 'Felix Z'], [D(6), 'Avery, Sam', '8D', '']
+]);
 const rosterCount = readTab_('Students').length;
 addAp(C(1), ago(2), 'lesson', 'team', 5); addAp(C(1), ago(9), 'lesson', 'ready', 5);
 addAp(C(2), ago(5), 'lesson', 'team', 5);
@@ -392,6 +396,9 @@ check('checkoutRoster returns the requested class only', roster.ok && roster.dat
 check('checkoutRoster never returns ratings', !/rating|avg|"v"|"word"/i.test(JSON.stringify(roster.data).replace(/"words":\[[^\]]*\]/, '')));
 check('roster rows are {email, first, lastInitial, doneToday:{self,teacher}}', roster.data.students.every(s => Object.keys(s).sort().join() === 'doneToday,email,first,lastInitial' && typeof s.doneToday.self === 'boolean'));
 check('names: "Last, First" and "First Last" → first + last initial', (() => { const by = e => roster.data.students.find(s => s.email === e); return by(C(1)).first === 'Ann' && by(C(1)).lastInitial === 'G' && by(C(3)).first === 'Eve' && by(C(3)).lastInitial === 'C'; })());
+check('two students with the same first name + initial get different buttons', (() => { const st = as(T, 'checkoutRoster', { klass: '8D' }).data.students, lab = x => x.first + ' ' + x.lastInitial, by = e => st.find(x => x.email === e); return lab(by(D(1))) === 'Juho L' && lab(by(D(2))) === 'Juho L2' && lab(by(D(3))) !== lab(by(D(4))) && new Set(st.map(lab)).size === st.length && lab(by(D(6))) === 'Sam A'; })());
+check('"Known as" replaces the roster name on the check-out and the dashboards', (() => { const k = as(T, 'checkoutRoster', { klass: '8D' }).data.students.find(x => x.email === D(5)); const a = as(T, 'classAssess', { klass: '8D' }).data.students.find(x => x.sid === D(5)); return k.first === 'Felix Z' && k.lastInitial === '' && a.name === 'Felix Z'; })());
+check('a student greeted by their "Known as"', as(D(5), 'bootstrap').data.student.first === 'Felix');
 check('checkoutRoster carries the word list and server date', JSON.stringify(roster.data.words) === JSON.stringify(CHECKIN_WORDS) && roster.data.date === TODAY);
 check('spotlight: fewest lesson ratings (30 d) → oldest last → alphabetical; self taps and Canvas rows ignored', JSON.stringify(roster.data.spotlight) === JSON.stringify([C(5), C(6), C(4), C(3), C(2)]), roster.data.spotlight);
 check('doneToday reflects today for the chosen focus', (() => {
@@ -399,7 +406,7 @@ check('doneToday reflects today for the chosen focus', (() => {
   const s1a = a.find(s => s.email === S1), s2a = a.find(s => s.email === S2), s1b = b.find(s => s.email === S1);
   return s1a.doneToday.self && s1a.doneToday.teacher && s2a.doneToday.self && !s2a.doneToday.teacher && !s1b.doneToday.self && !s1b.doneToday.teacher;
 })());
-check('checkoutRoster without a class → class list only', (() => { const r = as(T, 'checkoutRoster', {}).data; return r.students.length === 0 && JSON.stringify(r.classes) === '["8A","8B","8C"]'; })());
+check('checkoutRoster without a class → class list only', (() => { const r = as(T, 'checkoutRoster', {}).data; return r.students.length === 0 && JSON.stringify(r.classes) === '["8A","8B","8C","8D"]'; })());
 check('checkoutRoster for an unknown class refused', refused(as(T, 'checkoutRoster', { klass: '9Z' }), /No students/));
 check('classOverview: per-student checkinSummary of self + lesson (never Canvas)', (() => {
   const st = as(T, 'classOverview').data.students, s1 = st.find(x => x.id === S1).checkinSummary, c6 = st.find(x => x.id === C(6)).checkinSummary, c5 = st.find(x => x.id === C(5)).checkinSummary;
