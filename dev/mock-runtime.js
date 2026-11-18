@@ -72,6 +72,9 @@
       equip: ['water bottle'], days: { tue: true, thu: true, sat: true },
       log: [{ date: ago(1), who: 'friend', where: 'home', feel: 'right', hr: 'y', num: '21 push-ups', chg: 'Add a 5th interval: I hit my zone easily' }, { date: ago(5), who: 'me', where: 'class', feel: 'easy', hr: 'n', num: '18 push-ups', chg: 'Make the intervals Hard: I only reached 140 bpm' }, { date: ago(9), who: 'me', where: 'home', num: '4 × 1 min at 160 bpm' }], reflection: '' } });
     const TT = tokenFor('teacher@example.edu'); // the owner is a teacher
+    // synthetic badminton practice checks (copied from the paper sheet) for the 🏆 Assess screen
+    callApi({ action: 'saveReflection', token: T1, key: 'unit-badminton', text: JSON.stringify({ v: 'd', levels: [2, 1, 2, 3], focus: 'Serve short so they have to come forward.', how: 'Ten short serves at the start of every lesson.' }) });
+    callApi({ action: 'saveReflection', token: tok, key: 'unit-badminton', text: JSON.stringify({ v: 'd', levels: [3, 3, 2, 2], focus: 'Get back to the middle after each shot.', how: '' }) });
     const seedSkills = (email, lv) => callApi({ action: 'saveSkills', token: TT, email, checkpoint: 'sept', levels: lv });
     seedSkills('sample.one@example.edu',   { throw: 4, catch: 5, strike: 3, dribble: 4, kick: 4, jump: 4, core: 5 });
     seedSkills('sample.two@example.edu',   { throw: 3, catch: 3, strike: 3, dribble: 2, kick: 3, jump: 3, core: 3 });

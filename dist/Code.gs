@@ -108,7 +108,7 @@ var TABS = {
   Plan:          ['Email', 'Plan', 'Updated'],                                   // the student's personal workout plan (JSON)
   Locks:         ['Email', 'Checkpoint', 'Locked', 'Updated'],                   // teacher finalize-lock per student per checkpoint
   Reflections:   ['Email', 'Key', 'Text', 'Updated'],                            // student reflections + unit self-assessments, one row per key
-  Assess:        ['Email', 'Task', 'k4', 's2', 'sm', 'Note', 'Updated', 'Flag', 'Day', 'FlagK4'] // teacher's summative ratings (1–7) per task + workout-day flags (Flag = Training/ATL, FlagK4 = workout quality; up/down) and the day first assessed; teacher-only, never sent to a student
+  Assess:        ['Email', 'Task', 'k4', 's2', 'sm', 'Note', 'Updated', 'Flag', 'Day', 'FlagK4', 'serve', 'rally', 'move', 'part', 'Live'] // teacher's summative ratings (1–7) per task (workout: k4 s2 sm; badminton: serve rally move part) + live bands (workout: Flag/FlagK4; badminton: Live JSON) and the day first assessed; teacher-only, never sent to a student
 };
 // Reflection slots a student may write. Unit keys hold a small JSON self-assessment.
 var REFLECT_KEYS = ['compare-intro', 'unit-badminton'];
@@ -290,7 +290,7 @@ function doPost(e) {
 }
 // Opening the API URL in a browser is not the app; say so, with no data.
 // Bump with each server change: opening the /exec link in a browser shows which build is live.
-var BUILD = '2026-11-11a · Known as column + no two check-out buttons read the same';
+var BUILD = '2026-11-18a · Badminton on the Assess screen (live bands, practice checks, marks)';
 function doGet() {
   return ContentService.createTextOutput(JSON.stringify({ ok: false, build: BUILD, error: 'This is the data service for My PE Profile. Open the app link your PE teacher shared.' }))
     .setMimeType(ContentService.MimeType.JSON);
@@ -1099,8 +1099,11 @@ function classLessons_(cfg, id, klass) {
 // The teacher rates each criterion 1–7 while the class performs, next to a short evidence
 // summary built from the plan. Ratings live in the Assess tab; no student function reads it,
 // and Canvas stays the official record (the screen copies the ratings out for it).
-var ASSESS_TASKS = ['workout'];
-var ASSESS_KEYS = ['k4', 's2', 'sm'];
+var ASSESS_TASKS = ['workout', 'badminton'];
+var ASSESS_KEYS_BY = { workout: ['k4', 's2', 'sm'], badminton: ['serve', 'rally', 'move', 'part'] };
+var ASSESS_KEYS = ASSESS_KEYS_BY.workout;
+// Where a task's AP check-outs start, and which AP areas count (badminton: Take part and try hard = effort + team).
+var ASSESS_AP_BY = { workout: { from: '2026-10-22', keys: ['effort', 'manage'] }, badminton: { from: '2026-11-17', keys: ['effort', 'team'] } };
 var ASSESS_NOTE_MAX = 300;
 var ASSESS_FLAGS = ['ny', 'ap', 'got', 'lead']; // workout-day band per row: Not yet, Approaching, Got it, Leading
 var ASSESS_FLAG_OLD = { up: 'lead', down: 'ap' }; // first version's 🌟/⚠
@@ -1117,15 +1120,16 @@ function classAssess_(cfg, id, klass, task) {
   if (!klass) throw new Error('Pick a class first');
   var roster = readTab_('Students').filter(function (r) { return lower_(r.Email) && (klass === 'all' || str_(r.Class) === klass); });
   if (!roster.length) throw new Error('No students in that class');
-  var plans = {}, saved = {}, planDay = {}, apIdx = apLogIndex_([]);
+  var keys = ASSESS_KEYS_BY[task], plans = {}, saved = {}, planDay = {}, apIdx = apLogIndex_([]);
   readTab_('Plan').forEach(function (r) { var e = lower_(r.Email); if (!e) return; planDay[e] = ymd_(r.Updated); try { plans[e] = JSON.parse(str_(r.Plan) || 'null'); } catch (x) {} });
   readTab_('Assess').forEach(function (r) {
     var e = lower_(r.Email); if (!e || lower_(r.Task) !== task) return;
-    var sc = {}; ASSESS_KEYS.forEach(function (k) { var n = numOrNull_(r[k]); if (n !== null && n >= 1 && n <= 7) sc[k] = Math.round(n); });
+    var sc = {}; keys.forEach(function (k) { var n = numOrNull_(r[k]); if (n !== null && n >= 1 && n <= 7) sc[k] = Math.round(n); });
     var fl = lower_(r.Flag); fl = ASSESS_FLAG_OLD[fl] || fl;
     var fk = lower_(r.FlagK4); fk = ASSESS_FLAG_OLD[fk] || fk;
-    saved[e] = { scores: sc, note: str_(r.Note).slice(0, ASSESS_NOTE_MAX), updated: ymd_(r.Updated), flag: ASSESS_FLAGS.indexOf(fl) === -1 ? '' : fl, flagK4: ASSESS_FLAGS.indexOf(fk) === -1 ? '' : fk, day: ymd_(r.Day) };
+    saved[e] = { scores: sc, note: str_(r.Note).slice(0, ASSESS_NOTE_MAX), updated: ymd_(r.Updated), flag: ASSESS_FLAGS.indexOf(fl) === -1 ? '' : fl, flagK4: ASSESS_FLAGS.indexOf(fk) === -1 ? '' : fk, day: ymd_(r.Day), live: assessLiveRead_(r.Live, keys) };
   });
+  if (task === 'badminton') return classAssessUnit_(roster, saved, apIdx, klass, task, keys);
   var parts = ['warmup', 'cardio', 'strength', 'focus', 'cooldown'];
   var students = roster.map(function (r) {
     var e = lower_(r.Email), p = plans[e], ev = null;
@@ -1145,18 +1149,54 @@ function classAssess_(cfg, id, klass, task) {
       ev.weeks = Object.keys(weeks).length;
     }
     var a = saved[e] || { scores: {}, note: '', updated: '', flag: '', flagK4: '', day: '' };
-    return { sid: e, name: rosterName_(r), klass: str_(r.Class), ev: ev, scores: a.scores, note: a.note, updated: a.updated, flag: a.flag, flagK4: a.flagK4, day: a.day, planDay: planDay[e] || '', ap: assessAp_(apIdx[e]) };
+    return { sid: e, name: rosterName_(r), klass: str_(r.Class), ev: ev, scores: a.scores, note: a.note, updated: a.updated, flag: a.flag, flagK4: a.flagK4, day: a.day, planDay: planDay[e] || '', ap: assessAp_(apIdx[e], task) };
   }).sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
-  return { role: 'classAssess', klass: klass, task: task, students: students };
+  return { role: 'classAssess', klass: klass, task: task, keys: keys, students: students };
+}
+// A unit task (badminton): live bands per criterion, the student's practice check (their own
+// Reflections row, shown to the teacher only: the four levels, focus and how), AP check-outs, marks.
+function classAssessUnit_(roster, saved, apIdx, klass, task, keys) {
+  var checks = {}, rk = 'unit-' + task;
+  readTab_('Reflections').forEach(function (r) {
+    var e = lower_(r.Email); if (!e || str_(r.Key) !== rk) return;
+    var o = null; try { o = JSON.parse(str_(r.Text) || 'null'); } catch (x) {}
+    if (!o || typeof o !== 'object') return;
+    var lv = (o.levels instanceof Array ? o.levels : []).slice(0, keys.length);
+    var levels = keys.map(function (k, i) { var n = lv[i]; return (typeof n === 'number' && n >= 0 && n <= 3 && n % 1 === 0) ? n : null; });
+    checks[e] = { levels: levels, focus: str_(o.focus).slice(0, 500), how: str_(o.how).slice(0, 500), updated: ymd_(r.Updated) };
+  });
+  var students = roster.map(function (r) {
+    var e = lower_(r.Email), a = saved[e] || { scores: {}, note: '', updated: '', live: {}, day: '' };
+    return { sid: e, name: rosterName_(r), klass: str_(r.Class), scores: a.scores, note: a.note, updated: a.updated, live: a.live || {}, day: a.day, check: checks[e] || null, ap: assessAp_(apIdx[e], task) };
+  }).sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
+  return { role: 'classAssess', klass: klass, task: task, keys: keys, students: students };
+}
+// Live bands, stored as JSON {criterion: 'ny'|'ap'|'got'|'lead'}; anything else is dropped.
+function assessLiveRead_(raw, keys) {
+  var o = null, out = {}; try { o = JSON.parse(str_(raw) || 'null'); } catch (x) {}
+  if (!o || typeof o !== 'object') return out;
+  keys.forEach(function (k) { var v = lower_(o[k]); if (ASSESS_FLAGS.indexOf(v) !== -1) out[k] = v; });
+  return out;
+}
+function assessLiveWrite_(live, keys) {
+  if (live === undefined) return undefined;
+  if (!live || typeof live !== 'object') throw new Error('Bad live bands');
+  var out = {};
+  keys.forEach(function (k) {
+    var v = lower_(live[k]); if (!v) return;
+    if (ASSESS_FLAGS.indexOf(v) === -1) throw new Error('Band must be ny, ap, got, lead or empty');
+    out[k] = v;
+  });
+  return Object.keys(out).length ? JSON.stringify(out) : '';
 }
 // Training on my own: the AP check-outs (effort + manage myself) from the training lessons,
 // teacher lesson ratings and the student's own, averaged. Null when the class never did check-outs.
-var ASSESS_AP_KEYS = ['effort', 'manage'];
-function assessAp_(o) {
+function assessAp_(o, task) {
   if (!o) return null;
+  var cfgAp = ASSESS_AP_BY[task || 'workout'] || ASSESS_AP_BY.workout;
   var avg = function (list) {
     var t = 0, n = 0, days = {};
-    list.forEach(function (x) { if (x.date < LESSON_LOG_FROM) return; ASSESS_AP_KEYS.forEach(function (k) { var v = x.v[k]; if (v == null) return; t += v; n++; days[x.date] = true; }); });
+    list.forEach(function (x) { if (x.date < cfgAp.from) return; cfgAp.keys.forEach(function (k) { var v = x.v[k]; if (v == null) return; t += v; n++; days[x.date] = true; }); });
     return { avg: n ? round1_(t / n) : null, n: Object.keys(days).length };
   };
   var l = avg(o.lesson || []), s = avg(o.self || []);
@@ -1177,7 +1217,7 @@ function saveAssess_(cfg, id, targetEmail, task, scores, note, flag, flagK4) {
   if (!readTab_('Students').some(function (r) { return lower_(r.Email) === email; })) throw new Error('That student is not on the class list');
   if (!scores || typeof scores !== 'object') throw new Error('Missing scores');
   var fields = { Updated: new Date() }, out = {};
-  ASSESS_KEYS.forEach(function (k) {
+  ASSESS_KEYS_BY[task].forEach(function (k) {
     var v = scores[k];
     if (v === '' || v === null || v === undefined) { fields[k] = ''; return; }
     var n = Number(v);
@@ -1207,11 +1247,11 @@ function saveAssess_(cfg, id, targetEmail, task, scores, note, flag, flagK4) {
 // Several students in one call: one roster read, one lock, one write. The dashboard queues taps and
 // sends them together, so a busy lesson (many quick taps) no longer races dozens of separate saves.
 var ASSESS_MANY_MAX = 60;
-function assessFields_(x) {
+function assessFields_(x, task) {
   if (!x || typeof x !== 'object') throw new Error('Bad request');
-  var scores = x.scores || {}, fields = {};
+  var scores = x.scores || {}, fields = {}, keys = ASSESS_KEYS_BY[task || 'workout'];
   if (typeof scores !== 'object') throw new Error('Missing scores');
-  ASSESS_KEYS.forEach(function (k) {
+  keys.forEach(function (k) {
     var v = scores[k];
     if (v === '' || v === null || v === undefined) { fields[k] = ''; return; }
     var n = Number(v);
@@ -1227,6 +1267,8 @@ function assessFields_(x) {
     if (f && ASSESS_FLAGS.indexOf(f) === -1) throw new Error('Flag must be ny, ap, got, lead or empty');
     fields[k === 'flag' ? 'Flag' : 'FlagK4'] = f;
   });
+  var lv = assessLiveWrite_(x.live, keys);
+  if (lv !== undefined) fields.Live = lv;
   return fields;
 }
 function saveAssessMany_(cfg, id, task, rows) {
@@ -1241,7 +1283,7 @@ function saveAssessMany_(cfg, id, task, rows) {
     try {
       if (!email) throw new Error('Missing student');
       if (!roster[email]) throw new Error('That student is not on the class list');
-      good.push({ email: email, fields: assessFields_(x) });
+      good.push({ email: email, fields: assessFields_(x, task) });
       return { sid: email, ok: true };
     } catch (e) { return { sid: email, ok: false, error: e.message }; }
   });
