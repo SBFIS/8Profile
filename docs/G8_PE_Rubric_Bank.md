@@ -146,39 +146,39 @@ Written for English learners: common words, simple past tense, no idioms or cont
 
 ## 3 · Net Games — Badminton
 
-*Source: 8 Badminton Teacher Assessment Template + student self-assessment (same criteria).*
+*Source: 8 Badminton Teacher Assessment Template + student self-assessment (same criteria). Student "I…" lines added Nov 2026 (ESL-friendly); they are what students see on the practice-check sheet, in My PE Profile and in the Canvas rubric.*
 
 ### Serve — PE.G6-10.S1 (MCC) → **Skills**
-| Band | Descriptor |
-|---|---|
-| **7** | Directs serve with purpose. |
-| **5–6** | Accurate and consistent. |
-| **3–4** | Serves land in but not directed. |
-| **1–2** | Inconsistent contact. |
+| Band | Descriptor | Student: I… |
+|---|---|---|
+| **7** | Directs serve with purpose. | I choose where to serve, to make it hard for my opponent. |
+| **5–6** | Accurate and consistent. | My serve goes in most of the time. I can serve short or long. |
+| **3–4** | Serves land in but not directed. | My serve goes in, but I do not choose where it goes. |
+| **1–2** | Inconsistent contact. | My serve often misses or does not go over the net. |
 
-### Rally Skills — PE.G6-10.S3 (MCC) → **Skills**
-| Band | Descriptor |
-|---|---|
-| **7** | Controls rallies using tactics. |
-| **5–6** | Varies shot types effectively. |
-| **3–4** | Can sustain a basic rally. |
-| **1–2** | Short rallies only. |
+### Rally — PE.G6-10.S3 (MCC) → **Skills**
+| Band | Descriptor | Student: I… |
+|---|---|---|
+| **7** | Controls rallies using tactics. | I choose my shots to win the point, like moving my opponent around. |
+| **5–6** | Varies shot types effectively. | I use different shots (clear, drop, drive) to keep the rally going. |
+| **3–4** | Can sustain a basic rally. | I can keep a simple rally going with a partner. |
+| **1–2** | Short rallies only. | My rallies are short. I miss the shuttle a lot. |
 
-### Movement / Positioning — PE.G6-10.S3 (MCC) → **Skills**
-| Band | Descriptor |
-|---|---|
-| **7** | Reads play and positions early. |
-| **5–6** | Anticipates and recovers well. |
-| **3–4** | Moves reactively. |
-| **1–2** | Static or late movement. |
+### Move and get in position — PE.G6-10.S3 (MCC) → **Skills**
+| Band | Descriptor | Student: I… |
+|---|---|---|
+| **7** | Reads play and positions early. | I read where the shuttle will go and move early. |
+| **5–6** | Anticipates and recovers well. | I get to the shuttle in time, then go back to the middle. |
+| **3–4** | Moves reactively. | I move to the shuttle after it is hit. |
+| **1–2** | Static or late movement. | I stand still or move too late. |
 
-### Participation & Effort — PE.G6-10.C1 (ACT) → **Concept Transfer**
-| Band | Descriptor |
-|---|---|
-| **7** | Fully engaged and encouraging others. |
-| **5–6** | Consistently focused. |
-| **3–4** | Usually engaged. |
-| **1–2** | Needs reminders. |
+### Take part and try hard — PE.G6-10.C1 (ACT) → **Concept Transfer**
+| Band | Descriptor | Student: I… |
+|---|---|---|
+| **7** | Fully engaged and encouraging others. | I try hard all lesson, and I help and encourage others. |
+| **5–6** | Consistently focused. | I stay focused and try hard all lesson. |
+| **3–4** | Usually engaged. | I join in most of the time. |
+| **1–2** | Needs reminders. | I need reminders to join in. |
 
 ---
 

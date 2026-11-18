@@ -217,10 +217,10 @@ const IMPORT = [
   ['Nobody Here', '3', 'z', '8A', 5, 5, 5, 5, 5, 5, 1],
   ['Sample Jo T', '4', 'w', '8B', '', 5, '', '', '', '', '']
 ];
-const imp = importApRows_(IMPORT, 'S1-mid');
+const imp = importApRows_(IMPORT, 'S1-mid', 'fitness');
 check('Canvas import maps outcomes by name (not C10, not mastery points)', imp.imported === 2 && imp.missing.length === 0 && imp.blank === 1 && imp.unmatched.length === 1);
 check('import matched "Two, Sample" by name and rounded 4.4', (() => { const t = readTab_('APLog').filter(r => r.Email === S2 && r.Source === 'teacher'); return t.length === 1 && t[0].Round === 's1-mid' && t[0].growth === 4 && t[0].effort === 4; })());
-check('re-importing a round replaces, not duplicates', (() => { importApRows_(IMPORT, 's1-mid'); return readTab_('APLog').filter(r => r.Source === 'teacher').length === 2; })());
+check('re-importing a round replaces, not duplicates', (() => { importApRows_(IMPORT, 's1-mid', 'fitness'); return readTab_('APLog').filter(r => r.Source === 'teacher').length === 2; })());
 check('unknown round refused', (() => { try { importApRows_(IMPORT, 'term3'); return false; } catch (e) { return /Round/.test(e.message); } })());
 check('student sees own self-checks + teacher round, latest values merged', (() => { const c = as(S1, 'bootstrap').data.student.combine; return c.apLog.teacher.length === 1 && c.apLog.teacher[0].label === 'S1 mid' && c.apLog.teacher[0].v.team === 7 && c.ap.effort.self === 6 && c.ap.effort.tchr === 6; })());
 check('student AP log holds no other student', (() => { const j = JSON.stringify(as(S2, 'bootstrap')); return !j.includes('sample.one') && !j.includes('Sample One'); })());
@@ -233,7 +233,7 @@ const GRADES = [
   ['Made Up Name', '9', 'x', 'SAMPLE.THREE@example.edu', '', '8B', 6, 6, 85.7, 'B'],
   ['Someone Else', '8', 'y', 'nobody@example.edu', '', '8B', 5, 5, 71, 'C']
 ];
-const g = importApRows_(GRADES, 's1-mid');
+const g = importApRows_(GRADES, 's1-mid', 'fitness');
 check('Grades export: AP assignment column imported as overall, matched by SIS Login email', (() => { const t = readTab_('APLog').filter(r => r.Email === S3 && r.Source === 'teacher'); return g.overall === true && g.imported === 1 && t.length === 1 && t[0].overall === 6 && t[0].effort === '' ; })());
 check('Grades export: Points Possible row skipped, unknown email not imported', g.unmatched.length === 1 && !readTab_('APLog').some(r => /nobody/.test(r.Email)));
 check('overall grade reaches only that student', (() => { const c = as(S3, 'bootstrap').data.student.combine; return c.apLog.teacher[0].v.overall === 6 && !JSON.stringify(as(S1, 'bootstrap')).includes('sample.three'); })());
@@ -256,12 +256,13 @@ check('student sees form start/end on their own chart', (() => { const c = as(S2
 console.log('unit outcomes from Learning Mastery');
 const LM = [['Student name', 'Student SIS ID', 'PE.G6-10.K4: Fitness concepts result', 'PE.G6-10.K4: Fitness concepts mastery points', 'PE.G6-10.S3 Strategy result', 'PE.G6-10.C1 result', 'PE.G6-10.S1 result'],
   ['Sample One', 'x', 5, 5, 6.2, 5, 7], ['Sample Two', 'y', 3, 5, '', '', '']];
-const lm = importApRows_(LM, 's1-end');
+const lm = importApRows_(LM, 's1-end', 'fitness');
 check('Learning Mastery outcome columns import per standard (not mastery points)', (() => { const o = readTab_('Outcomes').filter(r => r.Email === 'sample.one@example.edu'); const by = {}; o.forEach(r => by[r.Outcome] = r.Value); return lm.outcomes.join() === 'K4,S3,C1,S1' && by.K4 === 5 && by.S3 === 6 && by.S1 === 7 && lm.outcomesImported === 2; })());
-check('re-import updates outcomes, never duplicates', (() => { importApRows_(LM, 's1-end'); return readTab_('Outcomes').filter(r => r.Email === 'sample.one@example.edu' && r.Outcome === 'K4').length === 1; })());
+check('re-import updates outcomes, never duplicates', (() => { importApRows_(LM, 's1-end', 'fitness'); return readTab_('Outcomes').filter(r => r.Email === 'sample.one@example.edu' && r.Outcome === 'K4').length === 1; })());
 check('student sees own outcomes only', (() => { const a = as(S1, 'bootstrap').data.student.combine.outcomes, b = as(S2, 'bootstrap').data.student.combine.outcomes; return a.S3 === 6 && b.K4 === 3 && b.S3 === undefined && !JSON.stringify(as(S2, 'bootstrap')).includes('sample.one'); })());
 
-check('outcomes are labelled with the unit (from the date when not given)', readTab_('Outcomes').filter(r => r.Email === 'sample.one@example.edu').every(r => r.Unit === unitForDate_(ymd_(new Date()))));
+check('outcomes are labelled with the unit given', readTab_('Outcomes').filter(r => r.Email === 'sample.one@example.edu').every(r => r.Unit === 'fitness'));
+check('without a unit, the date picks it', unitForDate_('2026-10-20') === 'fitness' && unitForDate_('2026-12-01') === 'badminton');
 const LM2 = [['Student name', 'PE.G6-10.K4 result', 'PE.G6-10.S3 result'], ['Sample One', 6, 7]];
 importApRows_(LM2, 's1-end', 'Badminton');
 check('a later unit adds a step, never overwrites the earlier unit', (() => { const k4 = readTab_('Outcomes').filter(r => r.Email === 'sample.one@example.edu' && r.Outcome === 'K4'); return k4.length === 2 && k4.some(r => r.Unit === 'fitness' && r.Value === 5) && k4.some(r => r.Unit === 'badminton' && r.Value === 6); })());

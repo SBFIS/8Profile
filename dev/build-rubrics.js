@@ -35,11 +35,14 @@ md.split('\n## ').forEach(block => {
   const criteria = [];
   block.split('\n### ').slice(1).forEach(c => {
     const lines = c.split('\n'), ch = lines[0].match(/^(.+?)\s+—\s+(PE\.[\w.-]+)/); if (!ch) return;
-    const bands = {};
-    lines.forEach(l => { const m = l.match(/^\|\s*\*\*(.+?)\*\*\s*\|\s*(.+?)\s*\|\s*$/); if (m) bands[m[1].replace(/-/g, '–')] = m[2].replace(/\.$/, ''); });
+    const bands = {}, kid = {};
+    lines.forEach(l => { const m = l.match(/^\|\s*\*\*(.+?)\*\*\s*\|(.*)\|\s*$/); if (!m) return; const cells = m[2].split('|').map(x => x.trim()), b = m[1].replace(/-/g, '–');
+      bands[b] = (cells[0] || '').replace(/\.$/, ''); if (cells[1]) kid[b] = cells[1]; });
     const levels = BAND_ORDER.map(b => bands[b]);
     if (levels.some(x => !x)) throw new Error(um[1] + ' / ' + ch[1] + ': expected bands ' + BAND_ORDER.join(', '));
-    criteria.push({ name: ch[1].trim(), std: ch[2].replace(/^PE\.G6-10\./, ''), levels });
+    // student: the "I…" lines, bottom-up like levels (null where the bank has none)
+    const student = BAND_ORDER.map(b => kid[b] || null);
+    criteria.push({ name: ch[1].trim(), std: ch[2].replace(/^PE\.G6-10\./, ''), levels, student });
   });
   if (!criteria.length) throw new Error('No criteria found for unit ' + um[1]);
   units[key] = { name: um[1].trim(), criteria };

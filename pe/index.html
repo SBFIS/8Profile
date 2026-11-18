@@ -1147,6 +1147,8 @@ body.demo{padding-top:52px}
 .wa-sync.ok{background:#e9f7ee;color:#1f7a45}.wa-sync.busy{background:#fff6d6;color:#6b4e00}.wa-sync.err{background:#fde8e6;color:#9b2c22}
 .wa-tc .wa-st.err,.wa-row .wa-st.err{max-width:60%;text-align:right}
 .wa-sm{flex-basis:100%;font-size:13px;color:var(--ink-soft);margin:2px 0 0 0}
+.rlv{flex-direction:column!important;align-items:flex-start!important;justify-content:flex-start!important;text-align:left!important}.rlv .rl-b{display:block;font-size:12px;font-weight:800;margin-bottom:3px}.rlv-0 .rl-b{color:#2e7d32}.rlv-1 .rl-b{color:#1565c0}.rlv-2 .rl-b{color:#8a5a00}.rlv-3 .rl-b{color:#6a1b9a}
+.rlv.on .rl-b{color:inherit}
 </style>
 
 </head>
@@ -1250,36 +1252,60 @@ window.RUBRICS = {
       "Serves land in but not directed",
       "Accurate and consistent",
       "Directs serve with purpose"
+     ],
+     "student": [
+      "My serve often misses or does not go over the net.",
+      "My serve goes in, but I do not choose where it goes.",
+      "My serve goes in most of the time. I can serve short or long.",
+      "I choose where to serve, to make it hard for my opponent."
      ]
     },
     {
-     "name": "Rally Skills",
+     "name": "Rally",
      "std": "S3",
      "levels": [
       "Short rallies only",
       "Can sustain a basic rally",
       "Varies shot types effectively",
       "Controls rallies using tactics"
+     ],
+     "student": [
+      "My rallies are short. I miss the shuttle a lot.",
+      "I can keep a simple rally going with a partner.",
+      "I use different shots (clear, drop, drive) to keep the rally going.",
+      "I choose my shots to win the point, like moving my opponent around."
      ]
     },
     {
-     "name": "Movement / Positioning",
+     "name": "Move and get in position",
      "std": "S3",
      "levels": [
       "Static or late movement",
       "Moves reactively",
       "Anticipates and recovers well",
       "Reads play and positions early"
+     ],
+     "student": [
+      "I stand still or move too late.",
+      "I move to the shuttle after it is hit.",
+      "I get to the shuttle in time, then go back to the middle.",
+      "I read where the shuttle will go and move early."
      ]
     },
     {
-     "name": "Participation & Effort",
+     "name": "Take part and try hard",
      "std": "C1",
      "levels": [
       "Needs reminders",
       "Usually engaged",
       "Consistently focused",
       "Fully engaged and encouraging others"
+     ],
+     "student": [
+      "I need reminders to join in.",
+      "I join in most of the time.",
+      "I stay focused and try hard all lesson.",
+      "I try hard all lesson, and I help and encourage others."
      ]
     }
    ]
@@ -1864,8 +1890,8 @@ const UNITS = [
   { key: 'fitness',   e: '🏃', name: 'Fitness & Training', from: '2026-09-25', to: '2026-11-16', when: 'Sep – 16 Nov', blurb: 'Skills Combine, training toolbox and your own workout' },
   { key: 'badminton', e: '🏸', name: 'Badminton',          from: '2026-11-17', to: '2026-12-18', when: '17 Nov – 18 Dec', blurb: 'Serve, rally, move — net-game tactics', found: ['strike'],
     lede: 'Serve, rally and move with purpose — and learn net-game ideas that carry straight over to volleyball and pickleball.',
-    steps: [['🤝', 'Partner practice check', 'With a partner, pick the description that fits each of you in the four areas below, then set your focus.'], ['🏆', 'Teacher assessment at the Festival', 'Your teacher assesses the same four areas while you play.']],
-    bands: { Serve: 'Skills', 'Rally Skills': 'Skills', 'Movement / Positioning': 'Skills', 'Participation & Effort': 'Concept transfer' } },
+    steps: [['🤝', 'Practice check (lesson 4)', 'On paper with a partner: tick where you are in each area and write your focus. Then copy it in here in your Health lesson.'], ['👀', 'Teacher watches (singles, doubles)', 'Your teacher rates the same four areas while you play.'], ['🏆', 'Festival · Wednesday 16 December', 'Show your best serve, rally and movement.']],
+    bands: { Serve: 'Skills', Rally: 'Skills', 'Move and get in position': 'Skills', 'Take part and try hard': 'Concept transfer' } },
   { key: 'parkour',   e: '🤸', name: 'Parkour',     from: '2027-01-27', to: '2027-03-08', when: 'Jan – Mar', blurb: 'Movement control, flow and safe landings', found: ['jump', 'core'] },
   { key: 'tactics',   e: '🧠', name: 'Tactics Cup', from: '2027-03-09', to: '2027-04-13', when: 'Mar – Apr', blurb: 'Read the game; take a tactic into a new sport' },
   { key: 'tchouk',    e: '🤾', name: 'Tchoukball',  from: '2027-04-14', to: '2027-05-20', when: 'Apr – May', blurb: 'Throw, catch and team roles in a season', found: ['throw', 'catch'] }
@@ -1942,8 +1968,8 @@ function archiveView(b) {
   if (pred) { const L = lists(pred), ch = (arr, c) => arr.length ? arr.map(i => '<span class="chip ' + c + '">' + i.e + ' ' + esc(i.t) + '</span>').join('') : '<span class="chip none">none</span>';
     out += item('🔮', 'Lesson 1 prediction', pred.timestamp.slice(0, 10), '<div class="l1row"><b>🟢 Strengths</b><div class="chips">' + ch(L.strengths, 'g') + '</div></div><div class="l1row"><b>🔴 Work-ons</b><div class="chips">' + ch(L.workons, 'r') + '</div></div>'); }
   if (bad) { const cr = (RUBRICS.units.badminton || {}).criteria || [];
-    out += item('🏸', 'Badminton — partner practice check', (R['unit-badminton'].updated || '').slice(0, 10),
-      '<div class="arc-lv">' + cr.map((c, i) => '<span>' + esc(c.name) + ' <b>' + (bad.v === 'd' && bad.levels && bad.levels[i] != null && c.levels[bad.levels[i]] ? esc(c.levels[bad.levels[i]]) : '—') + '</b></span>').join('') + '</div>' + (bad.focus ? '<div class="arc-q">My focus for the final assessment</div><p>' + esc(bad.focus) + '</p>' : ''),
+    out += item('🏸', 'Badminton — practice check', (R['unit-badminton'].updated || '').slice(0, 10),
+      '<div class="arc-lv">' + cr.map((c, i) => '<span>' + esc(c.name) + ' <b>' + (bad.v === 'd' && bad.levels && bad.levels[i] != null ? ['Not yet', 'Approaching', 'Got it', 'Leading'][bad.levels[i]] : '—') + '</b></span>').join('') + '</div>' + (bad.focus ? '<div class="arc-q">My focus for the final assessment</div><p>' + esc(bad.focus) + '</p>' : ''),
       '<button type="button" class="lnk" data-unit="badminton">Open Badminton</button>'); }
   return '<div class="wrap">' +
     '<button type="button" class="back light" id="tohub">← Back to my profile</button>' +
@@ -1956,7 +1982,7 @@ function archiveView(b) {
 let unitDraft = null, unitKey = null;
 function unitView(b) {
   const u = UNITS.find(x => x.key === unitKey), rub = RUBRICS.units[unitKey], m = measured();
-  if (unitDraft === null) { const s = reflJson('unit-' + unitKey) || {}; unitDraft = { v: 'd', levels: s.v === 'd' ? (s.levels || []).slice() : [], focus: s.focus || '' }; }
+  if (unitDraft === null) { const s = reflJson('unit-' + unitKey) || {}; unitDraft = { v: 'd', levels: s.v === 'd' ? (s.levels || []).slice() : [], focus: s.focus || '', how: s.how || '' }; }
   const found = (u.found || []).map(k => {
     const lad = RUBRICS.ladders[k], lv = m && m.skills ? latestOf(m.skills[k]) : null, em = (FUND.find(f => f[0] === k) || ['', '🧩'])[1];
     return '<button type="button" class="found" data-ov="fund-' + k + '"><span class="fd-e">' + em + '</span><span class="fd-b"><span class="fd-t">' + esc(lad.name) + ' ladder · from the Combine</span>' + ladderBar(lv) +
@@ -1967,7 +1993,7 @@ function unitView(b) {
   const crit = rub.criteria.map((c, i) => {
     const sel = unitDraft.levels[i];
     return '<div class="rcrit"><div class="rc-h"><b>' + esc(c.name) + '</b></div><div class="rc-lv">' +
-      c.levels.map((d, j) => '<button type="button" class="rlv' + (sel === j ? ' on' : '') + '" data-crit="' + i + '" data-lv="' + j + '" aria-pressed="' + (sel === j) + '"><span class="rl-d">' + esc(d) + '</span></button>').join('') + '</div></div>';
+      c.levels.map((d, j) => '<button type="button" class="rlv rlv-' + j + (sel === j ? ' on' : '') + '" data-crit="' + i + '" data-lv="' + j + '" aria-pressed="' + (sel === j) + '"><span class="rl-b">' + ['🌱 Not yet', '🧗 Approaching', '✅ Got it', '🌟 Leading'][j] + '</span><span class="rl-d">' + esc((c.student && c.student[j]) || d) + '</span></button>').join('') + '</div></div>';
   }).join('');
   const done = unitDraft.levels.filter(v => v != null).length;
   return '<div class="wrap">' +
@@ -1975,15 +2001,17 @@ function unitView(b) {
     '<div class="phero"><div class="k">UNIT · ' + esc(u.when.toUpperCase()) + (unitStatus(u) === 'next' ? ' · UP NEXT' : '') + '</div><h1>' + u.e + ' ' + esc(u.name) + '</h1><p>' + esc(u.lede || u.blurb) + '</p></div>' +
     (found ? '<h3 class="sec sec-fund"><span class="em">🧩</span> Built on your foundation</h3>' + link + '<div class="founds">' + found + '</div>' : '') +
     '<h3 class="sec sec-skill"><span class="em">📋</span> How you\'re assessed</h3><div class="usteps">' + steps + '</div>' +
-    '<h3 class="sec sec-skill"><span class="em">🤝</span> My practice check <span class="tap">· tap the one that fits</span></h3><p class="seclede">With your partner, tap the description that sounds most like you right now. Be honest — it\'s practice, so it\'s how you find what to work on.</p>' +
+    '<h3 class="sec sec-skill"><span class="em">🤝</span> My practice check <span class="tap">· copy your sheet</span></h3><p class="seclede">Look at your paper sheet. In each area, tap the line where you ticked <b>Me</b>. It does not need to match every word.</p>' +
     '<div class="rgrid">' + crit + '</div>' +
-    '<h3 class="sec"><span class="em">🎯</span> My focus for the final assessment</h3><textarea id="ufocus" rows="3" maxlength="500" placeholder="What should you focus on in the Festival to make progress? Give as much detail as you can.">' + esc(unitDraft.focus) + '</textarea>' +
-    '<div class="tresult"><span>🏆 Teacher assessment</span><b>at the Festival</b></div>' +
+    '<h3 class="sec"><span class="em">🎯</span> My focus for the Festival</h3><textarea id="ufocus" rows="2" maxlength="500" placeholder="Which area, and what exactly? (from your sheet)">' + esc(unitDraft.focus) + '</textarea>' +
+    '<h3 class="sec"><span class="em">🛠️</span> How I will work on it</h3><textarea id="uhow" rows="2" maxlength="500" placeholder="What will you do in the next lessons?">' + esc(unitDraft.how || '') + '</textarea>' +
+    '<div class="tresult"><span>🏆 Teacher assessment</span><b>Festival · Wed 16 Dec</b></div>' +
     '<div class="pbar"><div class="pcount"><b>' + done + '</b> of ' + rub.criteria.length + ' done</div><button type="button" class="ct-btn" id="usave">Save my practice check</button></div>' +
   '</div>';
 }
 async function saveUnitUI() {
   const f = $('#ufocus'); if (f) unitDraft.focus = f.value.trim().slice(0, 500);
+  const hw = $('#uhow'); if (hw) unitDraft.how = hw.value.trim().slice(0, 500);
   const btn = $('#usave'); btn.disabled = true; btn.textContent = 'Saving…';
   try {
     const res = await call('saveReflection', { key: 'unit-' + unitKey, text: JSON.stringify(unitDraft) });
@@ -4687,7 +4715,7 @@ function show(v, arg) {
     wire('tohub', () => show('profile')); wire('usave', saveUnitUI);
     onWrap(e => {
       const t = e.target.closest('[data-crit]');
-      if (t) { const f = $('#ufocus'); if (f) unitDraft.focus = f.value.slice(0, 500); const i = +t.dataset.crit, j = +t.dataset.lv; unitDraft.levels[i] = unitDraft.levels[i] === j ? null : j; const y = window.scrollY; show('unit'); window.scrollTo(0, y); return; }
+      if (t) { const f = $('#ufocus'); if (f) unitDraft.focus = f.value.slice(0, 500); const hw = $('#uhow'); if (hw) unitDraft.how = hw.value.slice(0, 500); const i = +t.dataset.crit, j = +t.dataset.lv; unitDraft.levels[i] = unitDraft.levels[i] === j ? null : j; const y = window.scrollY; show('unit'); window.scrollTo(0, y); return; }
       const o = e.target.closest('[data-ov]'); if (o) openOv(o.dataset.ov);
     });
     badgeCheck();
