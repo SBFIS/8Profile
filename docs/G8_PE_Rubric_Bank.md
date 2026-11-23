@@ -67,42 +67,42 @@ against the G8 student rubric.*
 ### Active Participation — PE.G6-10.C1 (ACT) → **Concept Transfer**
 | Band | Descriptor | Student "I…" (term) | Today I… (iPad check-out) |
 |---|---|---|---|
-| **7** | Always gives full effort and stays engaged the whole lesson, including in activities they do not naturally enjoy. Reflections explain *why* regular participation matters, using specific examples from their own experience. | I participate actively and consistently show that I understand why regular participation in a wide variety of activities matters, including in activities I don't naturally enjoy. | Today I gave full effort the whole lesson, even in the parts I don't enjoy. |
-| **5–6** | Usually works hard and stays engaged; occasional lapses. Reflections show an understanding of why participation matters, though examples are general. | I participate actively and mostly show that I understand why regular participation matters. | Today I worked hard for most of the lesson, with only a few short breaks in focus. |
-| **3–4** | Effort and focus vary; sometimes distracted or off-task. Reflections describe *what* they did rather than why it matters. | I sometimes participate actively and am beginning to show that I understand why it matters. | Today my effort came and went, and I was sometimes distracted or off-task. |
-| **1–2** | Minimal effort; often disengaged. Reflections missing, very brief, or unrelated to participation. | I have trouble participating actively and rarely show that I understand why it matters. | Today I found it hard to get involved and did very little. |
+| **7** | Always gives full effort and stays engaged the whole lesson, including in activities they do not naturally enjoy. Reflections explain *why* regular participation matters, using specific examples from their own experience. | I participate actively and consistently show that I understand why regular participation in a wide variety of activities matters, including in activities I don't naturally enjoy. | Today I worked hard all lesson; worked hard in activities I do not like; kept going when others stopped. |
+| **5–6** | Usually works hard and stays engaged; occasional lapses. Reflections show an understanding of why participation matters, though examples are general. | I participate actively and mostly show that I understand why regular participation matters. | Today I worked hard most of the lesson; stopped only for short breaks. |
+| **3–4** | Effort and focus vary; sometimes distracted or off-task. Reflections describe *what* they did rather than why it matters. | I sometimes participate actively and am beginning to show that I understand why it matters. | Today I worked hard some of the time; did not try hard some of the time. |
+| **1–2** | Minimal effort; often disengaged. Reflections missing, very brief, or unrelated to participation. | I have trouble participating actively and rarely show that I understand why it matters. | Today I did not join in much; watched more than I played. |
 
 ### Social Skills — PE.G6-10.S4 (ACT) → **Skills**
 | Band | Descriptor | Student "I…" (term) | Today I… (iPad check-out) |
 |---|---|---|---|
-| **7** | Consistently communicates positively, encourages others, and actively helps teammates take part. | I always communicate positively, encourage others and help my teammates take part. | Today I was positive, encouraged others and helped my teammates join in. |
-| **5–6** | Communicates respectfully and helps the team most of the time. | I communicate respectfully and help my team most of the time. | Today I was respectful and helped my team for most of the lesson. |
-| **3–4** | Contribution and communication are inconsistent. | I sometimes help my team, but how I join in and communicate changes from lesson to lesson. | Today I helped my team some of the time, but not for the whole lesson. |
-| **1–2** | Rarely communicates positively or contributes to the team. | I rarely communicate positively or help my team. | Today I didn't help my team much or wasn't positive with others. |
+| **7** | Consistently communicates positively, encourages others, and actively helps teammates take part. | I always communicate positively, encourage others and help my teammates take part. | Today I said kind words to others; helped someone join in or get better. |
+| **5–6** | Communicates respectfully and helps the team most of the time. | I communicate respectfully and help my team most of the time. | Today I was kind and respectful; did my part for the team. |
+| **3–4** | Contribution and communication are inconsistent. | I sometimes help my team, but how I join in and communicate changes from lesson to lesson. | Today I helped my team some of the time; did not help at other times. |
+| **1–2** | Rarely communicates positively or contributes to the team. | I rarely communicate positively or help my team. | Today I did not help my team much; was not kind to others. |
 
 ### Self Management — ATL.SM.manageself → **ATL**
 | Band | Descriptor | Student "I…" (term) | Today I… (iPad check-out) |
 |---|---|---|---|
-| **7** | Always prepared with full kit, on time, ready to start without reminders. | I am always ready with full kit, on time, and start without reminders. | Today I had full kit, was on time and started without a reminder. |
-| **5–6** | Usually prepared and on time; may need rare reminders. | I am usually ready and on time; I rarely need a reminder. | Today I was ready and on time, but needed a reminder to get started. |
-| **3–4** | Sometimes unprepared or late to start; occasionally missing kit. | I am sometimes late or not ready to start, and sometimes I forget kit. | Today I was a bit late or slow to start, or I was missing some kit. |
-| **1–2** | Often unprepared, late, or missing kit. | I am often late, not ready, or missing kit. | Today I was late, not ready to start and missing kit. |
+| **7** | Always prepared and on time, starts without reminders, and helps the lesson get going (set-up, equipment, getting others ready). | I am always ready and on time, and I help get the lesson going for everyone. | Today I was ready early; helped set up or helped others get ready. |
+| **5–6** | Prepared with kit, on time and starts without reminders; rare lapses. | I am ready with my kit, on time and start without reminders, with only rare slips. | Today I had my PE kit; was on time; started right away. |
+| **3–4** | Sometimes late or slow to start, or missing kit; needs reminders to get going. | I am sometimes late or slow to start, or I forget kit, and I need reminders to get going. | Today I was late or slow to start; did not have all my kit. |
+| **1–2** | Often late, unprepared or missing kit. | I am often late, not ready or missing kit. | Today I was late and not ready; did not have my kit. |
 
 ### Growth Mindset — ATL.SM.growthmindset → **ATL**
 | Band | Descriptor | Student "I…" (term) | Today I… (iPad check-out) |
 |---|---|---|---|
-| **7** | Embraces challenges, tries new things, stays positive even after setbacks. | I take on challenges, try new things and stay positive even when things go wrong. | Today I took on a challenge, tried something new and stayed positive when it went wrong. |
-| **5–6** | Open to challenges and generally keeps trying after mistakes. | I am open to challenges and usually keep trying after mistakes. | Today I was open to a challenge and kept trying after mistakes. |
-| **3–4** | Sometimes avoids challenges or gives up when frustrated. | I sometimes avoid challenges or give up when I get frustrated. | Today I avoided a challenge or gave up when I got frustrated. |
-| **1–2** | Avoids challenges, refuses tasks, or gives up quickly. | I avoid challenges, refuse tasks, or give up quickly. | Today I refused a task or gave up quickly. |
+| **7** | Seeks out challenges beyond what is set, tries new things and stays positive after setbacks, using mistakes to improve. | I look for harder challenges, try new things and stay positive when things go wrong, using mistakes to get better. | Today I chose a harder challenge; stayed positive when I made mistakes. |
+| **5–6** | Takes on the challenges set, tries new things and keeps trying after mistakes. | I take on the challenges set and keep trying after mistakes. | Today I tried the challenges; kept trying after mistakes. |
+| **3–4** | Sometimes avoids challenges or gives up when frustrated. | I sometimes avoid challenges or give up when I get frustrated. | Today I did not try a challenge; stopped trying for a while. |
+| **1–2** | Avoids challenges, refuses tasks, or gives up quickly. | I avoid challenges, refuse tasks, or give up quickly. | Today I said no to a task; stopped trying quickly. |
 
 ### Self Awareness — ATL.SC.self → **ATL**
 | Band | Descriptor | Student "I…" (term) | Today I… (iPad check-out) |
 |---|---|---|---|
-| **7** | Consistently manages behaviour and emotions positively without reminders. | I always manage my behaviour and feelings in a positive way, without reminders. | Today I managed my behaviour and feelings well without any reminders. |
-| **5–6** | Usually self-manages well; responds to reminders. | I usually manage myself well, and I respond when I am reminded. | Today I managed myself well and responded when I was reminded. |
-| **3–4** | Needs frequent reminders to stay on track. | I need a lot of reminders to stay on track. | Today I needed lots of reminders to stay on track. |
-| **1–2** | Disruptive or unable to manage behaviour despite reminders. | I find it hard to manage my behaviour, even with reminders. | Today I found it hard to manage my behaviour, even with reminders. |
+| **7** | Consistently focused and in control, even when things get hard; actively helps keep the class positive, inclusive and safe. | I stay focused and in control, even when things get hard, and I help keep our class positive and safe for everyone. | Today I stayed focused all lesson; helped keep the class calm and safe. |
+| **5–6** | Stays focused, keeps learning and manages behaviour and emotions safely without reminders; lapses are rare. | I stay focused, keep learning and manage my behaviour and feelings without reminders, so I am safe and positive with others. | Today I stayed focused; was safe with others; did not need reminders. |
+| **3–4** | Focus and self-control vary; needs frequent reminders to stay on track and keep the class safe. | My focus and self-control vary, and I often need reminders to stay on track. | Today I lost focus sometimes; needed some reminders. |
+| **1–2** | Behaviour or lack of focus regularly disrupts learning or safety, even after reminders. | My behaviour or focus often gets in the way of learning or safety, even with reminders. | Today I stopped others from learning; did not stop after reminders. |
 
 ---
 
@@ -111,30 +111,30 @@ against the G8 student rubric.*
 *Source: 26 27 G8 Fitness Workout Assessment Rubric (Combine feeds this with raw test data).*
 
 ### Knowledge — PE.G6-10.K4 (ACT) → **Knowledge**
-| Band | Descriptor |
-|---|---|
-| **7** | Excellent knowledge of the parts of a workout; outstanding thought and planning. Plan shows excellent understanding of the chosen fitness components and clearly targets them. |
-| **5–6** | Good knowledge of the parts of a workout; good planning. Good understanding of components and how to target them. |
-| **3–4** | Basic knowledge of the parts of a workout; some planning. Basic understanding of components; some understanding of targeting them. |
-| **1–2** | Limited knowledge; lack of planning. Little understanding of components; workout doesn't clearly target them. |
+| Band | Descriptor | What it looks like (student) |
+|---|---|---|
+| **7** | Excellent knowledge of the parts of a workout; outstanding thought and planning. Plan shows excellent understanding of the chosen fitness components and clearly targets them. | Your reasons explain how each part trains its component, and your choices match it: strength = few, hard reps with long rest; endurance = many reps or 30–45 s; power and speed = short, fast efforts; cardio in your heart-rate zone |
+| **5–6** | Good knowledge of the parts of a workout; good planning. Good understanding of components and how to target them. | All five parts are filled, with times, and every part says how it trains your fitness |
+| **3–4** | Basic knowledge of the parts of a workout; some planning. Basic understanding of components; some understanding of targeting them. |  |
+| **1–2** | Limited knowledge; lack of planning. Little understanding of components; workout doesn't clearly target them. |  |
 
 > **Combine change:** sit-ups retired as a core test (it measured hip-flexor endurance, not core stability). Core *stability* now lives in the Fundamental Skills ladder above; lower-body muscular *endurance* is measured by a 60-second sit-to-stand (bench). See §2.
 
 ### Skills — PE.G6-10.S2 (MCC) → **Skills**
-| Band | Descriptor |
-|---|---|
-| **7** | Clear understanding of own strengths and areas to improve, with a clear personal connection. Comprehensive reflection showing clear understanding of the workout's effectiveness. |
-| **5–6** | Understanding of own strengths/areas + a personal connection. Reflection shows understanding of effectiveness. |
-| **3–4** | Some understanding of strengths/areas + some personal connection. Reflection shows basic understanding of effectiveness. |
-| **1–2** | Limited understanding of own strengths and areas to improve. Simple reflection. |
+| Band | Descriptor | What it looks like (student) |
+|---|---|---|
+| **7** | Clear understanding of own strengths and areas to improve, with a clear personal connection. Comprehensive reflection showing clear understanding of the workout's effectiveness. | Your strengths and areas come from real numbers, every change is based on what happened in your sessions (your numbers, heart-rate zone, how it felt), and you explain why it matters to you |
+| **5–6** | Understanding of own strengths/areas + a personal connection. Reflection shows understanding of effectiveness. | You know your strengths and areas to improve, you made changes, and you can say whether your workout worked |
+| **3–4** | Some understanding of strengths/areas + some personal connection. Reflection shows basic understanding of effectiveness. |  |
+| **1–2** | Limited understanding of own strengths and areas to improve. Simple reflection. |  |
 
 ### Self Management — ATL → **ATL**
-| Band | Descriptor |
-|---|---|
-| **7** | Demonstrated self-motivation, organisation, consistent effort, and the ability to train independently. |
-| **5–6** | Mostly demonstrated self-motivation, organisation, effort, and independent training. |
-| **3–4** | Some self-motivation, organisation, effort, and independent training. |
-| **1–2** | Limited self-motivation, organisation, effort, and independent training. |
+| Band | Descriptor | What it looks like (student) |
+|---|---|---|
+| **7** | Demonstrated self-motivation, organisation, consistent effort, and the ability to train independently. | You trained at home every week and logged it, came ready, and ran your whole workout at full effort without reminders |
+| **5–6** | Mostly demonstrated self-motivation, organisation, effort, and independent training. | You trained at home most weeks, logged your sessions, and worked with few reminders |
+| **3–4** | Some self-motivation, organisation, effort, and independent training. |  |
+| **1–2** | Limited self-motivation, organisation, effort, and independent training. |  |
 
 ---
 
@@ -143,36 +143,36 @@ against the G8 student rubric.*
 *Source: 8 Badminton Teacher Assessment Template + student self-assessment (same criteria).*
 
 ### Serve — PE.G6-10.S1 (MCC) → **Skills**
-| Band | Descriptor |
-|---|---|
-| **7** | Directs serve with purpose. |
-| **5–6** | Accurate and consistent. |
-| **3–4** | Serves land in but not directed. |
-| **1–2** | Inconsistent contact. |
+| Band | Descriptor | Student "I…" |
+|---|---|---|
+| **7** | Directs serve with purpose. | I choose where to serve, to make it hard for my opponent. |
+| **5–6** | Accurate and consistent. | My serve goes in most of the time. I can serve short or long. |
+| **3–4** | Serves land in but not directed. | My serve goes in, but I do not choose where it goes. |
+| **1–2** | Inconsistent contact. | My serve often misses or does not go over the net. |
 
-### Rally Skills — PE.G6-10.S3 (MCC) → **Skills**
-| Band | Descriptor |
-|---|---|
-| **7** | Controls rallies using tactics. |
-| **5–6** | Varies shot types effectively. |
-| **3–4** | Can sustain a basic rally. |
-| **1–2** | Short rallies only. |
+### Rally — PE.G6-10.S3 (MCC) → **Skills**
+| Band | Descriptor | Student "I…" |
+|---|---|---|
+| **7** | Controls rallies using tactics. | I choose my shots to win the point, like moving my opponent around. |
+| **5–6** | Varies shot types effectively. | I use different shots (clear, drop, drive) to keep the rally going. |
+| **3–4** | Can sustain a basic rally. | I can keep a simple rally going with a partner. |
+| **1–2** | Short rallies only. | My rallies are short. I miss the shuttle a lot. |
 
-### Movement / Positioning — PE.G6-10.S3 (MCC) → **Skills**
-| Band | Descriptor |
-|---|---|
-| **7** | Reads play and positions early. |
-| **5–6** | Anticipates and recovers well. |
-| **3–4** | Moves reactively. |
-| **1–2** | Static or late movement. |
+### Move and get in position — PE.G6-10.S3 (MCC) → **Skills**
+| Band | Descriptor | Student "I…" |
+|---|---|---|
+| **7** | Reads play and positions early. | I read where the shuttle will go and move early. |
+| **5–6** | Anticipates and recovers well. | I get to the shuttle in time, then go back to the middle. |
+| **3–4** | Moves reactively. | I move to the shuttle after it is hit. |
+| **1–2** | Static or late movement. | I stand still or move too late. |
 
-### Participation & Effort — PE.G6-10.C1 (ACT) → **Concept Transfer**
-| Band | Descriptor |
-|---|---|
-| **7** | Fully engaged and encouraging others. |
-| **5–6** | Consistently focused. |
-| **3–4** | Usually engaged. |
-| **1–2** | Needs reminders. |
+### Take part and try hard — PE.G6-10.C1 (ACT) → **Concept Transfer**
+| Band | Descriptor | Student "I…" |
+|---|---|---|
+| **7** | Fully engaged and encouraging others. | I try hard all lesson, and I help and encourage others. |
+| **5–6** | Consistently focused. | I stay focused and try hard all lesson. |
+| **3–4** | Usually engaged. | I join in most of the time. |
+| **1–2** | Needs reminders. | I need reminders to join in. |
 
 ---
 

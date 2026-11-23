@@ -127,7 +127,8 @@ check('saveGoals replaces the whole set', (() => { as(S1, 'saveGoals', { goals: 
 check('saveGoals stores a numeric target and a note', (() => { const r = as(S1, 'saveGoals', { goals: [{ component: 'mile', target: 540 }, { component: 'dribble', target: 6 }], note: 'run twice a week' }); const c = as(S1, 'bootstrap').data.student.combine; return r.ok && c.goals.find(x => x.component === 'mile').target === 540 && c.goalNote === 'run twice a week'; })());
 check('savePlan stores and reads back', (() => { const plan = { days: [{ focus: 'cv', items: ['run 20 min'] }] }; const r = as(S1, 'savePlan', { plan: plan }); return r.ok && as(S1, 'bootstrap').data.student.combine.plan.days[0].focus === 'cv'; })());
 check('savePlan keeps sets/reps rows and the home-session log', (() => { const plan = { warmup: [], main: [{ n: 'Push-ups', c: 'strength', sets: 3, reps: '10' }], cooldown: [], days: { tue: true }, log: [{ date: '2026-10-14', who: 'friend' }] }; const r = as(S1, 'savePlan', { plan: plan }); const p = as(S1, 'bootstrap').data.student.combine.plan; return r.ok && p.main[0].sets === 3 && p.main[0].reps === '10' && p.log[0].who === 'friend'; })());
-check('savePlan refuses an oversized plan', /too long/.test(as(S1, 'savePlan', { plan: { reflection: 'x'.repeat(21000) } }).error || ''));
+check('savePlan refuses an oversized plan (over 45,000 characters)', /too long/.test(as(S1, 'savePlan', { plan: { reflection: 'x'.repeat(45001) } }).error || ''));
+check('savePlan accepts a plan just under the 45,000-character limit', as(S1, 'savePlan', { plan: { reflection: 'x'.repeat(44900) } }).ok);
 check('teacher (not on roster) cannot saveGoals', /class list/.test(as(T, 'saveGoals', { goals: [] }).error));
 
 console.log('reflections + unit self-assessment');
@@ -241,6 +242,17 @@ check('student saves a plan with whys, a 4-part reflection and a logged number',
 check('teacher classStudent includes that student\'s plan and goals', (() => { const r = as(T, 'classStudent', { email: S2 }); return r.ok && r.data.student.plan.why.warmup === 'raise my heart rate' && Array.isArray(r.data.student.goals.items); })());
 check('a student cannot open another student\'s plan', (() => { const r = as(S1, 'classStudent', { email: S2 }); return !r.ok && /teacher/i.test(r.error); })());
 check('student bootstrap does not include another student\'s plan', !JSON.stringify(as(S1, 'bootstrap')).includes('raise my heart rate'));
+
+console.log('teacher-only class tools refuse students');
+const assessRows = () => { try { return JSON.stringify(readTab_('Assess')); } catch (e) { return ''; } };
+const assess0 = assessRows();
+const notTeacher = r => !!r && !r.ok && /teacher/i.test(r.error || '');
+check('a student cannot load class workout cards (classPlans)', notTeacher(as(S2, 'classPlans', { klass: '8A' })) && notTeacher(as(S1, 'classPlans', { klass: 'all' })));
+check('a student cannot load class lessons (classLessons)', notTeacher(as(S2, 'classLessons', { klass: '8A' })) && notTeacher(as(S1, 'classLessons', { klass: 'all' })));
+check('a student cannot load class assessments (classAssess)', ['workout', 'badminton'].every(t => notTeacher(as(S2, 'classAssess', { klass: '8A', task: t })) && notTeacher(as(S1, 'classAssess', { klass: 'all', task: t }))));
+check('a student cannot save an assessment, not even their own (saveAssess)', notTeacher(as(S2, 'saveAssess', { email: S1, task: 'workout', scores: { k4: 7, s2: 7, sm: 7 } })) && notTeacher(as(S2, 'saveAssess', { email: S2, task: 'badminton', scores: { serve: 7 } })));
+check('a student cannot save assessments in bulk (saveAssessMany)', notTeacher(as(S2, 'saveAssessMany', { task: 'workout', rows: [{ email: S1, scores: { k4: 7 } }, { email: S2, scores: { k4: 7 } }] })));
+check('refused assessment saves write nothing', assessRows() === assess0);
 
 console.log('AP check-out (teacher iPad → APLog)');
 const TODAY = ymd_(new Date());

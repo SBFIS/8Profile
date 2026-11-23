@@ -31,16 +31,20 @@ async function rawCall(action, payload) {
 }
 // Apps Script caps simultaneous runs; a whole class tapping at once produces
 // transient errors. Retry those with backoff; permanent ones surface at once.
-const PERMANENT = /Unknown style|Unknown action|Incomplete|class list|not connected|Bad request|out of range|not a number|locked|missing|whole numbers|rate at least|too long|unknown checkpoint|teacher|Unknown focus|Unknown word|Unknown rater|Rating must|No students/i;
+const PERMANENT = /Unknown style|Unknown action|Incomplete|class list|not connected|Bad request|out of range|not a number|locked|missing|whole numbers|rate at least|too long|unknown checkpoint|teacher|Unknown focus|Unknown word|Unknown rater|Rating must|No students|Unknown task|Note too long/i;
+// Only these are worth a retry (busy server, network blip, Google's HTML error page); any other
+// server error is shown straight away, so a real fault never looks like an endless spinner.
+const TRANSIENT = /too many|lock|timed? ?out|server error|temporar|try again|unavailable|busy|Failed to fetch|NetworkError|Load failed|network|JSON|Unexpected token|Request failed|Service .*failed/i;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function call(action, payload) {
+  if (action === 'savePlan' && payload && payload.plan && state && state.student) payload = Object.assign({}, payload, { plan: withLessons(payload.plan) });
   if (demo) return demoCall(action, payload || {});
   let delay = (window.__preview && window.__preview.fastRetry) ? 30 : 1200;
   for (let attempt = 0; ; attempt++) {
     try { return await rawCall(action, payload); }
     catch (e) {
       if (e.authRequired) { if (/^save/.test(action)) { try { sessionStorage.setItem('pe_pending', JSON.stringify({ action: action, payload: payload || {} })); } catch (x) {} } dropToken(); showSignin('Your sign-in expired. Sign in again — what you were saving will be saved straight after.'); throw e; }
-      if (PERMANENT.test(e.message) || attempt >= 4) throw e;
+      if (PERMANENT.test(e.message) || !TRANSIENT.test(e.message) || attempt >= 4) throw e;
       await sleep(delay + Math.random() * delay); delay = Math.min(delay * 2, 15000);
     }
   }
@@ -75,7 +79,7 @@ function showSignin(msg) {
   });
 }
 function onCredential(resp) { if (resp && resp.credential) { keepToken(resp.credential); boot(); } }
-function signOut() { dropToken(); try { google.accounts.id.disableAutoSelect(); } catch (e) {} showSignin(); }
+function signOut() { try { if (!planDraft || !planDirty()) localStorage.removeItem('pe_plan_draft:' + ((state && state.email) || 'me')); } catch (e) {} dropToken(); try { google.accounts.id.disableAutoSelect(); } catch (e) {} showSignin(); }
 
 // ═══════════════ PE Styles (visual skins; the server holds the names) ═══════════════
 const SKINS = {
@@ -216,10 +220,10 @@ const D = {
   'ap-effort':{ e: '🔥', t: 'Best effort', m: 'Give it my all', what: 'Full effort and engagement the whole lesson, including in activities you don’t naturally enjoy.', when: 'Every lesson, all year.' },
   'ap-growth':{ e: '🌱', t: 'Growth mindset', m: 'Keep trying; learn from setbacks', what: 'Embrace challenges, try new things, stay positive after setbacks.', when: 'Every lesson, all year.' },
   'ap-team':  { e: '🙌', t: 'Great teammate', m: 'Include, encourage, communicate', what: 'Communicate positively, encourage others, help teammates take part.', when: 'Every lesson, all year.' },
-  'ap-manage':{ e: '🧘', t: 'Manage myself & my feelings', m: 'Listen · safe environment · take responsibility', what: 'Manage behaviour and emotions positively without reminders.', when: 'Every lesson, all year.' },
-  'rp-know':  { e: '🧠', t: 'Knowledge', m: 'Understanding fitness, health & safety', what: 'Best fit across: fitness concepts (K4), safe practice (K5), health.', when: 'Reported on Canvas, 1–7.' },
-  'rp-skill': { e: '🎯', t: 'Skills', m: 'Performing movements & using them in games', what: 'Best fit across: fundamental skills (S1), game skills (S1/S3), planning (S2), team contribution (S4).', when: 'Reported on Canvas, 1–7.' },
-  'rp-ct':    { e: '🔄', t: 'Concept transfer', m: 'Using what you know in new sports & situations', what: 'Best fit across: Tactics Cup transfer (C2), meaningful participation (C1), health decisions (C3).', when: 'Reported on Canvas, 1–7.' }
+  'ap-manage':{ e: '🧘', t: 'Manage myself & my feelings', m: 'Focus · be a learner · positive, safe class', what: 'Stay focused, keep learning and manage your behaviour and feelings, so the class stays positive and safe, without reminders.', when: 'Every lesson, all year.' },
+  'rp-know':  { e: '🧠', t: 'Knowledge', m: 'Understanding fitness, health & safety', what: 'Best fit across: fitness concepts (K4), safe practice (K5), health.', when: 'Each unit adds its outcome grades. Until the report, this shows where you are on track; then it shows your report grade.' },
+  'rp-skill': { e: '🎯', t: 'Skills', m: 'Performing movements & using them in games', what: 'Best fit across: fundamental skills (S1), game skills (S1/S3), planning (S2), team contribution (S4).', when: 'Each unit adds its outcome grades. Until the report, this shows where you are on track; then it shows your report grade.' },
+  'rp-ct':    { e: '🔄', t: 'Concept transfer', m: 'Using what you know in new sports & situations', what: 'Best fit across: Tactics Cup transfer (C2), meaningful participation (C1), health decisions (C3).', when: 'Each unit adds its outcome grades. Until the report, this shows where you are on track; then it shows your report grade.' }
 };
 
 // ═══════════════ Combine Intro: strengths & challenges self-prediction ═══════════════
@@ -320,12 +324,42 @@ function ladderBar(lv) {
   return s + '</div>';
 }
 const LBL = { 1: 'Not yet', 2: 'Not yet', 3: 'Approaching', 4: 'Approaching', 5: 'Got it', 6: 'Got it', 7: 'Leading' };
+// Outcomes behind each report grade (rubric bank §1): the unit that assesses each one.
+const REP_OUTCOMES = {
+  knowledge: [['K4', 'Fitness concepts', 'Fitness'], ['K5', 'Safe practice', 'Parkour'], ['K1', 'Health', 'Health', 1], ['K2', 'Health', 'Health', 1], ['K3', 'Health', 'Health', 1]],
+  skills:    [['S1', 'Movement skills', 'Combine · Badminton · Parkour'], ['S2', 'Assess & improve myself', 'Fitness'], ['S3', 'Game skills', 'Badminton · Tactics Cup'], ['S4', 'Team contribution', 'Tchoukball · AP']],
+  concept:   [['C1', 'Meaningful participation', 'AP · Badminton'], ['C2', 'Transfer to new games', 'Tactics Cup'], ['C3', 'Health decisions', 'Health', 1]]
+};
+const UNIT_NAME = k => (UNITS.find(u => u.key === k) || {}).name || '';
+// One report grade: the official Canvas grade when it's in, else "on track" = best fit (average) of the outcomes assessed so far.
+function repPicture(m, repKey) {
+  const o = (m && m.outcomes) || {}, log = (m && m.outcomeLog) || [];
+  const official = m && m.bands && m.bands[repKey] != null ? m.bands[repKey] : null;
+  const rows = REP_OUTCOMES[repKey].filter(r => !r[3] || o[r[0]] != null).map(([code, name, where]) => {
+    const steps = log.filter(x => x.code === code), seq = [];
+    steps.forEach(x => { const b = bandOf(x.v); if (b && (!seq.length || seq[seq.length - 1].b !== b)) seq.push({ b, unit: x.unit }); });
+    return { code, name, where, v: o[code] != null ? o[code] : null, seq };
+  });
+  const got = rows.filter(r => r.v != null);
+  const avg = got.length ? got.reduce((a, r) => a + r.v, 0) / got.length : null;
+  return { official, avg, rows, n: got.length };
+}
 function bandV(ovKey, em, name, repKey) {
-  const m = measured(), v = m && m.bands && m.bands[repKey] != null ? m.bands[repKey] : null;
-  const cls = v == null ? '' : (v >= 5 ? 'ok' : v >= 4 ? 'meet' : 'below');
-  const bar = '<div class="btrack">' + [1, 2, 3, 4, 5, 6, 7].map(i => '<i class="' + (v && i <= v ? 'on' : '') + '"></i>').join('') + '</div>';
+  const p = repPicture(measured(), repKey), v = p.official != null ? p.official : p.avg, b = bandOf(v);
+  const cls = v == null ? '' : (v >= 4.5 ? 'ok' : v >= 2.5 ? 'meet' : 'below');
+  const fill = v == null ? 0 : Math.round(v);
+  const bar = '<div class="btrack">' + [1, 2, 3, 4, 5, 6, 7].map(i => '<i class="' + (i <= fill ? 'on' : '') + '"></i>').join('') + '</div>';
+  const lab = p.official != null ? '<b>' + b.e + ' ' + b.name + '</b> · ' + p.official + ' on your report'
+    : p.avg != null ? 'On track for <b>' + b.e + ' ' + b.name + '</b> · from ' + p.n + ' outcome' + (p.n === 1 ? '' : 's') + ' so far'
+    : 'Not assessed yet';
+  const chip = r => {
+    if (r.v == null) return '<span class="rpo off"><b>' + r.code + '</b> ' + esc(r.name) + '<i>' + esc(r.where) + '</i></span>';
+    const path = r.seq.length > 1 ? r.seq.map(x => x.b.e).join('→') + ' ' + r.seq[r.seq.length - 1].b.name : bandOf(r.v).e + ' ' + bandOf(r.v).name;
+    const last = r.seq.length ? UNIT_NAME(r.seq[r.seq.length - 1].unit) : '';
+    return '<span class="rpo ' + AP_BANDS[bandIx(r.v)].cls + '"><b>' + r.code + '</b> ' + esc(r.name) + '<em>' + path + '</em>' + (last ? '<i>' + esc(last) + '</i>' : '') + '</span>';
+  };
   return '<button type="button" class="band ' + cls + '" data-ov="' + ovKey + '"><span class="plus">⊕</span><div class="bn">' + em + ' ' + esc(name) + '</div>' + bar +
-    '<div class="blab">' + (v == null ? 'not yet reported' : v + ' · ' + LBL[v]) + '</div></button>';
+    '<div class="blab">' + lab + '</div><div class="rpos">' + p.rows.map(chip).join('') + '</div></button>';
 }
 
 function avatar(st, cls) {
@@ -358,6 +392,7 @@ function profileView(b) {
     (function () { const ns = nextStep(); return '<div class="hello"><div class="hello-l"><h1 class="hi">' + greeting() + ', ' + esc(st.first) + ' 👋</h1>' +
       '<button type="button" class="nextstep" id="hubnext" data-go="' + ns[0] + '"><span class="ns-l">Your next step</span><span class="ns-t">' + ns[1] + ' ' + esc(ns[2]) + '</span><span class="ns-go">Go</span></button></div>' +
       '<span class="yearlab">GRADE 8 PE · ' + esc(b.config.yearLabel) + '</span></div>'; })() +
+    hlBanner('hub') +
     '<div class="cardteaser">' + avatar(st, 'ct-av') +
       '<div class="ct-id"><div class="ct-name">' + esc(st.name) + ' <span class="ct-tier">◆ ' + tierOf(earned().length) + '</span></div>' + (st.klass ? '<div class="ct-sub">' + esc(st.klass) + '</div>' : '') +
       '<div class="ct-arch">' + (skin ? skin.e + ' ' + esc(styles[k]).toUpperCase() : '✨ PICK YOUR PE STYLE') + '</div></div>' +
@@ -374,9 +409,9 @@ function profileView(b) {
     fitSummary(m) +
     '<h3 class="sec sec-fund"><span class="em">🧩</span> Fundamental skills <span class="tap">· self → peer → teacher · tap a skill</span><button type="button" class="secbtn" id="tomyskills">✎ Record my levels</button></h3><p class="seclede">Seven building blocks, each a 6-level ladder. Same test every Combine, so your level climbs over the year.</p>' +
     '<div class="grid3">' + fund + '</div>' +
-    '<h3 class="sec sec-ap"><span class="em">🤝</span> Active participation <span class="tap">· all year</span>' + (AP_SELF_IN_APP ? '<button type="button" class="secbtn" id="toapself">✎ Rate myself</button>' : '') + '</h3><p class="seclede">Your biggest all-year story — how you show up, tracked through every unit.</p>' +
-    '<div class="aptrend" id="aptrend">' + apCompare() + apTrend() + '</div>' +
-    '<h3 class="sec sec-rep"><span class="em">🧠</span> My report picture <span class="tap">· tap for how it’s built</span></h3><p class="seclede">The three grades on your Canvas report — a best fit across the descriptors.</p>' +
+    '<h3 class="sec sec-ap"><span class="em">🤝</span> Active participation <span class="tap">· all year</span>' + (AP_SELF_IN_APP ? '<button type="button" class="secbtn" id="toapself">✎ Rate myself</button>' : '') + '</h3><p class="seclede">Your shape: how you see yourself at the end of each lesson, how your coach sees you, and where you started.</p>' +
+    '<div class="aptrend" id="aptrend">' + apShape() + '</div>' +
+    '<h3 class="sec sec-rep"><span class="em">🧠</span> My report picture <span class="tap">· tap for how it’s built</span></h3><p class="seclede">The three grades on your Canvas report. Each unit’s outcomes add to them, so you can see where you’re on track before the report comes out.</p>' +
     '<div class="grid3">' + bandV('rp-know', '🧠', 'Knowledge', 'knowledge') + bandV('rp-skill', '🎯', 'Skills', 'skills') + bandV('rp-ct', '🔄', 'Concept transfer', 'concept') + '</div>' +
     '<div class="foot"><span class="arrow">↻</span><div><b>How this grows:</b> September sets the baseline; the same measures repeat in January and May. Always <b>you vs. your past self</b> — and it maps straight to your report.</div></div>' +
     '<button type="button" class="archlink" id="toarchive">📚 <b>My archive</b><span>past predictions, reflections &amp; self-checks' + (archiveCount() ? ' · ' + archiveCount() : '') + '</span><span class="sg-go">↗</span></button>' +
@@ -389,8 +424,8 @@ const UNITS = [
   { key: 'fitness',   e: '🏃', name: 'Fitness & Training', from: '2026-09-25', to: '2026-11-16', when: 'Sep – 16 Nov', blurb: 'Skills Combine, training toolbox and your own workout' },
   { key: 'badminton', e: '🏸', name: 'Badminton',          from: '2026-11-17', to: '2026-12-18', when: '17 Nov – 18 Dec', blurb: 'Serve, rally, move — net-game tactics', found: ['strike'],
     lede: 'Serve, rally and move with purpose — and learn net-game ideas that carry straight over to volleyball and pickleball.',
-    steps: [['🤝', 'Partner practice check', 'With a partner, pick the description that fits each of you in the four areas below, then set your focus.'], ['🏆', 'Teacher assessment at the Festival', 'Your teacher assesses the same four areas while you play.']],
-    bands: { Serve: 'Skills', 'Rally Skills': 'Skills', 'Movement / Positioning': 'Skills', 'Participation & Effort': 'Concept transfer' } },
+    steps: [['🤝', 'Practice check (lesson 4)', 'On paper with a partner: tick where you are in each area and write your focus. Then copy it in here in your Health lesson.'], ['👀', 'Teacher watches (singles, doubles)', 'Your teacher rates the same four areas while you play.'], ['🏆', 'Festival · Wednesday 16 December', 'Show your best serve, rally and movement.']],
+    bands: { Serve: 'Skills', Rally: 'Skills', 'Move and get in position': 'Skills', 'Take part and try hard': 'Concept transfer' } },
   { key: 'parkour',   e: '🤸', name: 'Parkour',     from: '2027-01-27', to: '2027-03-08', when: 'Jan – Mar', blurb: 'Movement control, flow and safe landings', found: ['jump', 'core'] },
   { key: 'tactics',   e: '🧠', name: 'Tactics Cup', from: '2027-03-09', to: '2027-04-13', when: 'Mar – Apr', blurb: 'Read the game; take a tactic into a new sport' },
   { key: 'tchouk',    e: '🤾', name: 'Tchoukball',  from: '2027-04-14', to: '2027-05-20', when: 'Apr – May', blurb: 'Throw, catch and team roles in a season', found: ['throw', 'catch'] }
@@ -437,7 +472,7 @@ function fitnessView(b) {
   const fitGrid = ['pushups', 'sitstand', 'broad', 'grip', 'sprint', 'illinois', 'stork'].map(fitTileV).join('');
   return '<div class="wrap">' +
     '<button type="button" class="back light" id="tohub">← Back to my profile</button>' +
-    '<div class="phero"><div class="k">UNIT · ' + esc(u.when.toUpperCase()) + '</div><h1>🏃 Fitness &amp; Training</h1><p>Find out where your fitness is now, try training methods in class, then build a workout that targets your goals — and do it at home too.</p></div>' +
+    '<div class="phero"><div class="k">UNIT · ' + esc(u.when.toUpperCase()) + '</div><h1>🏃 Fitness &amp; Training</h1><p>Find out where your fitness is now, try training methods in class, then build a workout that targets your goals — and do it at home too.</p></div>' + hlBanner('fitness') +
     (function () { const done = [!!pred, hasFit, hasSk, !!refl, !!goals.length, !!plan].filter(Boolean).length;
       return '<h3 class="sec sec-fit"><span class="em">🧭</span> Your steps</h3><div class="fprog' + (done === 6 ? ' all' : '') + '"><div class="fp-bar"><i style="width:' + Math.round(done / 6 * 100) + '%"></i></div><span>' + (done === 6 ? '🏆 All six done — now keep training!' : done + ' of 6 done') + '</span></div>'; })() +
     '<div class="fsteps">' +
@@ -467,8 +502,8 @@ function archiveView(b) {
   if (pred) { const L = lists(pred), ch = (arr, c) => arr.length ? arr.map(i => '<span class="chip ' + c + '">' + i.e + ' ' + esc(i.t) + '</span>').join('') : '<span class="chip none">none</span>';
     out += item('🔮', 'Lesson 1 prediction', pred.timestamp.slice(0, 10), '<div class="l1row"><b>🟢 Strengths</b><div class="chips">' + ch(L.strengths, 'g') + '</div></div><div class="l1row"><b>🔴 Work-ons</b><div class="chips">' + ch(L.workons, 'r') + '</div></div>'); }
   if (bad) { const cr = (RUBRICS.units.badminton || {}).criteria || [];
-    out += item('🏸', 'Badminton — partner practice check', (R['unit-badminton'].updated || '').slice(0, 10),
-      '<div class="arc-lv">' + cr.map((c, i) => '<span>' + esc(c.name) + ' <b>' + (bad.v === 'd' && bad.levels && bad.levels[i] != null && c.levels[bad.levels[i]] ? esc(c.levels[bad.levels[i]]) : '—') + '</b></span>').join('') + '</div>' + (bad.focus ? '<div class="arc-q">My focus for the final assessment</div><p>' + esc(bad.focus) + '</p>' : ''),
+    out += item('🏸', 'Badminton — practice check', (R['unit-badminton'].updated || '').slice(0, 10),
+      '<div class="arc-lv">' + cr.map((c, i) => '<span>' + esc(c.name) + ' <b>' + (bad.v === 'd' && bad.levels && bad.levels[i] != null ? ['Not yet', 'Approaching', 'Got it', 'Leading'][bad.levels[i]] : '—') + '</b></span>').join('') + '</div>' + (bad.focus ? '<div class="arc-q">My focus for the final assessment</div><p>' + esc(bad.focus) + '</p>' : ''),
       '<button type="button" class="lnk" data-unit="badminton">Open Badminton</button>'); }
   return '<div class="wrap">' +
     '<button type="button" class="back light" id="tohub">← Back to my profile</button>' +
@@ -481,7 +516,7 @@ function archiveView(b) {
 let unitDraft = null, unitKey = null;
 function unitView(b) {
   const u = UNITS.find(x => x.key === unitKey), rub = RUBRICS.units[unitKey], m = measured();
-  if (unitDraft === null) { const s = reflJson('unit-' + unitKey) || {}; unitDraft = { v: 'd', levels: s.v === 'd' ? (s.levels || []).slice() : [], focus: s.focus || '' }; }
+  if (unitDraft === null) { const s = reflJson('unit-' + unitKey) || {}; unitDraft = { v: 'd', levels: s.v === 'd' ? (s.levels || []).slice() : [], focus: s.focus || '', how: s.how || '' }; }
   const found = (u.found || []).map(k => {
     const lad = RUBRICS.ladders[k], lv = m && m.skills ? latestOf(m.skills[k]) : null, em = (FUND.find(f => f[0] === k) || ['', '🧩'])[1];
     return '<button type="button" class="found" data-ov="fund-' + k + '"><span class="fd-e">' + em + '</span><span class="fd-b"><span class="fd-t">' + esc(lad.name) + ' ladder · from the Combine</span>' + ladderBar(lv) +
@@ -492,7 +527,7 @@ function unitView(b) {
   const crit = rub.criteria.map((c, i) => {
     const sel = unitDraft.levels[i];
     return '<div class="rcrit"><div class="rc-h"><b>' + esc(c.name) + '</b></div><div class="rc-lv">' +
-      c.levels.map((d, j) => '<button type="button" class="rlv' + (sel === j ? ' on' : '') + '" data-crit="' + i + '" data-lv="' + j + '" aria-pressed="' + (sel === j) + '"><span class="rl-d">' + esc(d) + '</span></button>').join('') + '</div></div>';
+      c.levels.map((d, j) => '<button type="button" class="rlv rlv-' + j + (sel === j ? ' on' : '') + '" data-crit="' + i + '" data-lv="' + j + '" aria-pressed="' + (sel === j) + '"><span class="rl-b">' + ['🌱 Not yet', '🧗 Approaching', '✅ Got it', '🌟 Leading'][j] + '</span><span class="rl-d">' + esc((c.student && c.student[j]) || d) + '</span></button>').join('') + '</div></div>';
   }).join('');
   const done = unitDraft.levels.filter(v => v != null).length;
   return '<div class="wrap">' +
@@ -500,15 +535,17 @@ function unitView(b) {
     '<div class="phero"><div class="k">UNIT · ' + esc(u.when.toUpperCase()) + (unitStatus(u) === 'next' ? ' · UP NEXT' : '') + '</div><h1>' + u.e + ' ' + esc(u.name) + '</h1><p>' + esc(u.lede || u.blurb) + '</p></div>' +
     (found ? '<h3 class="sec sec-fund"><span class="em">🧩</span> Built on your foundation</h3>' + link + '<div class="founds">' + found + '</div>' : '') +
     '<h3 class="sec sec-skill"><span class="em">📋</span> How you\'re assessed</h3><div class="usteps">' + steps + '</div>' +
-    '<h3 class="sec sec-skill"><span class="em">🤝</span> My practice check <span class="tap">· tap the one that fits</span></h3><p class="seclede">With your partner, tap the description that sounds most like you right now. Be honest — it\'s practice, so it\'s how you find what to work on.</p>' +
+    '<h3 class="sec sec-skill"><span class="em">🤝</span> My practice check <span class="tap">· copy your sheet</span></h3><p class="seclede">Look at your paper sheet. In each area, tap the line where you ticked <b>Me</b>. It does not need to match every word.</p>' +
     '<div class="rgrid">' + crit + '</div>' +
-    '<h3 class="sec"><span class="em">🎯</span> My focus for the final assessment</h3><textarea id="ufocus" rows="3" maxlength="500" placeholder="What should you focus on in the Festival to make progress? Give as much detail as you can.">' + esc(unitDraft.focus) + '</textarea>' +
-    '<div class="tresult"><span>🏆 Teacher assessment</span><b>at the Festival</b></div>' +
+    '<h3 class="sec"><span class="em">🎯</span> My focus for the Festival</h3><textarea id="ufocus" rows="2" maxlength="500" placeholder="Which area, and what exactly? (from your sheet)">' + esc(unitDraft.focus) + '</textarea>' +
+    '<h3 class="sec"><span class="em">🛠️</span> How I will work on it</h3><textarea id="uhow" rows="2" maxlength="500" placeholder="What will you do in the next lessons?">' + esc(unitDraft.how || '') + '</textarea>' +
+    '<div class="tresult"><span>🏆 Teacher assessment</span><b>Festival · Wed 16 Dec</b></div>' +
     '<div class="pbar"><div class="pcount"><b>' + done + '</b> of ' + rub.criteria.length + ' done</div><button type="button" class="ct-btn" id="usave">Save my practice check</button></div>' +
   '</div>';
 }
 async function saveUnitUI() {
   const f = $('#ufocus'); if (f) unitDraft.focus = f.value.trim().slice(0, 500);
+  const hw = $('#uhow'); if (hw) unitDraft.how = hw.value.trim().slice(0, 500);
   const btn = $('#usave'); btn.disabled = true; btn.textContent = 'Saving…';
   try {
     const res = await call('saveReflection', { key: 'unit-' + unitKey, text: JSON.stringify(unitDraft) });
@@ -607,13 +644,283 @@ function celebrate(em) {
 // The one thing to do next, so a student never has to guess.
 function nextStep() {
   const m = measured(), plan = m && m.plan, wk = homeLog(m).filter(e => weekKey(e.date) === weekKey(todayIso())).length;
+  if (hlActive('train') && !hlDone('train')) return ['tolesson', '📈', 'Health lesson: Training principles'];
   if (!predictionSaved()) return ['topredict', '🔮', 'Predict yourself'];
   if (!(m && m.fitness && Object.keys(m.fitness).length)) return ['toentry', '📝', 'Enter your Combine results'];
   if (!reflections()['compare-intro']) return ['tocompare', '🔍', 'Compare & reflect'];
   if (!(m && m.goals && m.goals.length)) return ['togoals', '🎯', 'Set your goals'];
+  if (plan && (planIsOld(plan) || planTodo(plan, m.goals).length)) { const n = planTodo(plan, m.goals).length; return ['toplan', '🆕', 'Update your workout plan' + (n ? ' · ' + n + ' to do' : '')]; }
   if (!planReady(plan)) return ['toplan', '🏋️', 'Finish building your workout'];
   if (!wk) return ['towo', '🏠', 'Do your workout at home this week'];
   return ['towo', '💪', 'Do your workout again'];
+}
+// ═══════════════ Health lessons inside the profile (self-paced, e.g. with a cover teacher) ═══════════════
+// Answers live in plan.lessons[key] (saved with savePlan, so no new server action). Each lesson
+// stamps `at` on every save; whenever a plan is sent, the newest copy of each lesson wins.
+const HL = {
+  train: {
+    key: 'train', e: '📈', name: 'Training principles', from: '2026-11-02', to: '2026-11-13', mins: 35,
+    lede: 'How do you make your workout keep working? Learn three training principles and use them on your own plan.',
+    learn: [
+      { e: '🏋️', t: 'Overload', s: 'To get fitter, your body must work a little harder than it is used to.',
+        pts: ['Example: 10 squats feel easy → do 12.', 'If a workout always feels easy, you stop improving.'] },
+      { e: '📈', t: 'Progression', s: 'Make it a little harder, step by step. Change one thing at a time.',
+        fitt: [['F', 'Frequency', 'how often', '2 → 3 times a week'], ['I', 'Intensity', 'how hard', 'walk → jog, less rest, harder version'], ['T', 'Time', 'how long', 'plank 20 s → 30 s'], ['T', 'Type', 'which exercise', 'knee push-up → full push-up']],
+        pts: ['Small steps: about 10% more each week.', 'A big jump can hurt you.'] },
+      { e: '😴', t: 'Rest and recovery', s: 'Your body gets stronger when you rest, not while you train.',
+        pts: ['Sleep 8–10 hours a night.', 'Give the same muscles about 48 hours after hard training.', 'Eat well and drink water.', 'Too little rest → tired, sore, more injuries.'] }
+    ],
+    // Five questions; each student gets one version of each, answers shuffled (kept once chosen). Version 0 = the paper backup sheet.
+    bank: [
+      [ { q: 'Mia does 10 push-ups every PE lesson. After 6 weeks she can still only do 10. Why?',
+          o: ['She needs more rest days.', 'Her body is not working harder than it is used to.', 'Push-ups are not a good exercise.'], a: 1,
+          why: 'Overload: the same work every time gives her body no reason to change.' },
+        { q: 'Tom runs the same 1 km at the same speed every week. After a month he is not getting fitter. Why?',
+          o: ['He runs too often.', 'His body is not working harder than it is used to.', 'Running is not good for fitness.'], a: 1,
+          why: 'Overload: the same run every time gives his body no reason to change.' },
+        { q: 'Aya holds a 30-second plank every lesson. Now it feels easy. What should she do to keep improving?',
+          o: ['Keep doing 30 seconds.', 'Make it a little harder than she is used to.', 'Stop doing planks.'], a: 1,
+          why: 'Overload: when it feels easy, add a little more so your body has to change.' } ],
+      [ { q: 'Leo can run for 10 minutes. What is the best plan for next week?',
+          o: ['Run for 30 minutes tomorrow.', 'Run for 12 minutes.', 'Stay at 10 minutes.'], a: 1,
+          why: 'Progression: a small step (about 10%). A big jump can cause an injury.' },
+        { q: 'Nina does 3 × 8 squats. What is a good next step?',
+          o: ['3 × 9 squats', '3 × 30 squats', '1 × 8 squats'], a: 0,
+          why: 'Progression: a small step up. A big jump can cause an injury.' },
+        { q: 'Max can skip rope for 2 minutes. Which plan is best?',
+          o: ['5 minutes tomorrow, then 10 minutes the next day.', 'Add about 15 seconds each week.', 'Keep 2 minutes for the whole year.'], a: 1,
+          why: 'Progression: small steps, week by week. Too fast can hurt you; no change means no progress.' } ],
+      [ { q: 'Sam does hard leg training every day. His legs are always sore and he is getting slower. What does he need?',
+          o: ['More training.', 'Rest and recovery.', 'Heavier weights.'], a: 1,
+          why: 'Rest: muscles get stronger while you rest. Give them about 48 hours after hard training.' },
+        { q: 'Lea trains hard every day and sleeps 6 hours. She is tired and her times are getting worse. What will help most?',
+          o: ['Train even harder.', 'More sleep and a rest day.', 'Train late at night.'], a: 1,
+          why: 'Rest and recovery: your body gets stronger while it rests. Teenagers need 8–10 hours of sleep.' },
+        { q: 'When does your body get stronger after a hard workout?',
+          o: ['During the workout.', 'While it rests and recovers after the workout.', 'Only at the weekend.'], a: 1,
+          why: 'Rest and recovery: training is the signal, rest is when your body builds itself up.' } ],
+      [ { q: 'Which change is progression for a plank?',
+          o: ['30 seconds → 40 seconds', '30 seconds → 30 seconds', '30 seconds → 2 minutes'], a: 0,
+          why: 'A little longer each time. 2 minutes is too big a jump; 30 → 30 is no change.' },
+        { q: 'Which change is progression for a run?',
+          o: ['10 minutes → 11 minutes', '10 minutes → 10 minutes', '10 minutes → 40 minutes'], a: 0,
+          why: 'A little longer each time. 40 minutes is too big a jump; 10 → 10 is no change.' },
+        { q: 'Which change makes push-ups a little harder?',
+          o: ['Knee push-ups → full push-ups', 'Full push-ups → knee push-ups', 'Same push-ups, with more rest'], a: 0,
+          why: 'Intensity: a harder version of the same exercise.' } ],
+      [ { q: 'FITT gives four ways to progress. Which one is NOT a way to progress?',
+          o: ['Train more often (Frequency).', 'Train harder (Intensity).', 'Train for longer (Time).', 'Do the same workout the same way every time.'], a: 3,
+          why: 'Doing the same thing every time is no progression, so no overload.' },
+        { q: 'You train 3 times a week instead of 2. Which part of FITT did you change?',
+          o: ['Frequency (how often)', 'Intensity (how hard)', 'Time (how long)', 'Type (which exercise)'], a: 0,
+          why: 'Frequency: how often you train.' },
+        { q: 'You hold your plank for 40 seconds instead of 30. Which part of FITT did you change?',
+          o: ['Frequency (how often)', 'Intensity (how hard)', 'Time (how long)', 'Type (which exercise)'], a: 2,
+          why: 'Time: how long you do it.' },
+        { q: 'You swap jogging for swimming. Which part of FITT did you change?',
+          o: ['Frequency (how often)', 'Intensity (how hard)', 'Time (how long)', 'Type (which exercise)'], a: 3,
+          why: 'Type: a different exercise.' } ]
+    ]
+  }
+};
+function fmtDayMonth(iso) { const d = new Date(String(iso).slice(0, 10) + 'T12:00:00'); return isNaN(d) ? String(iso) : d.getDate() + ' ' + d.toLocaleDateString('en-GB', { month: 'short' }); }
+// The student's 5 questions: [group, version, order of options]. Chosen once, then kept with their answers.
+function hlQs(d) {
+  const B = HL[hlKey].bank;
+  if (!d.qs || d.qs.length !== B.length) d.qs = B.map((g, gi) => { const v = Math.floor(Math.random() * g.length), n = g[v].o.length, ord = [...Array(n).keys()];
+    for (let k = n - 1; k > 0; k--) { const r = Math.floor(Math.random() * (k + 1)); [ord[k], ord[r]] = [ord[r], ord[k]]; } return [gi, v, ord]; });
+  return d.qs.map(x => Object.assign({ ord: x[2] }, B[x[0]][x[1]]));
+}
+function hlScore(d) { const B = HL.train.bank, qs = (d.qs && d.qs.length === B.length) ? d.qs : B.map((g, i) => [i, 0]); return qs.filter((x, i) => (d.quiz || {})[i] === B[x[0]][x[1]].a).length; }
+const HL_STEPS = ['Log my training', 'Learn', 'Check', 'Use it on my plan', 'Exit ticket'];
+const HL_FEEL = [['good', '😀', 'Going well'], ['ok', '🙂', 'OK'], ['hard', '😕', 'Hard to find time']];
+const HL_HOW = [['F', 'More often', 'train more times a week'], ['I', 'Harder', 'more reps, less rest, harder version'], ['T', 'Longer', 'more time or more sets'], ['Ty', 'New exercise', 'a harder exercise for the same muscles']];
+const HL_REST = [['sleep', '🛌', 'Sleep 8–10 hours'], ['day', '📅', 'Rest day after hard sessions'], ['food', '🍎', 'Eat well and drink water'], ['easy', '🧘', 'Easy stretching on rest days']];
+const HL_PRIN = [['overload', '🏋️', 'Overload'], ['progression', '📈', 'Progression'], ['rest', '😴', 'Rest and recovery']];
+let hlKey = 'train', hlDraft = null, hlSaving = false;
+let hlForm = { date: '', where: 'class', who: 'me', feel: '', hr: '', num: '', chg: '' };
+function hlSince() { const m = measured(); return ((m && m.plan && m.plan.log) || []).filter(e => String(e.date) >= '2026-10-22'); }
+async function hlLogAdd() {
+  hlRead(); const f = hlForm;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f.date) || f.date > todayIso()) return toast('Pick the date of the session.', true);
+  if ((f.chg || '').trim().length < 5) return toast('Write one change: what you changed or will change, and why.', true);
+  const entry = { id: logId(), date: f.date, who: f.where === 'home' ? f.who || 'me' : 'me', where: f.where === 'home' ? 'home' : 'class', feel: f.feel || '', hr: f.hr || '', num: (f.num || '').trim().slice(0, 40), chg: f.chg.trim().slice(0, 160) };
+  const m = measured(), base = normPlan(m && m.plan); base.log = (base.log || []).slice(-59); base.log.push(entry);
+  const btn = $('#lf-add'); if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    const res = await call('savePlan', { plan: base });
+    const mm = state.student.combine || { fitness: {}, skills: {} }; mm.plan = res.plan; state.student.combine = mm;
+    if (planDraft && !planDraft.log.some(x => x.id === entry.id)) planDraft.log.push(entry);
+    hlForm = { date: todayIso(), where: f.where, who: 'me', feel: '', hr: '', num: '', chg: '' };
+    toast('Session logged ✓'); const y = window.scrollY; show('hlesson'); window.scrollTo(0, y);
+  } catch (e) { if (e.authRequired) return; if (btn) { btn.disabled = false; btn.textContent = '＋ Add this session'; } toast('Couldn’t save (' + e.message + '). Press Add again.', true); }
+}
+function hlSaved(k) { const m = measured(); return (m && m.plan && m.plan.lessons && m.plan.lessons[k]) || null; }
+function hlActive(k) { const L = HL[k], t = todayIso(); return t >= L.from && t <= L.to; }
+function hlDone(k) { const s = hlSaved(k); return !!(s && s.done); }
+// newest copy of each lesson wins whenever a plan is sent (an older plan draft never wipes lesson answers)
+function withLessons(plan) {
+  const m = measured(), cur = (m && m.plan && m.plan.lessons) || {}, mine = (plan && plan.lessons) || {}, out = {};
+  Object.keys(cur).concat(Object.keys(mine)).forEach(k => { const a = cur[k], b = mine[k]; out[k] = !a ? b : !b ? a : ((b.at || '') >= (a.at || '') ? b : a); });
+  return Object.keys(out).length ? Object.assign({}, plan, { lessons: out }) : plan;
+}
+function hlBanner(where) {
+  const k = 'train', L = HL[k];
+  if (!state.student || !hlActive(k)) return '';
+  const d = hlDone(k), s = hlSaved(k), stepN = s && s.step ? Math.min(s.step, 5) : 0;
+  if (d && where === 'hub') return '';
+  return '<button type="button" class="hl-ban' + (d ? ' done' : '') + '" data-hl="' + k + '"><span class="hl-be">' + L.e + '</span><span class="hl-bt"><span class="hl-bk">HEALTH LESSON' + (d ? ' · DONE ✓' : ' · ABOUT ' + L.mins + ' MIN') + '</span><b>' + esc(L.name) + '</b><span>' +
+    (d ? 'Your answers are saved. Open to look again.' : stepN ? 'Step ' + (stepN + 1) + ' of 5 · carry on where you stopped' : 'Five short steps. Work on your own; your answers save as you go.') + '</span></span><span class="hl-go">' + (d ? 'Open' : stepN ? 'Continue' : 'Start') + '</span></button>';
+}
+function hlOpen(k) { hlKey = k; if (!hlForm.date) hlForm.date = todayIso(); const s = hlSaved(k); hlDraft = JSON.parse(JSON.stringify(s || { step: 0, quiz: {}, rest: [] })); if (hlDraft.done) hlDraft.step = 5; show('hlesson'); }
+// The same "workout builder" to-do list the profile shows, so the lesson and the builder line up.
+function hlTodoHtml(title) {
+  const m = measured(), plan = m && m.plan;
+  if (!plan) return '<div class="hl-todo"><div class="hl-tt">🛠️ ' + title + '</div><p>You have no workout plan yet. Build it now: it is your assessment.</p><button type="button" class="ct-btn hl-pbtn" id="hl-plan">Build my workout plan →</button></div>';
+  const todo = planTodo(plan, (m && m.goals) || []);
+  if (!todo.length) return '<div class="hl-todo ok"><div class="hl-tt">✅ ' + title + '</div><p>Your workout builder has nothing left to fix. Put your step 4 change into it.</p><button type="button" class="ct-btn hl-pbtn" id="hl-plan">Open my workout plan →</button></div>';
+  return '<div class="hl-todo"><div class="hl-tt">🛠️ ' + title + ' <span>' + todo.length + ' to do</span></div><ul>' + todo.slice(0, 6).map(t => '<li>' + esc(t) + '</li>').join('') + (todo.length > 6 ? '<li>…and ' + (todo.length - 6) + ' more</li>' : '') + '</ul>' +
+    '<p>Fix these in your workout builder, and put in your step 4 change too. Your lesson answers are saved first.</p><button type="button" class="ct-btn hl-pbtn" id="hl-plan">Open my workout plan →</button></div>';
+}
+function hlPlanRows() {
+  const m = measured(), p = m && m.plan ? normPlan(m.plan) : null, out = [];
+  if (p) ['cardio', 'strength', 'focus'].forEach(k => (p[k] || []).forEach(r => { if (r.n && !out.some(x => x.n === r.n)) out.push({ n: r.n, dose: r.sets && r.reps ? r.sets + ' × ' + r.reps + ' ' + r.n.toLowerCase() : (r.min ? r.min + ' min ' + r.n.toLowerCase() : '') }); }));
+  return out;
+}
+function hlView() {
+  const L = HL[hlKey], d = hlDraft, st = d.step || 0, m = measured();
+  const bar = '<div class="hl-steps">' + HL_STEPS.map((t, i) => '<span class="' + (i < st ? 'ok' : i === st ? 'now' : '') + '">' + (i < st ? '✓' : i + 1) + '<em>' + esc(t) + '</em></span>').join('') + '</div>';
+  const head = '<button type="button" class="back light" id="tohub">← Back to my profile</button>' +
+    '<div class="phero"><div class="k">HEALTH LESSON · FITNESS &amp; TRAINING</div><h1>' + L.e + ' ' + esc(L.name) + '</h1><p>' + esc(L.lede) + '</p></div>' + (st < 5 ? bar : '');
+  const nav = (ok, label) => '<div class="hl-nav">' + (st > 0 ? '<button type="button" class="hl-back" id="hl-prev">← Back</button>' : '<span></span>') +
+    '<button type="button" class="ct-btn hl-next" id="hl-next"' + (ok ? '' : ' disabled') + '>' + (label || 'Save and next →') + '</button></div>';
+  let body = '';
+  if (st === 0) {
+    const since = hlSince(), f = hlForm, ch = (key, val, lab) => '<button type="button" class="hl-chip sm' + (f[key] === val ? ' on' : '') + '" data-lf="' + key + '" data-lv="' + val + '">' + lab + '</button>';
+    const rows = since.slice().sort((a, b) => a.date < b.date ? 1 : -1).map(e => { const w = e.where === 'class' ? '🏫 In PE' : '🏠 At home' + (e.who === 'friend' ? ' · with a friend' : e.who === 'family' ? ' · with family' : '');
+      return '<div class="hl-lg"><span class="hl-ld">' + esc(fmtDayMonth(e.date)) + '</span><span class="hl-lw">' + w + (e.hr === 'y' ? ' · ❤️ in zone' : e.hr === 'n' ? ' · ❤️ not quite' : '') + (e.num ? ' · ' + esc(e.num) : '') + '</span>' +
+        '<span class="hl-lc">' + (e.chg ? '🔧 ' + esc(e.chg) : '<em>no change written</em>') + '</span></div>'; }).join('');
+    const pe = since.filter(e => e.where === 'class').length, home = since.length - pe;
+    body = '<h2 class="hl-h">1 · Log my training</h2>' +
+      '<p class="hl-p">Log <b>every</b> session since you started your workout:</p><ul class="hl-ul"><li>🏫 the PE lesson(s) where you tried your workout</li><li>🏠 every session at home</li></ul><p class="hl-p">For each one, write <b>one change</b>: what you changed, or will change, and why.</p>' +
+      '<div class="hl-card"><div class="hl-ct sm">My sessions since 22 October <span class="hl-cnt">' + pe + ' in PE · ' + home + ' at home</span></div>' + (rows || '<p class="hl-empty">Nothing logged yet.</p>') + '</div>' +
+      '<p class="hl-p"><b>Missing a session?</b> Add it here. <b>Everything already there?</b> Skip this box and tick below.</p>' +
+      '<div class="hl-card hl-form"><div class="hl-ct sm">✍️ Add a session</div>' +
+        '<div class="hl-fr"><label>Date<input type="date" class="hl-in" id="lf-date" min="2026-10-14" max="' + todayIso() + '" value="' + esc(f.date) + '"></label></div>' +
+        '<div class="hl-fr"><span>Where</span>' + ch('where', 'class', '🏫 In PE') + ch('where', 'home', '🏠 At home') + '</div>' +
+        (f.where === 'home' ? '<div class="hl-fr"><span>Who with</span>' + ch('who', 'me', '🙂 Just me') + ch('who', 'friend', '🤝 A friend') + ch('who', 'family', '👪 Family') + '</div>' : '') +
+        '<div class="hl-fr"><span>It felt</span>' + WO_FEEL.map(x => ch('feel', x[0], x[1] + ' ' + x[2])).join('') + '</div>' +
+        '<div class="hl-fr"><span>Heart-rate zone?</span>' + ch('hr', 'y', '✅ Reached it') + ch('hr', 'n', '❌ Not quite') + '</div>' +
+        '<label class="hl-fl">One change, and why<input class="hl-in" id="lf-chg" maxlength="160" placeholder="for example: more rest between sprints, I was too tired" value="' + esc(f.chg) + '"></label>' +
+        '<button type="button" class="ct-btn hl-add" id="lf-add">＋ Add this session</button></div>' +
+      '<label class="hl-tick"><input type="checkbox" id="hl-all"' + (d.logAll ? ' checked' : '') + '> I have logged every session: my try in PE and all my home sessions (or I did none at home).</label>' +
+      (!since.length ? '<p class="hl-tip">Log at least your first try in PE to go on.</p>' : '') +
+      '<h3 class="hl-q">How is your training going?</h3><div class="hl-chips">' + HL_FEEL.map(x => '<button type="button" class="hl-chip' + (d.feel === x[0] ? ' on' : '') + '" data-feel="' + x[0] + '">' + x[1] + ' ' + x[2] + '</button>').join('') + '</div>' +
+      nav(hlCanNext());
+  } else if (st === 1) {
+    body = '<h2 class="hl-h">2 · Learn: three training principles</h2><p class="hl-p">Read each card. You will use them in the next steps.</p>' +
+      L.learn.map(c => '<div class="hl-card"><div class="hl-ct">' + c.e + ' ' + esc(c.t) + '</div><p class="hl-cs">' + esc(c.s) + '</p>' +
+        (c.fitt ? '<div class="hl-fitt">' + c.fitt.map(f => '<div><b>' + f[0] + '</b><span><em>' + esc(f[1]) + '</em> · ' + esc(f[2]) + '</span><small>' + esc(f[3]) + '</small></div>').join('') + '</div>' : '') +
+        '<ul>' + c.pts.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul></div>').join('') + nav(true, 'I have read them →');
+  } else if (st === 2) {
+    const Q = hlQs(d), all = Q.every((q, i) => d.quiz[i] != null);
+    body = '<h2 class="hl-h">3 · Check</h2><p class="hl-p">Tap an answer. You see straight away if it is right.</p>' +
+      Q.map((q, i) => { const pick = d.quiz[i];
+        return '<div class="hl-qz"><div class="hl-qq"><b>' + (i + 1) + '.</b> ' + esc(q.q) + '</div>' + q.ord.map(j => {
+          const cls = pick == null ? '' : j === q.a ? ' right' : j === pick ? ' wrong' : ' dim';
+          return '<button type="button" class="hl-opt' + cls + '" data-q="' + i + '" data-o="' + j + '"' + (pick != null ? ' disabled' : '') + '>' + esc(q.o[j]) + '</button>'; }).join('') +
+          (pick != null ? '<p class="hl-why ' + (pick === q.a ? 'ok' : 'no') + '">' + (pick === q.a ? '✅ Right. ' : '❌ Not quite. ') + esc(q.why) + '</p>' : '') + '</div>'; }).join('') +
+      (all ? '<p class="hl-score">You got <b>' + hlScore(d) + ' of ' + Q.length + '</b> right first time.</p>' : '') + nav(all);
+  } else if (st === 3) {
+    const rows = hlPlanRows(), ok = hlCanNext();
+    body = '<h2 class="hl-h">4 · Use it on my plan</h2>' +
+      '<h3 class="hl-q">a) Pick one exercise from your plan to progress</h3>' +
+      (rows.length ? '<div class="hl-chips">' + rows.map(r => '<button type="button" class="hl-chip' + (d.ex === r.n ? ' on' : '') + '" data-ex="' + esc(r.n) + '" data-dose="' + esc(r.dose) + '">' + esc(r.n) + '</button>').join('') + '</div>'
+        : '<input class="hl-in" id="hl-ex" maxlength="40" placeholder="Exercise, for example squats" value="' + esc(d.ex || '') + '">') +
+      '<h3 class="hl-q">b) How will you make it harder? (FITT)</h3><div class="hl-chips">' + HL_HOW.map(h => '<button type="button" class="hl-chip big' + (d.how === h[0] ? ' on' : '') + '" data-how="' + h[0] + '"><b>' + esc(h[1]) + '</b><small>' + esc(h[2]) + '</small></button>').join('') + '</div>' +
+      '<h3 class="hl-q">c) Now and next week</h3><div class="hl-nn"><label>Now<input class="hl-in" id="hl-now" maxlength="60" placeholder="3 × 10 squats" value="' + esc(d.now || '') + '"></label><span>→</span><label>Next week<input class="hl-in" id="hl-nx" maxlength="60" placeholder="3 × 12 squats" value="' + esc(d.next || '') + '"></label></div>' +
+      '<p class="hl-tip">Only a small step: about 10% more.</p>' +
+      '<h3 class="hl-q">d) How will you recover? Pick one or more</h3><div class="hl-chips">' + HL_REST.map(r => '<button type="button" class="hl-chip' + ((d.rest || []).indexOf(r[0]) !== -1 ? ' on' : '') + '" data-rest="' + r[0] + '">' + r[1] + ' ' + esc(r[2]) + '</button>').join('') + '</div>' +
+      '<h3 class="hl-q">e) Finish your workout builder</h3>' + hlTodoHtml('My workout builder') +
+      '<p class="hl-tip">You can open your plan now and come back: your answers are saved. Or finish the lesson first.</p>' +
+      nav(ok);
+  } else if (st === 4) {
+    const ok = hlCanNext();
+    body = '<h2 class="hl-h">5 · Exit ticket</h2><h3 class="hl-q">Which principle will help you most before your workout assessment?</h3>' +
+      '<div class="hl-chips">' + HL_PRIN.map(p => '<button type="button" class="hl-chip' + (d.prin === p[0] ? ' on' : '') + '" data-prin="' + p[0] + '">' + p[1] + ' ' + esc(p[2]) + '</button>').join('') + '</div>' +
+      '<h3 class="hl-q">Why? Write one or two sentences.</h3><textarea class="hl-ta" id="hl-exit" maxlength="400" placeholder="It will help me because …">' + esc(d.exit || '') + '</textarea>' +
+      nav(ok, 'Finish ✓');
+  } else {
+    const sc = hlScore(d), how = HL_HOW.find(h => h[0] === d.how), pr = HL_PRIN.find(p => p[0] === d.prin);
+    body = '<div class="hl-done"><div class="big">🎉</div><h2>Lesson done</h2><p>Your answers are saved. Your teacher will see them.</p></div>' +
+      '<div class="hl-card"><div class="hl-ct">📋 My lesson</div><ul>' +
+        '<li>Check: <b>' + sc + ' of ' + L.bank.length + '</b> right first time</li>' +
+        (d.ex ? '<li>Progress <b>' + esc(d.ex) + '</b>' + (how ? ' (' + esc(how[1].toLowerCase()) + ')' : '') + ': ' + esc(d.now || '') + ' → <b>' + esc(d.next || '') + '</b></li>' : '') +
+        ((d.rest || []).length ? '<li>Recovery: ' + d.rest.map(r => esc((HL_REST.find(x => x[0] === r) || [, , r])[2])).join(', ') + '</li>' : '') +
+        (pr ? '<li>Most helpful: <b>' + esc(pr[2]) + '</b>. ' + esc(d.exit || '') + '</li>' : '') + '</ul></div>' +
+      hlTodoHtml('Now: finish my workout builder') +
+      '<div class="hl-card"><div class="hl-ct">⏱️ All done?</div><ul><li>Check your change from step 4 is in your plan.</li><li>Log any session you have not logged yet.</li><li>Read your assessment task: what do you still need to do before your assessment lesson?</li></ul></div>' +
+      '<div class="hl-nav"><button type="button" class="hl-back" id="hl-edit">Change my answers</button><button type="button" class="hl-back" id="tohub2">Back to my profile</button></div>';
+  }
+  return '<div class="wrap hlw">' + head + body + '</div>';
+}
+function hlCanNext() {
+  const d = hlDraft, st = d.step || 0, L = HL[hlKey];
+  if (st === 0) return !!(d.feel && d.logAll && hlSince().length);
+  if (st === 2) return L.bank.every((q, i) => d.quiz[i] != null);
+  if (st === 3) return !!(d.ex && String(d.ex).trim() && d.how && (d.now || '').trim().length >= 2 && (d.next || '').trim().length >= 2 && (d.rest || []).length);
+  if (st === 4) return !!(d.prin && (d.exit || '').trim().length >= 15);
+  return true;
+}
+function hlRead() { // keep typed text across re-renders
+  const g = id => { const el = $('#' + id); return el ? el.value : null; };
+  [['hl-now', 'now'], ['hl-nx', 'next'], ['hl-exit', 'exit'], ['hl-ex', 'ex']].forEach(([id, k]) => { const v = g(id); if (v !== null) hlDraft[k] = v.slice(0, k === 'exit' ? 400 : 60); });
+  [['lf-date', 'date'], ['lf-num', 'num'], ['lf-chg', 'chg']].forEach(([id, k]) => { const v = g(id); if (v !== null) hlForm[k] = v; });
+  const all = $('#hl-all'); if (all) hlDraft.logAll = all.checked;
+}
+async function hlSave(step, done) {
+  if (hlSaving) return false;
+  hlRead();
+  const m = measured(), base = normPlan(m && m.plan);
+  const lesson = Object.assign({}, hlDraft, { step: step, at: new Date().toISOString() });
+  if (done) { lesson.done = lesson.done || todayIso(); lesson.score = hlScore(lesson); }
+  const plan = Object.assign({}, base, { lessons: Object.assign({}, base.lessons || {}, { [hlKey]: lesson }) });
+  hlSaving = true; const btn = $('#hl-next'); if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    const res = await call('savePlan', { plan: plan });
+    const mm = state.student.combine || { fitness: {}, skills: {} }; mm.plan = res.plan; state.student.combine = mm;
+    if (planDraft) planDraft.lessons = res.plan.lessons;
+    hlDraft = JSON.parse(JSON.stringify(res.plan.lessons[hlKey])); hlSaving = false; return true;
+  } catch (e) {
+    hlSaving = false; if (e.authRequired) return false;
+    if (btn) { btn.disabled = false; btn.textContent = 'Try again'; }
+    toast('Couldn’t save (' + e.message + '). Check the Wi-Fi and press the button again.', true); return false;
+  }
+}
+function hlHandle(e) {
+  const t = e.target, d = hlDraft, rer = () => { const y = window.scrollY; show('hlesson'); window.scrollTo(0, y); };
+  if (t.closest('#lf-add')) { hlLogAdd(); return; }
+  const lf = t.closest('[data-lf]'); if (lf) { hlRead(); hlForm[lf.dataset.lf] = lf.dataset.lv; return rer(); }
+  if (t.closest('#hl-all')) { hlRead(); const nb = $('#hl-next'); if (nb && !hlSaving) nb.disabled = !hlCanNext(); return; }
+  const c = t.closest('[data-feel],[data-ex],[data-how],[data-rest],[data-prin],[data-q]');
+  if (c) {
+    hlRead();
+    if (c.dataset.feel) d.feel = c.dataset.feel;
+    else if (c.dataset.ex) { const was = d.ex; d.ex = c.dataset.ex; if (c.dataset.dose && (!(d.now || '').trim() || was !== d.ex)) d.now = c.dataset.dose; }
+    else if (c.dataset.how) d.how = c.dataset.how;
+    else if (c.dataset.rest) { d.rest = d.rest || []; const i = d.rest.indexOf(c.dataset.rest); if (i === -1) d.rest.push(c.dataset.rest); else d.rest.splice(i, 1); }
+    else if (c.dataset.prin) d.prin = c.dataset.prin;
+    else if (c.dataset.q != null) { if (d.quiz[c.dataset.q] == null) d.quiz[c.dataset.q] = +c.dataset.o; }
+    return rer();
+  }
+  if (t.closest('#hl-prev')) { hlRead(); d.step = Math.max(0, (d.step || 0) - 1); show('hlesson'); return; }
+  if (t.closest('#hl-edit')) { d.step = 0; show('hlesson'); return; }
+  if (t.closest('#hl-next')) { const next = (d.step || 0) + 1; hlSave(next, next >= 5).then(ok => { if (ok) { hlDraft.step = next; show('hlesson'); window.scrollTo(0, 0); } }); return; }
+  if (t.closest('#hl-log') || t.closest('#hl-plan')) { const go = t.closest('#hl-log') ? 'train' : 'plan';
+    const after = () => { lastHub = 'profile'; planStep = go; show('plan'); };
+    if ((d.step || 0) >= 5) return after();
+    hlSave(d.step || 0, false).then(ok => { if (ok) after(); }); return; }
+  if (t.closest('#tohub2')) show('profile');
 }
 function greeting() { const h = new Date().getHours(); return h < 12 ? 'Good morning' : (h < 18 ? 'Good afternoon' : 'Good evening'); }
 function goalLabel(c) { const f = fitMeta(c); if (f && f.label && (state.meta.fitness || []).some(x => x.key === c)) return f.label; if (RUBRICS.ladders[c]) return RUBRICS.ladders[c].name; return c === 'overall' ? 'Overall' : c; }
@@ -629,7 +936,7 @@ function apTileV(ovKey, em, name, key) {
 // ---- AP: my self-checks vs my teacher's graded rounds ----
 const AP_ROWS = [['ready', '✅', 'Be ready', 'Kit on, on time, set to learn'], ['effort', '🔥', 'Best effort', 'Give it my all, even in things I don’t love'],
   ['growth', '🌱', 'Growth mindset', 'Keep trying, learn from setbacks'], ['team', '🙌', 'Great teammate', 'Include, encourage, communicate'],
-  ['manage', '🧘', 'Manage myself', 'Listen, stay calm, take responsibility']];
+  ['manage', '🧘', 'Manage myself', 'Stay focused, keep learning, keep the class positive and safe']];
 const AP_ROUND_POS = { 's1-mid': '10-28', 's1-end': '01-21', 's2-mid': '04-16', 's2-end': '06-18' };
 // Students see the four rubric bands, never the 1–7 number (that lives in Canvas).
 // A self check-in stores the band's floor (1 · 3 · 5 · 7) so it lines up with the teacher's 1–7.
@@ -711,6 +1018,96 @@ function apTrend() {
   if (!apEnough(log)) return tail + '<p class="apunlock">📈 Your line through the year appears after ' + AP_LINE_MIN + ' check-ins over a few weeks (' + log.self.length + ' so far).</p>';
   return tail + '<div class="ap-hd ap-hd2">📈 My check-ins over time</div>' + chips + '<svg class="apchart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="My active participation self-checks and my teacher’s grades over the year">' + g + '</svg>' +
     '<div class="aplegend"><span><i class="lg-me"></i>Me (' + log.self.length + ' check' + (log.self.length === 1 ? '' : 's') + ')</span><span><i class="lg-t"></i>My teacher’s grade</span>' + (log.lesson.length ? '<span><i class="lg-l"></i>My teacher in lessons</span>' : '') + '</div>';
+}
+// ── Active participation as a "player shape": me (latest check-outs) vs coach (the teacher's latest
+// view: a lesson spotlight rating or a report grade) vs where I started, then one tile per area.
+const AP_COL = ['#9b7b6b', '#e0821e', '#2e9e5b', '#d4a017'];
+function apStory() {
+  const log = apLog(), y0y = apYearStart().getFullYear();
+  const rDate = t => t.date || (() => { const md = AP_ROUND_POS[t.round].split('-').map(Number); return (md[0] >= 8 ? y0y : y0y + 1) + '-' + String(md[0]).padStart(2, '0') + '-' + String(md[1]).padStart(2, '0'); })();
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], sd = d => { const x = String(d).split('-'); return (+x[2]) + ' ' + MON[(+x[1]) - 1]; };
+  const out = {};
+  AP_KEYS_C.forEach(k => {
+    const mine = log.self.filter(e => e.v[k] != null).map(e => ({ date: e.date, b: bandIx(e.v[k]), word: e.word || '' }));
+    const coach = log.lesson.filter(e => e.v[k] != null).map(e => ({ date: e.date, b: bandIx(e.v[k]), src: 'PE · ' + sd(e.date) }))
+      .concat(log.teacher.filter(t => t.v[k] != null || t.v.overall != null).map(t => ({ date: rDate(t), b: bandIx(t.v[k] != null ? t.v[k] : t.v.overall), src: t.label + ' grade' })))
+      .sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+    const words = {}; mine.forEach(e => { if (e.word) words[e.word] = (words[e.word] || 0) + 1; });
+    const me = mine.length ? mine[mine.length - 1].b : null, prev = mine.length > 1 ? mine[mine.length - 2].b : null;
+    out[k] = { mine, coach, words, me, start: mine.length ? mine[0].b : null, c: coach.length ? coach[coach.length - 1] : null, trend: prev == null ? 0 : Math.sign(me - prev) };
+  });
+  return out;
+}
+function apRadar(S) {
+  const cx = 190, cy = 185, R = 140, n = AP_ROWS.length;
+  const pt = (i, v) => { const a = -Math.PI / 2 + i * 2 * Math.PI / n, r = R * (v + 1) / 4; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; };
+  const P = (vals) => vals.map((v, i) => pt(i, v == null ? -0.7 : v).map(x => x.toFixed(1)).join(',')).join(' ');
+  let g = '';
+  [3, 2, 1, 0].forEach(lv => { g += '<polygon points="' + AP_ROWS.map((r, i) => pt(i, lv).map(x => x.toFixed(1)).join(',')).join(' ') + '" fill="' + AP_COL[lv] + '" fill-opacity=".1" stroke="#e3dbda"/>'; });
+  AP_ROWS.forEach((r, i) => { const p = pt(i, 3); g += '<line x1="' + cx + '" y1="' + cy + '" x2="' + p[0].toFixed(1) + '" y2="' + p[1].toFixed(1) + '" stroke="#e3dbda"/>'; });
+  const me = AP_ROWS.map(r => S[r[0]].me), co = AP_ROWS.map(r => S[r[0]].c ? S[r[0]].c.b : null), st = AP_ROWS.map(r => S[r[0]].start);
+  if (st.some(v => v != null)) g += '<polygon points="' + P(st) + '" fill="none" stroke="#b9aeb0" stroke-width="2" stroke-dasharray="4 4"/>';
+  if (co.some(v => v != null)) g += '<polygon points="' + P(co) + '" fill="none" stroke="#c8962a" stroke-width="2.5"/>';
+  if (me.some(v => v != null)) g += '<polygon points="' + P(me) + '" fill="#6f1d2c" fill-opacity=".18" stroke="#6f1d2c" stroke-width="3" stroke-linejoin="round"/>';
+  me.forEach((v, i) => { if (v == null) return; const p = pt(i, v); g += '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="7" fill="' + AP_COL[v] + '" stroke="#fff" stroke-width="2.5"/>'; });
+  co.forEach((v, i) => { if (v == null) return; const p = pt(i, v); g += '<rect x="' + (p[0] - 6).toFixed(1) + '" y="' + (p[1] - 6).toFixed(1) + '" width="12" height="12" transform="rotate(45 ' + p[0].toFixed(1) + ' ' + p[1].toFixed(1) + ')" fill="#fff" stroke="#9a6d00" stroke-width="2.5"/>'; });
+  AP_ROWS.forEach((r, i) => {
+    const p = pt(i, 3.55), anchor = Math.abs(p[0] - cx) < 20 ? 'middle' : (p[0] > cx ? 'start' : 'end'), v = me[i];
+    g += '<text x="' + p[0].toFixed(1) + '" y="' + p[1].toFixed(1) + '" text-anchor="' + anchor + '" class="aps-l">' + r[1] + ' ' + esc(r[2]) + '</text>' +
+      '<text x="' + p[0].toFixed(1) + '" y="' + (p[1] + 16).toFixed(1) + '" text-anchor="' + anchor + '" class="aps-b" fill="' + (v == null ? '#b9aeb0' : AP_COL[v]) + '">' + (v == null ? 'not played yet' : AP_BANDS[v].e + ' ' + AP_BANDS[v].name) + '</text>';
+  });
+  return '<svg class="apradar" viewBox="-70 -10 520 390" role="img" aria-label="My active participation shape: me, my teacher and where I started">' + g + '</svg>';
+}
+function apMini(s) {
+  const W = 250, H = 74, pts = s.mine.map(e => ({ d: e.date, b: e.b, t: 'me' })).concat(s.coach.map(e => ({ d: e.date, b: e.b, t: 'co' })));
+  if (!pts.length) return '';
+  const ds = pts.map(p => p.d).sort(), d0 = new Date(ds[0]).getTime(), d1 = Math.max(new Date(ds[ds.length - 1]).getTime(), d0 + 14 * 864e5);
+  const xs = d => 10 + (new Date(d).getTime() - d0) / (d1 - d0) * (W - 20), ys = b => H - 8 - b * (H - 16) / 3;
+  let g = '';
+  for (let v = 0; v < 4; v++) g += '<rect x="0" y="' + (ys(v) - (H - 16) / 6).toFixed(1) + '" width="' + W + '" height="' + ((H - 16) / 3).toFixed(1) + '" fill="' + AP_COL[v] + '" fill-opacity=".09"/>';
+  if (s.mine.length > 1) g += '<polyline points="' + s.mine.map(e => xs(e.date).toFixed(1) + ',' + ys(e.b).toFixed(1)).join(' ') + '" fill="none" stroke="#6f1d2c" stroke-width="2.5" stroke-linejoin="round"/>';
+  s.mine.forEach(e => { g += '<circle cx="' + xs(e.date).toFixed(1) + '" cy="' + ys(e.b).toFixed(1) + '" r="6" fill="' + AP_COL[e.b] + '" stroke="#fff" stroke-width="2"/>'; });
+  s.coach.forEach(e => { const x = xs(e.date).toFixed(1), y = ys(e.b).toFixed(1); g += '<rect x="' + (x - 5) + '" y="' + (y - 5) + '" width="10" height="10" transform="rotate(45 ' + x + ' ' + y + ')" fill="#fff" stroke="#9a6d00" stroke-width="2"/>'; });
+  return '<svg class="apmini" viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true">' + g + '</svg>';
+}
+function apShape() {
+  const log = apLog(), S = apStory();
+  if (!log.self.length && !log.teacher.length && !log.lesson.length) return '<div class="apempty">Your shape appears after your first end-of-lesson check-out on your teacher’s iPad.</div>';
+  // stats: check-outs, how many areas you and your coach agree on, your most-used word
+  const allWords = {}; log.self.forEach(e => { if (e.word) allWords[e.word] = (allWords[e.word] || 0) + 1; });
+  const top = Object.keys(allWords).sort((a, b) => allWords[b] - allWords[a])[0];
+  const both = AP_KEYS_C.filter(k => S[k].me != null && S[k].c), agree = both.filter(k => S[k].me === S[k].c.b).length;
+  const stats = '<div class="aps-stats"><div><b>' + log.self.length + '</b><span>check-out' + (log.self.length === 1 ? '' : 's') + '</span></div>' +
+    '<div><b>' + (both.length ? agree + '/' + both.length : '–') + '</b><span>areas you and your coach agree</span></div>' +
+    '<div><b class="w">' + (top ? '“' + esc(top) + '”' : '–') + '</b><span>your top word</span></div></div>';
+  // next level: where you rate yourself above your coach (show it more), else your coach's lowest, else your lowest
+  const R = (window.RUBRICS || {}).ap || {};
+  const over = AP_KEYS_C.filter(k => S[k].me != null && S[k].c && S[k].me > S[k].c.b).sort((a, b) => (S[b].me - S[b].c.b) - (S[a].me - S[a].c.b));
+  const byCoach = AP_KEYS_C.filter(k => S[k].c).sort((a, b) => S[a].c.b - S[b].c.b), byMe = AP_KEYS_C.filter(k => S[k].me != null).sort((a, b) => S[a].me - S[b].me);
+  const nk = over[0] || byCoach[0] || byMe[0];
+  let next = '';
+  if (nk && R[nk]) {
+    const s = S[nk], row = AP_ROWS.find(r => r[0] === nk), base = s.c ? s.c.b : s.me, nb = Math.min(3, base + 1);
+    const why = over[0] ? 'You see <b>' + AP_BANDS[s.me].name + '</b>, your coach saw <b>' + AP_BANDS[s.c.b].name + '</b> (' + esc(s.c.src) + '). Show it so your coach sees it too.'
+      : s.c ? 'Your coach saw <b>' + AP_BANDS[s.c.b].name + '</b> (' + esc(s.c.src) + ').' : 'Your latest check-out: <b>' + AP_BANDS[s.me].name + '</b>.';
+    next = '<button type="button" class="aps-next" data-ov="ap-' + nk + '"><span class="k">YOUR NEXT LEVEL</span><span class="h">' + row[1] + ' ' + esc(row[2]) + '</span>' +
+      (base >= 3 ? '<span class="jump"><i style="background:' + AP_COL[3] + '">🌟 Leading</i></span><span class="p">You’re at the top band. Keep it going: ' + rubTxt(apMine(R, nk, 3)) + '.</span>'
+        : '<span class="jump"><i style="background:' + AP_COL[base] + '">' + AP_BANDS[base].e + ' ' + AP_BANDS[base].name + '</i>→<i style="background:' + AP_COL[nb] + '">' + AP_BANDS[nb].e + ' ' + AP_BANDS[nb].name + '</i></span>' +
+          '<span class="p">' + why + ' To get to ' + AP_BANDS[nb].name + ': ' + rubTxt(apMine(R, nk, nb)) + '.</span>') + '</button>';
+  }
+  const tiles = AP_ROWS.map(r => {
+    const s = S[r[0]], me = s.me, c = s.c, ag = c && me != null && c.b === me;
+    const head = me == null ? '<b class="ns">Not played yet</b>' : '<b style="color:' + AP_COL[me] + '">' + AP_BANDS[me].e + ' ' + AP_BANDS[me].name + '</b>' +
+      (s.mine.length > 1 ? '<span class="tr ' + (s.trend > 0 ? 'up' : s.trend < 0 ? 'dn' : 'eq') + '">' + (s.trend > 0 ? '▲ up' : s.trend < 0 ? '▼ down' : '= steady') + '</span>' : '');
+    const words = Object.keys(s.words).sort((a, b) => s.words[b] - s.words[a]).map(w => '<span class="tag">' + esc(w) + '<i>×' + s.words[w] + '</i></span>').join('');
+    return '<button type="button" class="aps-tile' + (me == null ? ' empty' : '') + '" data-ov="ap-' + r[0] + '"><span class="tn">' + r[1] + ' ' + esc(r[2]) + '</span><span class="tb">' + head + '</span>' + apMini(s) +
+      (c ? '<span class="co' + (ag ? ' ag' : '') + '">◆ Coach: <b style="color:' + AP_COL[c.b] + '">' + AP_BANDS[c.b].name + '</b> · ' + esc(c.src) + (ag ? ' · ✓ you agree' : '') + '</span>' : (me == null ? '<span class="co">Shows up when it’s the lesson focus</span>' : '')) +
+      (words ? '<span class="words">' + words + '</span>' : '') + '</button>';
+  }).join('');
+  const legend = '<div class="aps-leg"><span><i class="l-me"></i>Me now</span><span><i class="l-co"></i>Coach (latest)</span><span><i class="l-st"></i>Where I started</span></div>';
+  return '<div class="apshape"><div class="aps-hero"><div class="aps-radar">' + apRadar(S) + legend + '</div><div class="aps-side">' + stats + next + '</div></div>' +
+    '<div class="aps-tiles">' + tiles + '</div>' +
+    '<details class="aps-time"><summary>📈 See it over time</summary>' + apTrend() + '</details></div>';
 }
 const AP_LINE_MIN = 4;
 function apEnough(log) {
@@ -1160,7 +1557,7 @@ let planDraft = null;
 const WK_PARTS = [
   ['warmup',   '① Warm-up', 5, '', ['Gradually increase your heart rate', 'Include dynamic stretches']],
   ['cardio',   '② Cardio', 10, 'everyone', ['Plan to reach your target heart-rate zone']],
-  ['strength', '③ Strength or Muscular Endurance', 10, 'everyone · pick one', ['Strength: sets × reps (e.g. 3 × 8)', 'Endurance: sets × time (e.g. 3 × 45s)', 'Minutes are worked out for you, with rest between sets']],
+  ['strength', '③ Strength or Muscular Endurance', 10, 'everyone · pick one', ['Strength: sets × reps (e.g. 3 × 5), 1 min rest. Tip: alternate two exercises so one rests while the other works', 'Endurance: sets × time (e.g. 3 × 30s), 30 s rest', 'Minutes are worked out for you, with rest between sets']],
   ['focus',    '④ My Focus', 10, 'pick one', ['Exercises that target your chosen component', 'It has to help you reach your goal']],
   ['cooldown', '⑤ Cool-down', 5, '', ['Bring your heart rate down', 'Static stretches for the muscles you used']]
 ];
@@ -1208,15 +1605,40 @@ function normRow(x, part, choice) {
   const d = wkDefaults(part, choice);
   return { n: String(x.n || '').slice(0, 40), sets: x.sets == null ? d.sets : x.sets, reps: x.reps == null ? d.reps : x.reps, min: (x.min == null || x.min === '') ? d.min : x.min, int: x.int || d.int };
 }
+const PLAN_V = 4; // v4 (29 Oct): "how" line per part, plan check, heart-rate zone + change in each logged session
+function planIsOld(raw) { return !!raw && (raw.v || 0) < PLAN_V; } // saved before the v4 builder: show what's new
+// What still has to be done before the assessment: unfinished sections, then plan-check warnings.
+// The change from the Health lesson (step 4), if there is one, as one line.
+function lessonChange(p) { const d = p && p.lessons && p.lessons.train; return d && d.ex && (d.next || '').trim() ? d.ex + ': ' + (d.now || '').trim() + ' → ' + d.next.trim() : ''; }
+function planTodo(raw, goals) {
+  if (!raw) return [];
+  const p = normPlan(raw), out = [];
+  const lc = lessonChange(p); if (lc && p.lsDone !== lc) out.push('📈 Put your Health lesson change into your plan: ' + lc + '. Then tick it.');
+  WK_PARTS.forEach(w => { const need = partNeeds(w[0], p); if (need) out.push(w[1] + ': ' + need); });
+  planChecks(p, goals).filter(x => !x.ok).forEach(x => { if (!/^🧠/.test(x.t) || !out.some(o => /say how it trains it/.test(o))) out.push(x.t); });
+  return out;
+}
+function planTodoBanner(raw, goals, where) {
+  if (!raw) return '';
+  const todo = planTodo(raw, goals), old = planIsOld(raw);
+  if (!todo.length && !old) return where === 'hub' ? '<div class="ptodo ok">✓ Your workout plan is ready for your assessment</div>' : '';
+  const head = old ? '🆕 Your workout builder has new steps. Finish them before your assessment.' : '⚠ Your workout plan isn’t assessment-ready yet';
+  const list = todo.length ? '<ul>' + todo.slice(0, 5).map(t => '<li>' + esc(t) + '</li>').join('') + (todo.length > 5 ? '<li>…and ' + (todo.length - 5) + ' more</li>' : '') + '</ul>' : '<p>Open your plan and save it to confirm.</p>';
+  return '<div class="ptodo"><div class="ptodo-h">' + head + ' <span class="ptodo-n">' + todo.length + ' to do</span></div>' + list +
+    (old ? '<p class="ptodo-new">New: a 🧠 “how does this part train it?” line for every part, a Plan check, and after each session you log your heart-rate zone and one change.</p>' : '') +
+    (where === 'plan' ? '' : '<button type="button" class="ct-btn" data-fixplan="1">✎ Update my plan</button>') + '</div>';
+}
+function logId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function logKey(e) { return e && e.id ? String(e.id) : [e && e.date, (e && e.where) || '', (e && e.who) || '', (e && e.num) || ''].join('|'); }
 function normPlan(p) {
   p = p || {};
-  const out = { v: 3, warmup: [], cardio: [], strength: [], focus: [], cooldown: [], sChoice: p.sChoice || '', fChoice: p.fChoice || '', hr: p.hr || '', fWhy: p.fWhy || '',
-    equip: (p.equip || []).slice(0, 20), days: p.days || {}, log: (p.log || []).slice(), reflection: p.reflection || p.notes || '',
-    why: Object.assign({}, p.why || {}), ref: Object.assign({}, p.ref || {}) };
+  const out = { v: PLAN_V, warmup: [], cardio: [], strength: [], focus: [], cooldown: [], sChoice: p.sChoice || '', fChoice: p.fChoice || '', hr: p.hr || '', fWhy: p.fWhy || '',
+    equip: (p.equip || []).slice(0, 20), days: p.days || {}, log: (p.log || []).slice(), logRemoved: (p.logRemoved || []).slice(), reflection: p.reflection || p.notes || '',
+    why: Object.assign({}, p.why || {}), ref: Object.assign({}, p.ref || {}), lessons: Object.assign({}, p.lessons || {}), lsDone: p.lsDone || '' };
   // an older single reflection box carries into "Did it work?"
   if (out.reflection && !out.ref.worked) out.ref.worked = out.reflection;
   const ch = k => k === 'strength' ? out.sChoice : (k === 'focus' ? out.fChoice : '');
-  if (p.v === 3) { WK_PARTS.forEach(w => { out[w[0]] = (p[w[0]] || []).map(x => normRow(x, w[0], ch(w[0]))); }); return out; }
+  if (p.v >= 3) { WK_PARTS.forEach(w => { out[w[0]] = (p[w[0]] || []).map(x => normRow(x, w[0], ch(w[0]))); }); return out; }
   // migrate the earlier warm-up / main / cool-down plan
   (p.warmup || []).forEach(x => out.warmup.push(normRow(x, 'warmup')));
   (p.cooldown || []).forEach(x => out.cooldown.push(normRow(x, 'cooldown')));
@@ -1228,7 +1650,7 @@ function normPlan(p) {
   });
   return out;
 }
-const REST = { strength: 30, endurance: 30 }; // seconds of rest per set, used to estimate minutes
+const REST = { strength: 60, endurance: 30 }; // seconds of rest per set (strength: longer rest; endurance: short), used to estimate minutes and in workout mode
 function parseSecs(t) {
   t = String(t || '').trim().toLowerCase(); if (!t) return 0;
   let m = t.match(/^(\d+):(\d{1,2})$/); if (m) return (+m[1]) * 60 + (+m[2]);
@@ -1247,15 +1669,16 @@ function partNeeds(part, p) {
   const rows = p[part] || [], mins = partMins(part, p), tgt = WK_PARTS.find(w => w[0] === part)[2];
   if ((part === 'strength' && !p.sChoice) || (part === 'focus' && !p.fChoice)) return 'pick one first';
   if (!rows.length) return 'add an exercise';
-  if (mins < tgt) return 'add ' + (Math.round((tgt - mins) * 10) / 10) + ' min more';
+  if (mins < tgt) { const n = Math.max(1, Math.ceil(tgt - mins - 0.01)); return 'add ' + n + ' more minute' + (n === 1 ? '' : 's'); }
   if (part === 'cardio' && !String(p.hr || '').trim()) return 'add your heart-rate zone';
   if (part === 'focus' && !String(p.fWhy || '').trim()) return 'say how it meets your goal';
-  if (part !== 'focus' && !String((p.why || {})[part] || '').trim()) return 'say what it targets';
+  if (!String((p.why || {})[part] || '').trim()) return 'say how it trains it';
   return '';
 }
 // Which focus component the student's goals point to.
 const GOAL_FOCUS = { sprint: 'speed', broad: 'power', illinois: 'agility', stork: 'balance', jump: 'power', core: 'balance', throw: 'coordination', catch: 'coordination', strike: 'coordination', dribble: 'coordination', kick: 'coordination' };
-function goalFocus() { const m = measured(), g = (m && m.goals) || []; for (const x of g) if (GOAL_FOCUS[x.component]) return GOAL_FOCUS[x.component]; return ''; }
+function goalFocusFrom(g) { for (const x of (g || [])) if (GOAL_FOCUS[x.component]) return GOAL_FOCUS[x.component]; return ''; }
+function goalFocus() { const m = measured(); return goalFocusFrom((m && m.goals) || []); }
 function wkRow(part, it) {
   const isS = part === 'strength', endu = isS && planDraft.sChoice === 'endurance';
   const ints = WK_INT.map(o => '<option value="' + o[0] + '"' + (it.int === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('');
@@ -1288,57 +1711,108 @@ function wkPart(w) {
   const extra = part === 'cardio'
     ? '<label class="wk-field">❤️ My target heart-rate zone <input type="text" id="wk-hr" maxlength="30" value="' + esc(planDraft.hr) + '" placeholder="e.g. 145–175 bpm"><small>A guide for your age is about 145–175 beats a minute — check it with your pulse or a watch.</small></label>'
     : part === 'focus' && planDraft.fChoice ? '<label class="wk-field">🎯 How does this help you reach your goal? <input type="text" id="wk-why" maxlength="160" value="' + esc(planDraft.fWhy) + '" placeholder="e.g. faster first steps should cut my 30 m sprint time"></label>' : '';
-  const tgt = part === 'focus' ? '' : '<label class="wk-field wk-tgt">🧠 This part targets… <input type="text" id="wk-why-' + part + '" maxlength="160" value="' + esc((planDraft.why || {})[part] || '') + '" placeholder="' + esc(WK_WHY_HINT[part]) + '"><small>Which part of fitness, and how your choices train it.</small></label>';
+  const trains = wkTrains(part, planDraft);
+  const tgt = (part === 'strength' || part === 'focus') && !trains ? '' : '<label class="wk-field wk-tgt"><span>' + (planIsOld(measured() && measured().plan) ? '<span class="newtag">NEW</span> ' : '') + '🧠 How does this part train ' + esc(trains || 'your fitness') + '?</span><input type="text" id="wk-why-' + part + '" maxlength="160" value="' + esc((planDraft.why || {})[part] || '') + '" placeholder="' + esc(wkWhyHint(part, planDraft)) + '"><small>Say <b>how</b>: which exercises, how hard, how many reps or minutes, how much rest.</small></label>';
   return '<div class="wkpart' + (need ? '' : ' ok') + '" data-part="' + part + '"><div class="wk-h"><span class="wk-ht">' + w[1] + (w[3] ? ' <span class="wk-req">' + esc(w[3]) + '</span>' : '') + '</span>' +
     '<span class="wk-time' + (need ? '' : ' ok') + '">' + (need ? Math.round(mins * 10) / 10 + ' / ' + w[2] + ' min · ' + need : '✓ ' + Math.round(mins * 10) / 10 + ' min') + '</span></div>' +
-    '<ul class="wk-brief">' + w[4].map(t => '<li>' + esc(t) + '</li>').join('') + '</ul>' +
+    '<div class="wk-brief1">' + w[4].map(t => esc(t)).join(' · ') + '</div>' +
     wkChoice(part) +
     '<div class="wk-list" data-part="' + part + '">' + rows.map(it => wkRow(part, it)).join('') + '</div>' +
     (rows.length || need === 'pick one first' ? '' : '<div class="wk-empty">Nothing here yet — add an exercise, then drag ⠿ to arrange.</div>') +
     extra + tgt + wkTools(part) + '</div>';
 }
+// What each part trains (the component). ③ and ④ follow the student's choice; the "how" is theirs to explain.
+const WK_TRAINS = { warmup: 'your body for the workout', cardio: 'your cardiovascular endurance', cooldown: 'your recovery and flexibility' };
+const CHOICE_NAME = { strength: 'muscular strength', endurance: 'muscular endurance', speed: 'speed', power: 'power', agility: 'agility', coordination: 'coordination', balance: 'balance' };
+function wkTrains(part, p) { return part === 'strength' ? (CHOICE_NAME[p.sChoice] ? 'your ' + CHOICE_NAME[p.sChoice] : '') : part === 'focus' ? (CHOICE_NAME[p.fChoice] ? 'your ' + CHOICE_NAME[p.fChoice] : '') : WK_TRAINS[part]; }
 const WK_WHY_HINT = {
-  warmup: 'e.g. raises my heart rate slowly and loosens my hips and legs before I sprint',
-  cardio: 'e.g. intervals keep me at 150–170 bpm, which builds my heart and lungs for the mile',
-  strength: 'e.g. muscular endurance: 3 × 45 s of push-ups and squats so I can keep going longer',
-  cooldown: 'e.g. brings my heart rate down and stretches the legs I used most'
+  warmup: 'e.g. by starting easy and building up, so my heart rate rises slowly and my hips and legs loosen before I sprint',
+  cardio: 'e.g. by doing 1-minute hard intervals that keep me at 150–170 bpm for 10 minutes',
+  strength: 'e.g. by doing 3 sets of 5 slow, hard reps with a minute’s rest, so my muscles work near their limit',
+  endurance: 'e.g. by doing 3 sets of 30–45 s with only 30 s rest, so my muscles keep going when tired',
+  speed: 'e.g. by doing short sprints at full effort with full rest, so every rep is fast',
+  power: 'e.g. by doing 3–5 explosive jumps with full rest, so each one is as high as I can',
+  agility: 'e.g. by doing fast cone drills with quick changes of direction',
+  coordination: 'e.g. by practising the skill slowly, then faster, so it becomes automatic',
+  balance: 'e.g. by holding one-leg balances for 30 s, then making them harder',
+  cooldown: 'e.g. by walking slowly, then holding stretches for 20–30 s on the muscles I used most'
 };
+function wkWhyHint(part, p) { return WK_WHY_HINT[part === 'strength' ? p.sChoice : part === 'focus' ? p.fChoice : part] || WK_WHY_HINT.warmup; }
 function equipList() {
   const auto = []; WK_PARTS.forEach(w => (planDraft[w[0]] || []).forEach(r => { const e = EQUIP[r.n]; if (e && auto.indexOf(e) === -1) auto.push(e); }));
   return { auto: auto, extra: planDraft.equip || [] };
 }
+// The plan page is three steps, in the order of the unit: ① Plan → ② Train & log → ③ Reflect.
+// Only one step shows at a time; the step bar says where each one stands.
+let planStep = '';
+function stepStatus(p, goals) {
+  const todo = planTodo(Object.assign({}, p, { v: PLAN_V }), goals).length, ev = logEvidence(p.log), tw = weekKey(isoDay(new Date()));
+  const homeWk = (p.log || []).filter(e => e.where !== 'class' && weekKey(e.date) === tw).length;
+  const refN = REF_PROMPTS.filter(q => String((p.ref || {})[q[0]] || '').trim()).length;
+  return {
+    plan: { ok: !todo, t: todo ? todo + ' to do' : '✓ ready' },
+    train: { ok: homeWk > 0, t: ev.n + ' session' + (ev.n === 1 ? '' : 's') + ' · ' + (homeWk ? '✓ ' + homeWk : '0') + ' at home this week' },
+    reflect: { ok: refN === 4, t: refN + ' of 4 answered' }
+  };
+}
+const PLAN_STEPS = [['plan', '①', 'Plan', 'Build your workout'], ['train', '②', 'Train & log', 'Do it, then log it'], ['reflect', '③', 'Reflect', 'After your assessment']];
+function stepAssess(keys) {
+  const F = RUBRICS.fitness; if (!F) return '';
+  return '<details class="fasx"><summary>🎯 What gets you to Leading here</summary>' + keys.map(k => '<div class="fax"><div class="fax-h">' + FIT_SHOW[k][0] + ' <b>' + esc(F[k].name) + '</b> <small>' + esc(F[k].code) + '</small></div>' +
+    '<div class="fax-b"><div class="fax-got"><b>✅ Got it</b>' + esc(F[k].got) + '</div><div class="fax-lead"><b>🌟 Leading</b>' + esc(F[k].leading) + '</div></div></div>').join('') + '</details>';
+}
+function planLeft(p, goals, old) {
+  const todo = planTodo(Object.assign({}, p, { v: PLAN_V }), goals), oks = planChecks(p, goals).filter(x => x.ok);
+  const okList = oks.length ? '<details class="pl-ok"><summary>' + oks.length + ' check' + (oks.length === 1 ? '' : 's') + ' passed</summary>' + oks.map(x => '<div class="pchk-i ok">✓ ' + esc(x.t) + '</div>').join('') + '</details>' : '';
+  if (!todo.length) return '<div class="pleft ok"><b>✓ Your plan is ready for your assessment.</b> Keep practising it in ② Train &amp; log.' + okList + '</div>';
+  return '<div class="pleft"><div class="pleft-h">' + (old ? '🆕 The builder has new steps. ' : '') + 'What’s left before your assessment <span class="ptodo-n">' + todo.length + '</span></div>' +
+    '<ul>' + todo.map(t => '<li>' + esc(t) + '</li>').join('') + '</ul>' + okList + '</div>';
+}
 function planView(b) {
   const m = measured();
-  if (planDraft === null) planDraft = normPlan(m && m.plan);
-  const goals = (m && m.goals) || [];
-  const focusStrip = goals.length
-    ? '<div class="goalchips"><span class="gc-h">🎯 Built for your goals</span>' + goals.map(g => '<span class="gchip">' + esc(goalLabel(g.component)) + '</span>').join('') + '<button type="button" class="lnk" id="toeditgoals">edit</button></div>'
-    : '<div class="lockmsg" style="background:#fff4e6;border-color:#e7b64b">🎯 Tip: <button type="button" class="lnk" id="toeditgoals">set your goals</button> first, so your focus section targets them.</div>';
-  const inclass = '<div class="inclass"><span class="ic-h">🏫 In class we’re building your toolbox:</span>' + FIT_LESSONS.map(l => '<span class="ic-chip">' + l[0] + ' ' + esc(l[1]) + '</span>').join('') + '<span class="ic-note">try them, then add your favourites below</span></div>';
-  const total = WK_PARTS.reduce((a, w) => a + partMins(w[0]), 0), ready = WK_PARTS.filter(w => !partNeeds(w[0])).length;
-  const eq = equipList();
-  const eqHtml = '<div class="wk-equip"><div class="wk-eh">🧰 My equipment list <small>builds itself from your exercises — add anything else you need</small></div><div class="eq-chips">' +
-    (eq.auto.length || eq.extra.length ? '' : '<span class="wk-empty" style="border:0;padding:0">Nothing needed yet.</span>') +
-    eq.auto.map(e => '<span class="eq-chip">' + esc(e) + '</span>').join('') +
-    eq.extra.map((e, i) => '<span class="eq-chip own">' + esc(e) + '<button type="button" class="wr-x" data-eqrm="' + i + '" aria-label="remove">✕</button></span>').join('') + '</div>' +
-    '<div class="wk-own"><input type="text" id="wk-eqi" class="wk-owni" maxlength="30" placeholder="add equipment, e.g. water bottle"><button type="button" class="wk-ownb" id="wk-eqadd">+ add</button></div></div>';
-  const dayChips = WK_DAYS.map(d => '<button type="button" class="daychip' + (planDraft.days[d[0]] ? ' on' : '') + '" data-day="' + d[0] + '">' + d[1] + '</button>').join('');
-  return '<div class="wrap">' +
-    backBtn() +
-    '<button type="button" class="wo-launch" id="wk-go">▶ Workout mode</button><div class="phero"><div class="k">PERSONAL WORKOUT PLAN</div><h1>Build my workout</h1><p>Show you can train the main parts of fitness, with your own choices. Each section has a time to plan for; give every exercise its sets &amp; reps, minutes and how hard. <b>Drag ⠿ to arrange.</b></p></div>' +
-    focusStrip + inclass +
-    '<div class="wkcard"><div class="wkcard-h"><span>🏋️ My workout</span><span class="wkcard-n' + (ready === WK_PARTS.length ? ' ok' : '') + '">' + ready + ' of ' + WK_PARTS.length + ' sections ready · ' + Math.round(total) + ' min</span></div>' +
-    WK_PARTS.map(wkPart).join('') +
-    '</div>' + eqHtml +
-    '<h3 class="sec"><span class="em">📅</span> When I’ll train</h3>' +
-    '<div class="wk-fitt"><div class="wk-days">' + dayChips + '</div><div class="wk-tot">About <b>' + Math.round(total) + ' minutes</b> each time.</div></div>' +
-    '<h3 class="sec"><span class="em">🏠</span> Train at home <span class="tap">· homework</span></h3>' +
-    homeworkSection() +
-    '<h3 class="sec"><span class="em">✍️</span> Reflection <span class="tap">· after you’ve done it</span></h3>' +
-    '<div class="refset">' + REF_PROMPTS.map(r => '<label class="refq"><b>' + r[1] + '</b><small>' + esc(r[2]) + '</small><textarea id="wk-ref-' + r[0] + '" rows="3" maxlength="400" placeholder="' + esc(r[3]) + '">' + esc((planDraft.ref || {})[r[0]] || '') + '</textarea></label>').join('') + '</div>' +
-    '<div class="pbar"><div class="pcount">A plan you’ll actually do beats a perfect one.</div><button type="button" class="ct-btn" id="psaveplan">Save my plan</button></div>' +
+  if (planDraft === null) openPlanDraft();
+  const goals = (m && m.goals) || [], old = planIsOld(m && m.plan), st = stepStatus(planDraft, goals);
+  if (!planStep) planStep = st.plan.ok && !old ? 'train' : 'plan';
+  const bar = '<div class="psteps">' + PLAN_STEPS.map(s => '<button type="button" class="pstep' + (planStep === s[0] ? ' on' : '') + (st[s[0]].ok ? ' done' : '') + '" data-step="' + s[0] + '"><span class="ps-n">' + s[1] + '</span><span class="ps-t"><b>' + s[2] + '</b><small>' + esc(st[s[0]].t) + '</small></span></button>').join('') + '</div>';
+  let body = '';
+  if (planStep === 'plan') {
+    const total = WK_PARTS.reduce((a, w) => a + partMins(w[0]), 0), ready = WK_PARTS.filter(w => !partNeeds(w[0])).length, eq = equipList();
+    const goalLine = goals.length
+      ? '<div class="goalline">🎯 Built for your goals: <b>' + goals.map(g => esc(goalLabel(g.component))).join(' · ') + '</b> <button type="button" class="lnk" id="toeditgoals">edit</button></div>'
+      : '<div class="goalline warn">🎯 <button type="button" class="lnk" id="toeditgoals">Set your goals</button> first, so your focus part can target them.</div>';
+    const dayChips = WK_DAYS.map(d => '<button type="button" class="daychip' + (planDraft.days[d[0]] ? ' on' : '') + '" data-day="' + d[0] + '">' + d[1] + '</button>').join('');
+    const extras = '<details class="pl-extra"' + (planExtraOpen ? ' open' : '') + '><summary>🧰 Equipment and training days <small>optional</small></summary>' +
+      '<div class="eq-chips">' + (eq.auto.length || eq.extra.length ? '' : '<span class="wk-empty" style="border:0;padding:0">Nothing needed yet.</span>') +
+      eq.auto.map(e => '<span class="eq-chip">' + esc(e) + '</span>').join('') +
+      eq.extra.map((e, i) => '<span class="eq-chip own">' + esc(e) + '<button type="button" class="wr-x" data-eqrm="' + i + '" aria-label="remove">✕</button></span>').join('') + '</div>' +
+      '<div class="wk-own"><input type="text" id="wk-eqi" class="wk-owni" maxlength="30" placeholder="add equipment, e.g. water bottle"><button type="button" class="wk-ownb" id="wk-eqadd">+ add</button></div>' +
+      '<div class="pl-days"><span>Days I’ll train:</span>' + dayChips + '</div></details>';
+    const lc = lessonChange(planDraft);
+    const cardBox = '<div class="pcard-chg"><div class="pcc-h">📝 Got your printed workout card?</div><p>Make the changes you wrote on it in your plan below.</p>' +
+      (lc ? '<label class="pcc-ls"><input type="checkbox" id="wk-ls"' + (planDraft.lsDone === lc ? ' checked' : '') + '> 📈 My Health lesson change is in my plan: <b>' + esc(lc) + '</b></label>' : '') + '</div>';
+    body = planLeft(planDraft, goals, old) + cardBox + stepAssess(['k4']) + goalLine +
+      '<div class="wkcard"><div class="wkcard-h"><span>🏋️ My workout · 40 min</span><span class="wkcard-n' + (ready === WK_PARTS.length ? ' ok' : '') + '">' + ready + ' of ' + WK_PARTS.length + ' parts ready · ' + Math.round(total) + ' min</span></div>' +
+      WK_PARTS.map(wkPart).join('') + '</div>' + extras +
+      '<button type="button" class="pnext" data-step="train">Next: ② Train &amp; log →</button>';
+  } else if (planStep === 'train') {
+    body = '<div class="tr-rule"><b>Log every session once, in PE or at home.</b> Aim for at least one session at home each week (⭐ bonus with a friend or family).</div>' +
+      '<div class="tr-two"><button type="button" class="tr-btn go" id="wk-go"><span>▶ Do it in workout mode</span><small>Times every part and logs the session for you at the end</small></button>' +
+      '<button type="button" class="tr-btn" id="hwf-open"><span>✍️ Log a session I’ve done</span><small>From your workout card in PE, or a home workout</small></button></div>' +
+      homeworkSection() + stepAssess(['s2', 'sm']) +
+      '<button type="button" class="pnext" data-step="reflect">Next: ③ Reflect →</button>';
+  } else {
+    body = '<div class="tr-rule"><b>Answer these after your assessment.</b> Due Friday 13 November. Use the evidence from your sessions: real numbers make the difference.</div>' +
+      evidenceHtml(planDraft.log) +
+      '<div class="refset">' + REF_PROMPTS.map(r => '<label class="refq"><b>' + r[1] + '</b><small>' + esc(r[2]) + '</small><textarea id="wk-ref-' + r[0] + '" rows="3" maxlength="400" placeholder="' + esc(r[3]) + '">' + esc((planDraft.ref || {})[r[0]] || '') + '</textarea></label>').join('') + '</div>' +
+      stepAssess(['s2']);
+  }
+  return '<div class="wrap pwrap">' + backBtn() +
+    '<div class="phero tight"><div class="k">MY PERSONAL WORKOUT</div><h1>' + PLAN_STEPS.find(s => s[0] === planStep)[3] + '</h1></div>' +
+    restoreNote() + bar + body +
+    '<div class="pbar"><div class="pcount">' + saveStatusHtml() + '</div><button type="button" class="ct-btn" id="psaveplan">Save &amp; close</button></div>' +
   '</div>';
 }
+let planExtraOpen = false;
 // Reflection prompts, one per thing the rubric looks for (S2: strengths/areas, effectiveness, change, personal connection).
 const REF_PROMPTS = [
   ['strength', '💪 My strength and my area to improve', 'Use a real number from your Combine or your sessions.', 'e.g. My strength is sit-to-stand (41). I want to improve my mile (10:20).'],
@@ -1346,20 +1820,89 @@ const REF_PROMPTS = [
   ['change', '🔧 What I would change', 'Too easy, too hard, or not targeting your goal?', 'e.g. Add a fourth interval and swap lunges for step-ups.'],
   ['matters', '❤️ Why it matters to me', 'Connect it to something you care about.', 'e.g. Fitter legs will help me last a full rugby match.']
 ];
+// ── Plan check (Knowledge K4): do the student's choices match the component each part trains?
+// Shown to the student before the assessment and to the teacher in the assessment view.
+function repsOf(r) { const t = String(r.reps || '').trim().toLowerCase(); if (/^\d+(\.\d+)?\s*(m|metres?|meters?)$/.test(t)) return { dist: parseFloat(t) }; return /s$|sec|min|:/.test(t) ? { secs: parseSecs(t) } : { n: parseInt(t, 10) || 0 }; } // "20 m" is a distance, not 20 reps
+function planChecks(p, goals) {
+  const out = [], ok = t => out.push({ ok: true, t }), warn = t => out.push({ ok: false, t });
+  const rows = k => p[k] || [], ints = k => rows(k).map(r => r.int);
+  const why = k => String((p.why || {})[k] || '').trim();
+  if (rows('warmup').length) { if (ints('warmup').indexOf('hard') !== -1) warn('① Warm-up: start easy and build up. One exercise is set to Hard.'); else ok('① Warm-up starts easy and builds up.'); }
+  if (rows('cardio').length) {
+    if (!String(p.hr || '').trim()) warn('② Cardio: add your target heart-rate zone.');
+    else if (ints('cardio').every(i => i === 'easy')) warn('② Cardio: everything is Easy. Will you reach your heart-rate zone?');
+    else ok('② Cardio has a heart-rate zone and enough effort to reach it.');
+  }
+  if (p.sChoice === 'strength' && rows('strength').length) {
+    const bad = rows('strength').filter(r => { const x = repsOf(r); return x.secs || x.dist || x.n > 8 || r.int !== 'hard'; });
+    if (bad.length) warn('③ Muscular strength: do a few hard reps (3–8), set to Hard, with about 1 minute rest. Change: ' + bad.map(r => r.n).join(', ') + '.'); else ok('③ Strength: few, hard reps.');
+  }
+  if (p.sChoice === 'endurance' && rows('strength').length) {
+    const bad = rows('strength').filter(r => { const x = repsOf(r); return (x.dist ? false : x.secs ? x.secs < 20 : x.n < 12) || r.int === 'easy'; });
+    if (bad.length) warn('③ Muscular endurance: do many reps (12 or more) or 30–45 seconds, not Easy, with short rest. Change: ' + bad.map(r => r.n).join(', ') + '.'); else ok('③ Muscular endurance: long sets, short rest.');
+  }
+  if ((p.fChoice === 'speed' || p.fChoice === 'power') && rows('focus').length) {
+    const bad = rows('focus').filter(r => { const x = repsOf(r); return (x.dist ? x.dist > 60 : x.secs ? x.secs > 15 : x.n > 6) || r.int !== 'hard'; });
+    if (bad.length) warn('④ ' + CHOICE_NAME[p.fChoice][0].toUpperCase() + CHOICE_NAME[p.fChoice].slice(1) + ': do short, fast efforts (3–6 reps, or 60 m or less), set to Hard, with full rest. Change: ' + bad.map(r => r.n).join(', ') + '.'); else ok('④ Short, fast, hard efforts for ' + CHOICE_NAME[p.fChoice] + '.');
+  }
+  const gf = goalFocusFrom(goals);
+  if (p.fChoice) { if (gf && gf !== p.fChoice) warn('④ Your goals are about ' + CHOICE_NAME[gf] + ', but you chose ' + CHOICE_NAME[p.fChoice] + '. In “How does this help my goal?”, explain how ' + CHOICE_NAME[p.fChoice] + ' helps your goal.'); else if (gf) ok('④ Your focus matches one of your goals.'); }
+  if (rows('cooldown').length) { if (ints('cooldown').some(i => i !== 'easy')) warn('⑤ Cool-down should be Easy, to bring your heart rate down.'); else ok('⑤ Cool-down is easy.'); }
+  const thin = WK_PARTS.filter(w => rows(w[0]).length && why(w[0]).length < 25).map(w => w[1].split(' ')[0]);
+  if (thin.length) warn('🧠 Part' + (thin.length > 1 ? 's ' : ' ') + thin.join(' ') + ': write more in “How does this part train it?” (which exercises, how hard, how many reps or minutes, how much rest).'); else if (WK_PARTS.every(w => why(w[0]))) ok('🧠 Every part explains how it trains its component.');
+  return out;
+}
+function planCheckHtml(p, goals, title) {
+  const c = planChecks(p, goals); if (!c.length) return '';
+  const nOk = c.filter(x => x.ok).length;
+  return '<div class="pchk"><div class="pchk-h">🔎 ' + (title || 'Plan check') + ' <span>' + nOk + ' of ' + c.length + ' ✓</span></div>' +
+    c.map(x => '<div class="pchk-i ' + (x.ok ? 'ok' : 'warn') + '">' + (x.ok ? '✓' : '⚠') + ' ' + esc(x.t) + '</div>').join('') + '</div>';
+}
+// ── How the workout is assessed (wording generated from the rubric bank)
+const FIT_SHOW = { k4: ['📘', 'Shown by: your 🧠 “how” lines and the Plan check'], s2: ['🔍', 'Shown by: your session log and your reflection'], sm: ['🧭', 'Shown by: your home sessions, and how you work in lessons'] };
+function fitAssessPanel() {
+  const F = RUBRICS.fitness; if (!F) return '';
+  return '<details class="fasx" open><summary>🎯 How your workout is assessed <small>you’re marked on understanding and effort, not on being the fittest</small></summary>' +
+    ['k4', 's2', 'sm'].map(k => '<div class="fax"><div class="fax-h">' + FIT_SHOW[k][0] + ' <b>' + esc(F[k].name) + '</b> <small>' + esc(F[k].code) + '</small></div>' +
+      '<div class="fax-b"><div class="fax-got"><b>✅ Got it</b>' + esc(F[k].got) + '</div><div class="fax-lead"><b>🌟 Leading</b>' + esc(F[k].leading) + '</div></div><div class="fax-on">' + FIT_SHOW[k][1] + '</div></div>').join('') + '</details>';
+}
+// ── Evidence from the student's own log, for the reflection (S2) and the teacher view
+function logEvidence(log) {
+  const L = (log || []).slice().sort((a, b) => a.date < b.date ? -1 : 1);
+  const home = L.filter(e => e.where !== 'class'), weeks = {}; home.forEach(e => { weeks[weekKey(e.date)] = 1; });
+  const first = L.length ? new Date(L[0].date + 'T12:00:00') : null, span = first ? Math.max(1, Math.ceil((Date.now() - first) / (7 * 864e5))) : 0;
+  const hrDone = L.filter(e => e.hr === 'y' || e.hr === 'n'), hrYes = hrDone.filter(e => e.hr === 'y').length;
+  return { L, n: L.length, home: home.length, weeks: Object.keys(weeks).length, span, hrYes, hrN: hrDone.length,
+    nums: L.filter(e => e.num).map(e => [e.date, e.num]), changes: L.filter(e => e.chg).map(e => [e.date, e.chg]) };
+}
+function evidenceHtml(log, teacher) {
+  const v = logEvidence(log); const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], sd = d => { const x = String(d).split('-'); return x.length === 3 ? (+x[2]) + ' ' + MON[(+x[1]) - 1] : esc(d); };
+  if (!v.n) return '<div class="evid"><div class="evid-h">📊 Your evidence</div><p class="evid-e">Log your sessions (in PE and at home) and your heart-rate zone and changes will show up here to use in your reflection.</p></div>';
+  return '<div class="evid"><div class="evid-h">📊 ' + (teacher ? 'From the session log' : 'Your evidence <small>use these in your answers</small>') + '</div>' +
+    '<div class="evid-g"><span><b>' + v.n + '</b> sessions logged</span><span><b>' + v.home + '</b> at home · ' + v.weeks + ' of ' + v.span + ' weeks</span>' + (v.hrN ? '<span>❤️ In your zone <b>' + v.hrYes + ' of ' + v.hrN + '</b></span>' : '') + '</div>' +
+    (v.nums.length ? '<div class="evid-r"><b>Your numbers</b>' + v.nums.map(x => '<span>' + sd(x[0]) + ': ' + esc(x[1]) + '</span>').join('') + '</div>' : '') +
+    (v.changes.length ? '<div class="evid-r"><b>Your changes</b>' + v.changes.map(x => '<span>' + sd(x[0]) + ': ' + esc(x[1]) + '</span>').join('') + '</div>' : '') + '</div>';
+}
 const FIT_LESSONS = [['🫀', 'Cardio & endurance'], ['💪', 'Strength & power'], ['⚡', 'Speed, agility & flexibility']];
 const WHO = { me: ['🙂', 'Just me', 0], friend: ['🤝', 'With a friend', 1], family: ['👪', 'With family', 1] };
 function isoDay(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 function weekKey(s) { const d = new Date(s + (String(s).length === 10 ? 'T12:00:00' : '')); if (isNaN(d)) return ''; d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return isoDay(d); }
+let hwOpen = false; // keep the log form open across re-renders
 function homeworkSection() {
   const log = (planDraft.log || []).slice(), tw = weekKey(isoDay(new Date()));
   const wk = log.filter(e => weekKey(e.date) === tw && e.where !== 'class'), n = wk.length, met = n >= 1, buddy = wk.some(e => e.who === 'friend' || e.who === 'family');
-  const rows = log.sort((a, b) => a.date < b.date ? 1 : -1).slice(0, 8).map(e => { const w = e.where === 'class' ? ['🏫', 'In PE', 0] : (WHO[e.who] || WHO.me); return '<div class="hw-log"><span class="hw-d">' + esc(e.date) + '</span><span class="hw-w">' + w[0] + ' ' + w[1] + '</span>' + (w[2] ? '<span class="hw-star">⭐ bonus</span>' : '') + '<button type="button" class="wr-x" data-logrm="' + esc(e.date + '|' + e.who) + '" aria-label="remove">✕</button></div>'; }).join('');
+  const rows = log.sort((a, b) => a.date < b.date ? 1 : -1).slice(0, 10).map(e => { const w = e.where === 'class' ? ['🏫', 'In PE', 0] : (WHO[e.who] || WHO.me); return '<div class="hw-log"><span class="hw-d">' + esc(e.date) + '</span><span class="hw-w">' + w[0] + ' ' + w[1] + '</span>' + (w[2] ? '<span class="hw-star">⭐ bonus</span>' : '') + (e.hr === 'y' ? '<span class="hw-hr">❤️ in zone</span>' : e.hr === 'n' ? '<span class="hw-hr no">❤️ below zone</span>' : '') + (e.num ? '<span class="hw-num">' + esc(e.num) + '</span>' : '') + '<button type="button" class="wr-x" data-logrm="' + esc(logKey(e)) + '" aria-label="remove">✕</button>' + (e.chg ? '<span class="hw-chg">🔧 ' + esc(e.chg) + '</span>' : '') + '</div>'; }).join('');
   return '<div class="hwbox">' +
-    '<div class="hw-rule"><b>Do your workout at least one more time each week</b> on your own, outside PE. <span class="hw-bonus">⭐ Extra points for training with a friend or family member.</span></div>' +
     '<div class="hw-week"><span class="hw-badge' + (met ? ' ok' : '') + '">' + (met ? '✓ ' : '') + n + ' home session' + (n === 1 ? '' : 's') + ' this week</span>' + (buddy ? '<span class="hw-badge star">⭐ Training-buddy bonus</span>' : '') + '<span class="hw-target">target: 1 or more</span></div>' +
-    '<div class="hw-how">▶ Use <b>Workout mode</b> — it logs your session when you finish.</div>' +
-    '<details class="hw-manual"><summary>Did it without workout mode? Log it here</summary><input type="text" id="hw-num" class="wo-num" maxlength="40" placeholder="One number from today, e.g. 22 push-ups"><div class="hw-add"><button type="button" class="hw-btn" data-log="me">🙂 Just me</button><button type="button" class="hw-btn star" data-log="friend">🤝 With a friend</button><button type="button" class="hw-btn star" data-log="family">👪 With family</button></div></details>' +
-    (rows ? '<div class="hw-logs">' + rows + '</div>' : '') +
+    '<details class="hw-manual" id="hwf-box"' + (hwOpen ? ' open' : '') + '><summary>✍️ Log a session I’ve done</summary><div class="hwf">' +
+      '<label>Date <input type="date" id="hwf-date" max="' + isoDay(new Date()) + '" value="' + isoDay(new Date()) + '"></label>' +
+      '<label>Where <select id="hwf-where"><option value="class">🏫 In PE</option><option value="home">🏠 At home</option></select></label>' +
+      '<label>Who with <select id="hwf-who"><option value="me">🙂 Just me</option><option value="friend">🤝 A friend ⭐</option><option value="family">👪 Family ⭐</option></select></label>' +
+      '<label>It felt <select id="hwf-feel"><option value="">–</option>' + WO_FEEL.map(f => '<option value="' + f[0] + '">' + f[1] + ' ' + f[2] + '</option>').join('') + '</select></label>' +
+      '<label>Heart-rate zone? <select id="hwf-hr"><option value="">–</option><option value="y">✅ Reached it</option><option value="n">❌ Not quite</option></select></label>' +
+      '<label class="w3">What I changed or will change, and why <input type="text" id="hwf-chg" maxlength="160" placeholder="e.g. swapped lunges for step-ups: my knee hurt on lunges"></label>' +
+      '<button type="button" class="hw-btn star" id="hwf-save">✓ Log this session</button></div></details>' +
+    (rows ? '<div class="hw-lh">My sessions</div><div class="hw-logs">' + rows + '</div>' : '<div class="hw-empty">No sessions logged yet.</div>') +
   '</div>';
 }
 // Read the plan back from the page: row order (after any drag), each row's fields, and the text fields.
@@ -1373,11 +1916,13 @@ function syncPlanFromDom() {
     });
   });
   const hr = $('#wk-hr'); if (hr) planDraft.hr = hr.value.trim().slice(0, 30);
+  const ls = $('#wk-ls'); if (ls) planDraft.lsDone = ls.checked ? lessonChange(planDraft) : '';
   const wy = $('#wk-why'); if (wy) planDraft.fWhy = wy.value.trim().slice(0, 160);
   const r = $('#wk-ref'); if (r) planDraft.reflection = r.value.trim().slice(0, 600);
   planDraft.why = planDraft.why || {}; planDraft.ref = planDraft.ref || {};
   WK_PARTS.forEach(w => { const el = $('#wk-why-' + w[0]); if (el) planDraft.why[w[0]] = el.value.trim().slice(0, 160); });
   REF_PROMPTS.forEach(q => { const el = $('#wk-ref-' + q[0]); if (el) planDraft.ref[q[0]] = el.value.trim().slice(0, 400); });
+  if (view === 'plan') planChanged();
 }
 // Pointer-based drag (mouse + touch): grab ⠿, move the row within or between the three parts.
 function enableWkDrag(root) {
@@ -1419,22 +1964,109 @@ async function savePlanAndGo() {
   syncPlanFromDom();
   if (!planCount(planDraft)) { toast('Add some exercises first.', true); return; }
   const btn = $('#wk-go'); btn.disabled = true; btn.textContent = 'Saving…';
-  try { const res = await call('savePlan', { plan: planDraft }); const m = state.student.combine || { fitness: {}, skills: {} }; m.plan = res.plan; state.student.combine = m; planDraft = null; woStart('fitness'); show('workout'); }
-  catch (e) { btn.disabled = false; btn.textContent = '▶ Workout mode'; toast('Couldn’t save: ' + e.message, true); }
+  clearTimeout(planTimer); backupDraft();
+  try { const res = await call('savePlan', { plan: planDraft }); const m = state.student.combine || { fitness: {}, skills: {} }; m.plan = res.plan; state.student.combine = m; planDraft = null; planSaveState = 'saved'; dropBackup(); woStart('fitness'); show('workout'); }
+  catch (e) { if (e.authRequired) return; btn.disabled = false; btn.textContent = '▶ Workout mode'; toast('Couldn’t save yet: ' + e.message + '. Your changes are kept on this device.', true); }
+}
+// ═══════════════ keeping a student's plan safe ═══════════════
+// 1) every change is backed up on this device at once (so a closed tab, a flat battery or a lost
+//    connection never loses work); 2) changes autosave to the server a few seconds after the student
+//    stops typing, and when they leave the page; 3) a status line always says whether it's saved.
+let planBase = '', planSaving = null, planTimer = null, planSaveState = 'saved', planRestored = '';
+function planCore(p) { const x = Object.assign({}, p || {}); delete x.savedAt; delete x.logRemoved; x.log = (x.log || []).map(logKey).sort(); return JSON.stringify(x); }
+function planDirty() { if (!planDraft) return false; const m = measured(); return planCore(planDraft) !== planCore(normPlan(m && m.plan)) || (planDraft.logRemoved || []).length > 0; }
+function draftKey() { return 'pe_plan_draft:' + ((state && state.email) || 'me'); }
+function backupDraft() { try { if (planDirty()) localStorage.setItem(draftKey(), JSON.stringify({ plan: planDraft, base: planBase, at: Date.now() })); else localStorage.removeItem(draftKey()); } catch (e) {} }
+function readBackup() { try { return JSON.parse(localStorage.getItem(draftKey()) || 'null'); } catch (e) { return null; } }
+function dropBackup() { try { localStorage.removeItem(draftKey()); } catch (e) {} }
+function saveStatusHtml() {
+  const t = { saved: ['ok', '✓ All changes saved'], dirty: ['dirty', '● Changes not saved yet: saving in a moment'], saving: ['busy', 'Saving…'], error: ['err', '⚠ Couldn’t save to your profile. Your changes are kept on this device and will save when the connection is back.'] }[planSaveState] || ['ok', ''];
+  return '<span class="psave-st ' + t[0] + '" id="psave-st">' + t[1] + '</span>';
+}
+function paintSaveStatus() { const el = $('#psave-st'); if (el) el.outerHTML = saveStatusHtml(); }
+// Called after anything in the plan changes.
+function planChanged() {
+  if (!planDraft) return;
+  planSaveState = planDirty() ? (planSaving ? 'saving' : 'dirty') : 'saved';
+  backupDraft(); paintSaveStatus();
+  clearTimeout(planTimer); if (planSaveState === 'dirty') planTimer = setTimeout(() => autoSavePlan(), 8000);
+}
+async function autoSavePlan() {
+  clearTimeout(planTimer);
+  if (!planDraft || !planDirty() || state.role !== 'student') return;
+  if (planSaving) { planSaving.again = true; return; }
+  const sent = JSON.parse(JSON.stringify(planDraft)), job = planSaving = { again: false };
+  planSaveState = 'saving'; paintSaveStatus();
+  try {
+    const res = await call('savePlan', { plan: sent });
+    const m = state.student.combine || { fitness: {}, skills: {} }; m.plan = res.plan; state.student.combine = m; planBase = res.plan.savedAt || '';
+    if (planDraft) {
+      // keep sessions logged elsewhere, and forget removals the server has now applied
+      const have = {}; planDraft.log.forEach(x => { have[logKey(x)] = 1; });
+      (res.plan.log || []).forEach(x => { const k = logKey(x); if (!have[k] && (planDraft.logRemoved || []).indexOf(k) === -1) planDraft.log.push(x); });
+      planDraft.logRemoved = (planDraft.logRemoved || []).filter(k => (sent.logRemoved || []).indexOf(k) === -1);
+    }
+    planSaving = null; planSaveState = planDirty() ? 'dirty' : 'saved'; backupDraft(); paintSaveStatus();
+    if (job.again || planSaveState === 'dirty') planTimer = setTimeout(() => autoSavePlan(), 1500);
+  } catch (e) {
+    planSaving = null; if (e.authRequired) return; // the sign-in screen replays this save
+    planSaveState = 'error'; paintSaveStatus(); planTimer = setTimeout(() => autoSavePlan(), 30000);
+  }
+}
+// Start editing: the saved plan, or this device's unsaved backup of it.
+function openPlanDraft() {
+  const m = measured(), saved = m && m.plan; planBase = (saved && saved.savedAt) || '';
+  planDraft = normPlan(saved); planRestored = '';
+  const b = readBackup();
+  if (b && b.plan) {
+    const cand = normPlan(b.plan);
+    if (planCore(cand) !== planCore(planDraft) || (cand.logRemoved || []).length) {
+      if ((b.base || '') === planBase) { planDraft = cand; planRestored = 'auto'; }    // nothing saved since: carry on where they left off
+      else planRestored = 'ask';                                                      // the plan was saved elsewhere since: let them choose
+    } else dropBackup();
+  }
+  planSaveState = planDirty() ? 'dirty' : 'saved';
+}
+function restoreNote() {
+  if (planRestored === 'auto') return '<div class="rnote">↩ We brought back changes you hadn’t saved yet on this device. They’re saving now.</div>';
+  if (planRestored === 'ask') { const b = readBackup(); const when = b ? new Date(b.at).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : ''; return '<div class="rnote ask">This device has unsaved changes from ' + esc(when) + ', but your plan was saved somewhere else since. <button type="button" class="ct-btn" id="rn-use">Use this device’s version</button><button type="button" class="lnk" id="rn-drop">Keep the saved plan</button></div>'; }
+  return '';
+}
+// Leave the plan page without losing anything: save now (in the background) and go.
+function leavePlan(go) { if (planDraft) { syncPlanFromDom(); planChanged(); if (planDirty()) autoSavePlan(); } go(); }
+window.addEventListener('beforeunload', e => { if (planDraft && planDirty()) { backupDraft(); e.preventDefault(); e.returnValue = ''; } });
+// Log one session from the form and save straight away (the student stays on the page).
+async function logSessionUI() {
+  syncPlanFromDom();
+  const v = id => { const el = $('#' + id); return el ? el.value.trim() : ''; };
+  const date = v('hwf-date'), where = v('hwf-where') === 'home' ? 'home' : 'class';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > isoDay(new Date())) return toast('Pick the date of the session (not in the future).', true);
+  planDraft.log = (planDraft.log || []).slice(-59);
+  const who = where === 'home' ? (WHO[v('hwf-who')] ? v('hwf-who') : 'me') : 'me';
+  planDraft.log.push({ id: logId(), date, who, where, feel: v('hwf-feel'), hr: v('hwf-hr') === 'y' || v('hwf-hr') === 'n' ? v('hwf-hr') : '', num: v('hw-num').slice(0, 40), chg: v('hwf-chg').slice(0, 160) });
+  hwOpen = true; planChanged(); clearTimeout(planTimer);
+  const y = window.scrollY; show('plan'); window.scrollTo(0, y);
+  toast(where === 'home' && who !== 'me' ? 'Logged — ⭐ buddy bonus! Saving…' : 'Session logged. Saving…');
+  await autoSavePlan(); // kept on this device even if the save has to wait for the connection
 }
 async function savePlanUI() {
   syncPlanFromDom();
   const btn = $('#psaveplan'); btn.disabled = true; btn.textContent = 'Saving…';
-  try { const res = await call('savePlan', { plan: planDraft }); const m = state.student.combine || { fitness: {}, skills: {} }; m.plan = res.plan; state.student.combine = m; planDraft = null; toast('Plan saved.'); show(lastHub); }
-  catch (e) { btn.disabled = false; btn.textContent = 'Save my plan'; toast('Couldn’t save: ' + e.message, true); }
+  clearTimeout(planTimer); backupDraft();
+  try { const res = await call('savePlan', { plan: planDraft }); const m = state.student.combine || { fitness: {}, skills: {} }; m.plan = res.plan; state.student.combine = m; planDraft = null; planSaveState = 'saved'; dropBackup(); toast('Plan saved ✓'); show(lastHub); }
+  catch (e) { if (e.authRequired) return; btn.disabled = false; btn.textContent = 'Save my plan'; planSaveState = 'error'; paintSaveStatus(); toast('Couldn’t save yet: ' + e.message + '. Your changes are kept on this device. Try again in a moment.', true); }
 }
 
 // ═══════════════ workout mode: see the plan, then do it one exercise at a time ═══════════════
-function woCta(raw) { const p = normPlan(raw); return '<button type="button" class="wo-cta" id="towo"><span class="woc-i">▶</span><span class="woc-b"><b>Do my workout</b><span>' + planCount(p) + ' exercises · about ' + woMinutes(p) + ' min</span></span><span class="woc-go">Go</span></button>'; }
+
+// "Update my plan" from any banner (hubs, workout mode)
+document.addEventListener('click', e => { if (e.target.closest('[data-fixplan]')) { if (typeof wo !== 'undefined' && wo) { woStop(); woWakeOff(); wo = null; } if (!planDirty()) planDraft = null; planStep = 'plan'; lastHub = 'fitness'; show('plan'); window.scrollTo(0, 0); } });
+function woCta(raw) { const p = normPlan(raw), m = measured(); return planTodoBanner(raw, (m && m.goals) || [], 'hub') + '<button type="button" class="wo-cta" id="towo"><span class="woc-i">▶</span><span class="woc-b"><b>Do my workout</b><span>' + planCount(p) + ' exercises · about ' + woMinutes(p) + ' min</span></span><span class="woc-go">Go</span></button>'; }
 const WO_COL = { warmup: '#e8730c', cardio: '#e04848', strength: '#3b7bff', focus: '#a64fd6', cooldown: '#15a89d' };
 const WO_INT = { easy: ['🙂', 'Easy'], moderate: ['😤', 'Moderate'], hard: ['🔥', 'Hard'] };
 const WO_CHEER = ['You’ve got this!', 'Good form first, then speed.', 'Breathe — steady and strong.', 'Every rep counts.', 'Keep going — you’re building it.', 'Nice work. Stay with it.'];
 const WO_FEEL = [['easy', '😌', 'Too easy'], ['right', '💪', 'Just right'], ['hard', '🥵', 'Too hard']];
+const WO_HR = [['y', '✅', 'Yes'], ['n', '❌', 'Not quite']];
 let wo = null, woWake = null;
 function woPlan() { const m = measured(); return m && m.plan ? normPlan(m.plan) : null; }
 function woList(p) { const out = []; WK_PARTS.forEach(w => (p[w[0]] || []).forEach(r => out.push(Object.assign({ part: w[0], sec: w[1].replace(/^\S+\s/, '') }, r)))); return out; }
@@ -1492,6 +2124,7 @@ function woOverview() {
   const eq = []; WK_PARTS.forEach(w => (p[w[0]] || []).forEach(r => { const e = EQUIP[r.n]; if (e && eq.indexOf(e) === -1) eq.push(e); })); (p.equip || []).forEach(e => { if (eq.indexOf(e) === -1) eq.push(e); });
   return '<div class="wo">' +
     '<div class="wo-top"><button type="button" class="wo-x" id="wo-exit" aria-label="close">✕</button><span class="wo-tt">MY WORKOUT</span><button type="button" class="wo-edit" id="wo-edit">✎ Edit my plan</button></div>' +
+    (function () { const m = measured(); return planTodoBanner(m && m.plan, (m && m.goals) || [], 'wo'); })() +
     '<div class="wo-hero"><h1>Let’s train, ' + esc(state.student.first) + '</h1><p><b>' + n + '</b> exercises · about <b>' + woMinutes(p) + ' min</b></p>' +
     '<button type="button" class="wo-go" id="wo-start">▶ Start workout</button></div>' +
     (eq.length ? '<div class="wo-eq">🧰 <b>Grab:</b> ' + eq.map(esc).join(' · ') + '</div>' : '') +
@@ -1530,7 +2163,8 @@ function woDone() {
     '<div class="wo-q">Where did you train?</div>' + pick('where', [['class', '🏫', 'In PE'], ['home', '🏠', 'At home']]) +
     (wo.where === 'home' ? '<div class="wo-q">Who with? <small>⭐ bonus for a friend or family member</small></div>' + pick('who', [['me', '🙂', 'Just me'], ['friend', '🤝', 'A friend ⭐'], ['family', '👪', 'Family ⭐']]) : '') +
     '<div class="wo-q">How did it feel?</div>' + pick('feel', WO_FEEL) +
-    '<div class="wo-q">One number from today <small>so you can see your progress</small></div><input type="text" id="wo-num" class="wo-num" maxlength="40" value="' + esc(wo.num || '') + '" placeholder="e.g. 22 push-ups · cardio 10 min at 160 bpm">' +
+    '<div class="wo-q">Did you reach your heart-rate zone' + (p && p.hr ? ' (' + esc(p.hr) + ')' : '') + '?</div>' + pick('hr', WO_HR) +
+    '<div class="wo-q">What will you change next time, and why? <small>this is evidence for your reflection</small></div><input type="text" id="wo-chg" class="wo-num" maxlength="160" value="' + esc(wo.chg || '') + '" placeholder="e.g. add a 4th interval: I was only at 140 bpm">' +
     '<button type="button" class="wo-go wide" id="wo-save"' + (ready ? '' : ' disabled') + '>Save &amp; finish</button>' +
     '<button type="button" class="wo-edit big" id="wo-skip">Skip — don’t log it</button></div>';
 }
@@ -1538,15 +2172,24 @@ async function woSave() {
   const btn = $('#wo-save'); btn.disabled = true; btn.textContent = 'Saving…';
   const p = woPlan(); p.log = (p.log || []).slice(-59);
   const ni = $('#wo-num'); if (ni) wo.num = ni.value.trim().slice(0, 40);
-  p.log.push({ date: isoDay(new Date()), who: wo.where === 'class' ? 'me' : wo.who, where: wo.where, feel: wo.feel, num: wo.num || '' });
+  const ci = $('#wo-chg'); if (ci) wo.chg = ci.value.trim().slice(0, 160);
+  const entry = { id: logId(), date: isoDay(new Date()), who: wo.where === 'class' ? 'me' : wo.who, where: wo.where, feel: wo.feel, hr: wo.hr || '', num: wo.num || '', chg: wo.chg || '' };
+  p.log.push(entry);
   try {
     const res = await call('savePlan', { plan: p });
     const m = state.student.combine || { fitness: {}, skills: {} }; m.plan = res.plan; state.student.combine = m;
+    if (planDraft) planDraft.log.push(entry); // an open plan draft keeps this session too
     wo.saved = true; toast(wo.where === 'home' && wo.who !== 'me' ? 'Logged — ⭐ buddy bonus!' : 'Workout logged ✓'); show('workout');
-  } catch (e) { btn.disabled = false; btn.textContent = 'Save & finish'; toast('Couldn’t save: ' + e.message, true); }
+  } catch (e) {
+    if (e.authRequired) return;
+    // keep the session on this device; it saves the next time the plan is opened (or press Save again)
+    try { const m = measured(), d = planDraft || normPlan(m && m.plan); if (!d.log.some(x => x.id === entry.id)) d.log.push(entry); localStorage.setItem(draftKey(), JSON.stringify({ plan: d, base: (m && m.plan && m.plan.savedAt) || '', at: Date.now() })); } catch (x) {}
+    btn.disabled = false; btn.textContent = 'Save & finish'; toast('Couldn’t reach your profile (' + e.message + '). Your session is kept on this device: press Save again, or it saves next time you open your plan.', true);
+  }
 }
 function woHandle(e) {
-  const nIn = $('#wo-num'); if (nIn) wo.num = nIn.value.trim().slice(0, 40); // keep the typed number across re-renders
+  const nIn = $('#wo-num'); if (nIn) wo.num = nIn.value.trim().slice(0, 40); // keep the typed number and change across re-renders
+  const cIn = $('#wo-chg'); if (cIn) wo.chg = cIn.value.trim().slice(0, 160);
   const dot = e.target.closest('[data-dot]');
   if (dot) { const it = wo.list[wo.i], k = +dot.dataset.dot; wo.sets = (k < wo.sets) ? k : k + 1; woStop(); wo.rest = false; wo.total = wo.left = woKind(it) === 'interval' ? (parseSecs(it.reps) || 30) : 0; return show('workout'); }
   const id = (e.target.closest('button[id]') || {}).id, pk = e.target.closest('[data-wo]');
@@ -1554,7 +2197,7 @@ function woHandle(e) {
   if (!id) return;
   const n = wo.list.length;
   if (id === 'wo-exit') { if (wo.stage === 'go') { woStop(); woWakeOff(); wo.stage = 'overview'; return show('workout'); } const f = wo.from; woStop(); woWakeOff(); wo = null; return show(f === 'profile' ? 'profile' : 'fitness'); }
-  if (id === 'wo-edit') { woStop(); woWakeOff(); wo = null; planDraft = null; lastHub = 'fitness'; return show('plan'); }
+  if (id === 'wo-edit') { woStop(); woWakeOff(); wo = null; if (!planDirty()) planDraft = null; planStep = 'plan'; lastHub = 'fitness'; return show('plan'); }
   if (id === 'wo-start' || id === 'wo-start2') { wo.stage = 'go'; wo.i = 0; woReset(); woWakeOn(); return show('workout'); }
   if (id === 'wo-play') { if (wo.running) woStop(); else { if (wo.left <= 0) wo.left = wo.total; woRun(); } return show('workout'); }
   if (id === 'wo-skiprest') { woStop(); wo.left = 0; wo.running = true; woTick(); return; }
@@ -1716,7 +2359,7 @@ function classView() {
     '<div class="mxbar">' +
       '<label class="mxf">Class <select id="mxclass">' + classOpts + '</select></label>' +
       '<div class="cptabs">' + cpBtns + '</div>' +
-      '<div class="mxact"><button type="button" class="minib" id="mxlockall">🔒 Lock all</button><button type="button" class="minib" id="mxunlockall">🔓 Unlock all</button><button type="button" class="minib" id="mxcsv">⬇ CSV</button></div>' +
+      '<div class="mxact"><button type="button" class="minib" id="mxlockall">🔒 Lock all</button><button type="button" class="minib" id="mxunlockall">🔓 Unlock all</button><button type="button" class="minib" id="mxcsv">⬇ CSV</button><button type="button" class="minib" id="mxcards">🖨 Workout cards</button><button type="button" class="minib" id="mxlesson">📈 Health lesson</button><button type="button" class="minib" id="mxwa">🏆 Assess</button></div>' +
     '</div>' +
     '<div class="mxleg"><span class="lk lv-lo"></span>below L4<span class="lk lv-mid"></span>at L4<span class="lk lv-hi"></span>above<span class="sep"></span>7 skills · 3 report bands (K/S/C, 1–7) · 5 participation keys</div>' +
     '<div class="tablewrap mxwrap"><table class="mx"><thead><tr>' +
@@ -1794,6 +2437,411 @@ function skillEntryView(sid) {
     '<div class="pbar"><div class="pcount">Teacher sign-off — the final tick.</div><button type="button" class="ct-btn" id="sksave" data-id="' + esc(sid) + '">Save levels</button></div>' +
   '</div>';
 }
+// ── Teacher: the self-paced Health lesson for a whole class, in one call (classLessons).
+let hlClassData = null, assessFrom = '';
+async function openHlClass() {
+  const k = teacherFilter || 'all';
+  hlClassData = { loading: true, klass: k }; show('hlclass');
+  try { hlClassData = await call('classLessons', { klass: k }); }
+  catch (e) { hlClassData = { error: /Unknown action/i.test(e.message) ? 'The server is still on the old version. Paste the new Code.gs into Apps Script, then Deploy → Manage deployments → ✏️ → Version: New version → Deploy. Then try again.' : e.message, klass: k }; }
+  if (view === 'hlclass') show('hlclass');
+}
+function hlClassView() {
+  const D = hlClassData, L = HL.train;
+  const head = '<button type="button" class="back light" id="tohlback">← Back to class</button><div class="phero tight"><div class="k">TEACHER · HEALTH LESSON</div><h1>' + L.e + ' ' + esc(L.name) + '</h1>' +
+    '<p>' + (D && D.klass && D.klass !== 'all' ? esc(D.klass) : 'All classes') + ' · everyone at once. Tap a name for their full page.</p></div>';
+  if (!D || D.loading) return '<div class="wrap">' + head + '<div class="loading"><div class="spinner"></div>Loading the class…</div></div>';
+  if (D.error) return '<div class="wrap">' + head + '<p class="lockmsg">' + esc(D.error) + '</p></div>';
+  const S = D.students || [];
+  const rows = S.map(st => {
+    const p = st.plan, d = p && p.lessons && p.lessons.train, ls = st.logSum || { pe: 0, home: 0, chg: 0 };
+    const todo = p ? planTodo(p, st.goals || []).length : null, sc = d ? hlScore(d) : null;
+    const stat = !d ? '<span class="hc-no">not started</span>' : d.done ? '<span class="hc-ok">✓ ' + esc(fmtDayMonth(d.done)) + '</span>' : '<span class="hc-mid">step ' + Math.min((d.step || 0) + 1, 5) + ' / 5</span>';
+    const how = d && HL_HOW.find(h => h[0] === d.how), pr = d && HL_PRIN.find(x => x[0] === d.prin), fe = d && HL_FEEL.find(f => f[0] === d.feel);
+    return '<tr><td class="hc-nm"><button type="button" class="lnk" data-hlas="' + esc(st.sid) + '">' + esc(st.name) + '</button><small>' + esc(st.klass) + (fe ? ' · ' + fe[1] : '') + '</small></td>' +
+      '<td>' + stat + '</td>' +
+      '<td class="hc-c">' + (d && d.step >= 3 ? '<span class="' + (sc >= 4 ? 'hc-ok' : sc >= 3 ? 'hc-mid' : 'hc-no') + '">' + sc + '/' + L.bank.length + '</span>' : '–') + '</td>' +
+      '<td class="hc-c">' + ls.pe + ' · ' + ls.home + '<small>' + ls.chg + ' with a change' + (d && d.logAll ? ' · ✓ all' : '') + '</small></td>' +
+      '<td class="hc-c">' + (todo == null ? '<span class="hc-no">no plan</span>' : todo ? '<span class="hc-mid">' + todo + ' to do</span>' : '<span class="hc-ok">✓</span>') + '</td>' +
+      '<td>' + (d && d.ex ? esc(d.ex) + (how ? ' <small>(' + esc(how[1].toLowerCase()) + ')</small>' : '') + '<small>' + esc(d.now || '') + ' → ' + esc(d.next || '') + '</small>' : '–') + '</td>' +
+      '<td class="hc-ex">' + (pr ? '<b>' + esc(pr[2]) + '.</b> ' + esc(d.exit || '') : '–') + '</td></tr>';
+  }).join('');
+  const done = S.filter(st => st.plan && st.plan.lessons && st.plan.lessons.train && st.plan.lessons.train.done).length;
+  const started = S.filter(st => st.plan && st.plan.lessons && st.plan.lessons.train).length;
+  const scs = S.map(st => st.plan && st.plan.lessons && st.plan.lessons.train).filter(d => d && d.step >= 3).map(hlScore);
+  const ready = S.filter(st => st.plan && !planTodo(st.plan, st.goals || []).length).length;
+  const tile = (n, t) => '<div class="hc-tile"><b>' + n + '</b><span>' + t + '</span></div>';
+  return '<div class="wrap hcw">' + head +
+    '<div class="hc-tiles">' + tile(done + ' / ' + S.length, 'finished the lesson') + tile(started - done, 'started, not finished') + tile(scs.length ? (scs.reduce((a, b) => a + b, 0) / scs.length).toFixed(1) + ' / 5' : '–', 'average check score') + tile(ready + ' / ' + S.length, 'workout builder with nothing left to fix') + '</div>' +
+    '<div class="hc-scroll"><table class="hc-t"><tr><th>Student</th><th>Lesson</th><th>Check</th><th>Logged since 22 Oct<small>PE · home</small></th><th>Builder</th><th>Progression</th><th>Exit ticket</th></tr>' + rows + '</table></div>' +
+    '<p class="small"><button type="button" class="lnk" id="hlreload">↻ Refresh</button> · uses the Class menu on the dashboard (pick a class to see only that class).</p></div>';
+}
+// ── Teacher: assess the Personal Workout live, one row per student (classAssess / saveAssess).
+// Tap a number per criterion while the class performs; it saves at once. Ratings stay in the
+// Sheet (teacher-only) and are copied out for Canvas, which is still the official record.
+// Two tasks share the screen: the Personal Workout (fitness) and Badminton (unit). Badminton keeps a
+// live band per criterion (Live JSON) and shows the student's own practice check next to it.
+let waData = null, waMode = 'today', waFilter = 'all', waTask = 'badminton';
+const WA_CRIT_BY = {
+  workout: [['k4', '📘', 'Planning', 'K4'], ['s2', '🔍', 'Assessing & improving', 'S2'], ['sm', '🧭', 'Training on my own', 'ATL']],
+  badminton: [['serve', '🏸', 'Serve', 'S1'], ['rally', '🔁', 'Rally', 'S3'], ['move', '👣', 'Move & get in position', 'S3'], ['part', '💪', 'Take part & try hard', 'C1']]
+};
+const WA_TASKS = [['badminton', '🏸', 'Badminton'], ['workout', '🏋️', 'Personal Workout']];
+const waCrit = () => WA_CRIT_BY[waTask];
+const waBad = () => waTask === 'badminton';
+const WA_BANDS = [[[1, 2], 'Not yet', 'lo'], [[3, 4], 'Approaching', 'ap'], [[5, 6], 'Got it', 'got'], [[7], 'Leading', 'lead']];
+const OLD_SERVER = 'The server is still on the old version. Paste the new Code.gs into Apps Script, then Deploy → Manage deployments → ✏️ → Version: New version → Deploy. Then try again.';
+async function openWa(task) {
+  if (typeof task === 'string' && WA_CRIT_BY[task]) waTask = task;
+  const k = teacherFilter || 'all';
+  waData = { loading: true, klass: k }; show('wassess');
+  try { waData = await call('classAssess', { klass: k, task: waTask }); if (waData.task && waData.task !== waTask) throw new Error('Unknown task'); }
+  catch (e) { waData = { error: /Unknown (action|task)/i.test(e.message) ? OLD_SERVER : e.message, klass: k }; }
+  waDirty = {}; const back = waRestore();
+  if (view === 'wassess') show('wassess');
+  if (back) { toast(back + ' unsaved card' + (back === 1 ? '' : 's') + ' from before: saving now.'); waFlush(); }
+}
+const ymdLocal = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const waDone = st => waCrit().every(c => st.scores && st.scores[c[0]] != null);
+const waAny = st => waCrit().some(c => st.scores && st.scores[c[0]] != null);
+function waChips(ev) {
+  if (!ev) return '<span class="as-chip">no workout plan</span>';
+  const chip = (ok, t) => '<span class="as-chip' + (ok ? ' ok' : '') + '">' + t + '</span>';
+  return chip(ev.parts === 5, ev.parts + '/5 parts') + chip(ev.whys === 5, ev.whys + '/5 how-lines') + chip(ev.hr, ev.hr ? 'HR zone ✓' : 'no HR zone') + chip(ev.fWhy, ev.fWhy ? 'focus → goal ✓' : 'focus not linked') +
+    chip(ev.pe + ev.home >= 3, 'logged ' + ev.pe + ' PE · ' + ev.home + ' home') + chip(ev.weeks >= 2, ev.weeks + ' home week' + (ev.weeks === 1 ? '' : 's')) + chip(ev.refs === 4, 'reflection ' + ev.refs + '/4');
+}
+// Plan saved after the workout day (the day the teacher first assessed them) = they acted on it.
+// The class's workout day = the first day any of its students got a flag (or rating) on this screen.
+const waDay = st => st.day || ((waData.students || []).filter(x => x.klass === st.klass && x.day).map(x => x.day).sort()[0] || '');
+const waChanged = st => { const d = waDay(st); return !!(d && st.planDay && st.planDay > d); };
+const waReady = st => waBad() ? !!st.check : !!(st.ev && st.ev.refs === 4 && waChanged(st));
+// Workout-day observation per row, in the rubric's bands. mid = the number it counts as in a suggestion.
+const WA_OBS = [['ny', '🌱', 'Not yet', 1.5, 'lo', [1, 2]], ['ap', '🧗', 'Approaching', 3.5, 'ap', [3, 4]], ['got', '✅', 'Got it', 5.5, 'got', [5, 6]], ['lead', '🌟', 'Leading', 7, 'lead', [7]]];
+const waObs = v => WA_OBS.find(o => o[0] === v) || null;
+// Suggested Training on my own: the mean of your AP check-out average (else theirs) and the workout-day band,
+// then +1 for a home session every week (3+), −1 for 0–1 home weeks. Planning: the workout-day band only.
+function waSuggest(st, k) {
+  if (k === 'k4') { const o = waObs(st.flagK4); return o ? o[5] : null; }
+  const ap = st.ap, a = ap ? (ap.lessonAvg != null ? ap.lessonAvg : ap.selfAvg) : null, o = waObs(st.flag);
+  const vals = [a, o && o[3]].filter(x => x != null); if (!vals.length) return null;
+  let n = Math.round(vals.reduce((x, y) => x + y, 0) / vals.length); const w = st.ev ? st.ev.weeks : 0;
+  if (w >= 3) n++; else if (w <= 1) n--;
+  return [Math.max(1, Math.min(7, n))];
+}
+const waObsWord = v => { const o = waObs(v); return o ? o[1] + ' ' + o[2] : ''; };
+function waSmLine(st) {
+  const ap = st.ap, w = st.ev ? st.ev.weeks : 0, sg = waSuggest(st, 'sm'), bits = [];
+  if (ap) { if (ap.lessonN) bits.push('your check-outs ' + ap.lessonAvg + ' (' + ap.lessonN + ' lesson' + (ap.lessonN === 1 ? '' : 's') + ')'); if (ap.selfN) bits.push('theirs ' + ap.selfAvg + ' (' + ap.selfN + ')'); }
+  else bits.push('no AP check-outs');
+  bits.push('workout day: ' + (st.flag ? waObsWord(st.flag) : 'not rated'));
+  bits.push(w + ' home week' + (w === 1 ? '' : 's') + (w >= 3 ? ' (+1)' : w <= 1 ? ' (−1)' : ''));
+  return '<div class="wa-sm">🧭 ' + bits.join(' · ') + (sg ? ' → <b>suggested ' + sg[0] + '</b>' : '') + '</div>';
+}
+const WA_FLAGS = [['sm', 'flag', '🧭', 'Training', 'effort · overload · focus · no reminders'], ['k4', 'flagK4', '📘', 'Workout quality', 'matches the plan · trains the right components']];
+// What each band looks like on workout day (teacher-facing; draft wording built from the rubric bank's K4 and Self-Management lines).
+const WA_GUIDE = {
+  sm: ['Stops often or needs repeated reminders. Little effort; off task.',
+       'Works, but needs some reminders. Effort drops; easy pace, rarely in their heart-rate zone.',
+       'Works the whole workout with few reminders. Reaches their heart-rate zone and pushes in the hard parts.',
+       'Full effort all workout, no reminders. Adds challenge when it gets easy (overload). Came ready; lifts others.'],
+  k4: ['No real plan, or not following it. Parts missing; exercises don’t fit their goals.',
+       'Follows some of the plan. Parts or times missing, or the dose doesn’t fit (fast strength reps, no rest).',
+       'Follows the plan: all five parts with times. The dose fits each part, and they can say what it trains.',
+       'Every part fits its component: strength = few hard reps, long rest; endurance = many reps or 30–45\u00a0s; power = short and fast; cardio in zone. Good form; explains why and adjusts.']
+};
+function waGuide(closed) {
+  if (waBad()) return waGuideBad(closed);
+  const head = '<div class="wg-h"></div>' + WA_OBS.map(o => '<div class="wg-h wa-' + o[4] + '">' + o[1] + ' ' + o[2] + '<small>' + o[5].join('–') + '</small></div>').join('');
+  const rows = WA_FLAGS.map(r => '<div class="wg-l">' + r[2] + ' <b>' + r[3] + '</b><small>' + r[4] + '</small></div>' + WA_GUIDE[r[0]].map((t, j) => '<div class="wg-c wa-' + WA_OBS[j][4] + '"><i>' + WA_OBS[j][1] + ' ' + WA_OBS[j][2] + '</i>' + esc(t) + '</div>').join('')).join('');
+  return '<details class="wa-guide" open><summary>📏 What each level looks like today</summary><div class="wg">' + head + rows + '</div>' +
+    '<p class="wg-n">Training here is what you see in the lesson. Home training comes from their log and is added in the Mark tab.</p></details>';
+}
+// ── Badminton helpers. Rows = the four criteria; st.live[k] = band seen in lessons; st.check = practice check.
+const waBandOf = j => WA_OBS[j] || null; // practice-check level 0–3 → band
+const waLive = st => st.live || (st.live = {});
+const waBadRows = () => WA_CRIT_BY.badminton.map(c => [c[0], 'live', c[1], c[2], c[3]]);
+// Suggested mark: the live band's numbers; Take part also averages in your AP check-outs (effort + team).
+function waSuggestBad(st, k) {
+  const o = waObs(waLive(st)[k]);
+  if (k !== 'part') return o ? o[5] : null;
+  const ap = st.ap, a = ap ? (ap.lessonAvg != null ? ap.lessonAvg : ap.selfAvg) : null;
+  const vals = [a, o && o[3]].filter(x => x != null); if (!vals.length) return null;
+  return [Math.max(1, Math.min(7, Math.round(vals.reduce((x, y) => x + y, 0) / vals.length)))];
+}
+function waBadLine(st, k, idx) {
+  const lv = st.check ? st.check.levels[idx] : null, me = lv != null ? waBandOf(lv) : null, o = waObs(waLive(st)[k]), sg = waSuggestBad(st, k), bits = [];
+  bits.push('🤝 they said: ' + (me ? me[1] + ' ' + me[2] : st.check ? 'not ticked' : 'no practice check'));
+  bits.push('👀 you saw: ' + (o ? o[1] + ' ' + o[2] : 'not rated'));
+  if (k === 'part') { const ap = st.ap; bits.push(ap ? (ap.lessonN ? 'check-outs ' + ap.lessonAvg + ' (' + ap.lessonN + ')' : '') + (ap.selfN ? (ap.lessonN ? ' · ' : '') + 'theirs ' + ap.selfAvg + ' (' + ap.selfN + ')' : '') : 'no AP check-outs'); }
+  const gap = me && o ? Math.abs(WA_OBS.indexOf(o) - lv) : 0;
+  return '<div class="wa-sm">' + bits.join(' · ') + (sg ? ' → <b>suggested ' + sg.join(' or ') + '</b>' : '') + (gap >= 2 ? ' <span class="wa-gap">⚖ ' + gap + ' bands apart: worth a chat</span>' : '') + '</div>';
+}
+function waCheckCard(st) {
+  if (!st.check) return '<div class="wa-ck none">🤝 No practice check in the profile yet' + '</div>';
+  const c = st.check;
+  return '<div class="wa-ck">🤝 Practice check' + (c.updated ? ' · ' + esc(fmtDayMonth(c.updated)) : '') + (c.focus ? '<div><b>🎯 Focus:</b> ' + esc(c.focus) + '</div>' : '') + (c.how ? '<div><b>🛠️ How:</b> ' + esc(c.how) + '</div>' : '') + '</div>';
+}
+function waGuideBad(closed) {
+  const R = (RUBRICS.units || {}).badminton; if (!R) return '';
+  const head = '<div class="wg-h"></div>' + WA_OBS.map(o => '<div class="wg-h wa-' + o[4] + '">' + o[1] + ' ' + o[2] + '<small>' + o[5].join('–') + '</small></div>').join('');
+  const rows = R.criteria.map((c, idx) => { const cr = WA_CRIT_BY.badminton[idx] || ['', '', c.name, c.std];
+    return '<div class="wg-l">' + cr[1] + ' <b>' + esc(cr[2]) + '</b><small>' + esc(c.std || cr[3]) + '</small></div>' + c.levels.map((t, j) => '<div class="wg-c wa-' + WA_OBS[j][4] + '"><i>' + WA_OBS[j][1] + ' ' + WA_OBS[j][2] + '</i>' + esc(t) + (c.student && c.student[j] ? '<span class="wg-s">“' + esc(c.student[j]) + '”</span>' : '') + '</div>').join(''); }).join('');
+  return '<details class="wa-guide"' + (closed ? '' : ' open') + '><summary>📏 What each level looks like (rubric + the student sheet’s words)</summary><div class="wg">' + head + rows + '</div>' +
+    '<p class="wg-n">🤝 on a button = where the student ticked themselves on their practice check (once they have copied it into the profile).</p></details>';
+}
+function waTodayCardBad(st, i) {
+  const L = waLive(st), any = Object.keys(L).length > 0;
+  const stt = st._s === 'saving' ? 'Saving…' : st._s === 'err' ? 'Not saved: ' + esc(st._err || 'tap again') : st._s === 'ok' ? 'Saved ✓' : '';
+  const rows = waBadRows().map((r, idx) => { const f = L[r[0]] || '', me = st.check ? st.check.levels[idx] : null;
+    return '<div class="wa-fr"><div class="wa-frl">' + r[2] + ' <b>' + r[3] + '</b></div><div class="wa-ob">' +
+      WA_OBS.map((o, j) => '<button type="button" class="wa-o wa-' + o[4] + (f === o[0] ? ' on' : '') + (me === j ? ' wa-me' : '') + '" data-waflag="' + i + '|' + r[0] + '|' + o[0] + '" aria-pressed="' + (f === o[0]) + '" aria-label="' + r[3] + ': ' + o[2] + (me === j ? ' (their practice check)' : '') + '"><span>' + o[1] + '</span>' + o[2] + (me === j ? '<em>🤝 them</em>' : '') + '</button>').join('') + '</div></div>'; }).join('');
+  const focus = st.check && st.check.focus ? '<div class="wa-fo">🎯 ' + esc(st.check.focus) + '</div>' : '';
+  return '<div class="wa-tc' + (any ? ' f-any' : '') + '" data-wi="' + i + '"><div class="wa-hd"><b class="wa-nm">' + esc(st.name) + '</b><small>' + esc(st.klass) + '</small><span class="wa-st' + (st._s === 'err' ? ' err' : st._s === 'ok' ? ' ok' : '') + '">' + stt + '</span></div>' + focus + rows +
+    (any ? '<input class="wa-note" data-wanote="' + i + '" maxlength="300" placeholder="What did you see? (optional)" value="' + esc(st.note || '') + '">' : '') + '</div>';
+}
+function waTodayCard(st, i) {
+  if (waBad()) return waTodayCardBad(st, i);
+  const any = WA_FLAGS.some(r => st[r[1]]);
+  const stt = st._s === 'saving' ? 'Saving…' : st._s === 'err' ? 'Not saved: ' + esc(st._err || 'tap again') : st._s === 'ok' ? 'Saved ✓' : '';
+  const rows = WA_FLAGS.map(r => { const f = st[r[1]] || '';
+    return '<div class="wa-fr"><div class="wa-frl">' + r[2] + ' <b>' + r[3] + '</b><small>' + r[4] + '</small></div><div class="wa-ob">' +
+      WA_OBS.map(o => '<button type="button" class="wa-o wa-' + o[4] + (f === o[0] ? ' on' : '') + '" data-waflag="' + i + '|' + r[0] + '|' + o[0] + '" aria-pressed="' + (f === o[0]) + '" aria-label="' + r[3] + ': ' + o[2] + '"><span>' + o[1] + '</span>' + o[2] + '</button>').join('') + '</div></div>'; }).join('');
+  return '<div class="wa-tc' + (any ? ' f-any' : '') + '" data-wi="' + i + '"><div class="wa-hd"><b class="wa-nm">' + esc(st.name) + '</b><small>' + esc(st.klass) + '</small><span class="wa-st' + (st._s === 'err' ? ' err' : st._s === 'ok' ? ' ok' : '') + '">' + stt + '</span></div>' + rows +
+    (any ? '<input class="wa-note" data-wanote="' + i + '" maxlength="300" placeholder="What did you see? (optional)" value="' + esc(st.note || '') + '">' : '') + '</div>';
+}
+function waRowBad(st, i) {
+  const sc = st.scores || {};
+  const crit = waCrit().map((c, idx) => {
+    const v = sc[c[0]], sg = waSuggestBad(st, c[0]);
+    const groups = WA_BANDS.map(b => '<span class="wa-g wa-' + b[2] + '"><i>' + b[1] + '</i>' + b[0].map(n => '<button type="button" class="wa-n' + (v === n ? ' on' : '') + (sg && sg.indexOf(n) !== -1 && v == null ? ' sg' : '') + '" data-wa="' + i + '|' + c[0] + '|' + n + '" aria-pressed="' + (v === n) + '" aria-label="' + c[2] + ' ' + n + '">' + n + '</button>').join('') + '</span>').join('');
+    return '<div class="wa-c"><div class="wa-cl">' + c[1] + ' <b>' + c[2] + '</b> <small>' + c[3] + '</small></div><div class="wa-bs">' + groups + '</div>' + waBadLine(st, c[0], idx) + '</div>';
+  }).join('');
+  const stt = st._s === 'saving' ? '<span class="wa-st">Saving…</span>' : st._s === 'err' ? '<span class="wa-st err">Not saved: ' + esc(st._err || 'tap again') + '</span>' : st._s === 'ok' ? '<span class="wa-st ok">Saved ✓</span>' : waDone(st) ? '<span class="wa-st ok">✓ done</span>' : '';
+  return '<div class="wa-row' + (waDone(st) ? ' wa-done' : '') + '" data-wi="' + i + '"><div class="wa-hd"><b class="wa-nm">' + esc(st.name) + '</b><small>' + esc(st.klass) + '</small>' + stt + '</div>' +
+    waCheckCard(st) + crit +
+    '<input class="wa-note" data-wanote="' + i + '" maxlength="300" placeholder="Note for Canvas (optional)" value="' + esc(st.note || '') + '"></div>';
+}
+function waRow(st, i, solo) {
+  if (waBad()) return waRowBad(st, i);
+  const sc = st.scores || {};
+  const crit = waCrit().map(c => {
+    const v = sc[c[0]], sg = c[0] === 's2' ? null : waSuggest(st, c[0]);
+    const groups = WA_BANDS.map(b => '<span class="wa-g wa-' + b[2] + '"><i>' + b[1] + '</i>' + b[0].map(n => '<button type="button" class="wa-n' + (v === n ? ' on' : '') + (sg && sg.indexOf(n) !== -1 && v == null ? ' sg' : '') + '" data-wa="' + i + '|' + c[0] + '|' + n + '" aria-pressed="' + (v === n) + '" aria-label="' + c[2] + ' ' + n + '">' + n + '</button>').join('') + '</span>').join('');
+    return '<div class="wa-c"><div class="wa-cl">' + c[1] + ' <b>' + c[2] + '</b> <small>' + c[3] + '</small></div><div class="wa-bs">' + groups + '</div>' + (c[0] === 'sm' ? waSmLine(st) : c[0] === 'k4' ? '<div class="wa-sm">📘 Workout quality on the day: ' + (st.flagK4 ? waObsWord(st.flagK4) + ' → <b>suggested ' + waObs(st.flagK4)[5].join(' or ') + '</b>. Check it against the final plan.' : 'not rated') + '</div>' : '') + '</div>';
+  }).join('');
+  const stt = st._s === 'saving' ? '<span class="wa-st">Saving…</span>' : st._s === 'err' ? '<span class="wa-st err">Not saved: ' + esc(st._err || 'tap again') + '</span>' : st._s === 'ok' ? '<span class="wa-st ok">Saved ✓</span>' : waDone(st) ? '<span class="wa-st ok">✓ done</span>' : '';
+  return '<div class="wa-row' + (waDone(st) ? ' wa-done' : '') + '" data-wi="' + i + '"><div class="wa-hd">' +
+    (solo ? '<b class="wa-nm">Rate ' + esc(st.name) + '</b>' : '<button type="button" class="lnk wa-nm" data-waev="' + i + '">' + esc(st.name) + '</button>') + '<small>' + esc(st.klass) + '</small>' + stt + '</div>' +
+    (solo ? '' : '<div class="as-chips">' + waChips(st.ev) + '<span class="as-chip' + (waChanged(st) ? ' ok' : '') + '">' + (waChanged(st) ? 'plan changed since workout day ✓' : waDay(st) ? 'plan not changed since ' + fmtDayMonth(waDay(st)) : 'no workout day recorded') + '</span>' + '</div>') + crit +
+    '<input class="wa-note" data-wanote="' + i + '" maxlength="300" placeholder="Note for Canvas (optional)" value="' + esc(st.note || '') + '"></div>';
+}
+function waRedraw(i, light) {
+  document.querySelectorAll('.wa-row[data-wi="' + i + '"]').forEach(el => { const solo = !!el.closest('.as-wrap'), html = waRow(waData.students[i], i, solo);
+    if (light) { const t = document.createElement('div'); t.innerHTML = html; el.querySelector('.wa-hd').replaceWith(t.querySelector('.wa-hd')); el.className = t.firstElementChild.className; return; } // status only, so the next tap lands
+    el.outerHTML = html; });
+  document.querySelectorAll('.wa-tc[data-wi="' + i + '"]').forEach(el => {
+    const st = waData.students[i], typing = el.querySelector('.wa-note') === document.activeElement;
+    if (typing || light) { const t = document.createElement('div'); t.innerHTML = waTodayCard(st, i); el.querySelector('.wa-st').replaceWith(t.querySelector('.wa-st')); return; } // keep what they are typing
+    el.outerHTML = waTodayCard(st, i);
+    if (st._focus) { st._focus = false; const n = document.querySelector('.wa-tc[data-wi="' + i + '"] .wa-note'); if (n) n.focus(); }
+  });
+  const t = $('#watiles'); if (t) t.innerHTML = waTiles();
+}
+// Saving: every tap marks the student "dirty"; one queue sends all dirty students together
+// (saveAssessMany), one request at a time, and keeps retrying until the server says saved.
+// Unsent taps are also kept on this device, so a refresh or a dropped connection loses nothing.
+const waKeepKey = () => waBad() ? 'wa-pending-badminton-v1' : 'wa-pending-v1';
+let waDirty = {}, waBusy = false, waTimer = null, waWait = 0, waOldServer = false;
+const waPayload = st => waBad() ? { email: st.sid, scores: Object.assign({}, st.scores), note: st.note || '', live: Object.assign({}, st.live || {}) } :
+  { email: st.sid, scores: Object.assign({}, st.scores), note: st.note || '', flag: st.flag || '', flagK4: st.flagK4 || '' };
+function waKeep() {
+  try { const o = {}; Object.keys(waDirty).forEach(sid => { const st = (waData.students || []).find(x => x.sid === sid); if (st) o[sid] = waPayload(st); });
+    if (Object.keys(o).length) localStorage.setItem(waKeepKey(), JSON.stringify(o)); else localStorage.removeItem(waKeepKey()); } catch (e) {}
+}
+function waRestore() {
+  let o = null; try { o = JSON.parse(localStorage.getItem(waKeepKey()) || 'null'); } catch (e) {}
+  if (!o || !waData || !waData.students) return 0;
+  let n = 0;
+  waData.students.forEach(st => { const p = o[st.sid]; if (!p) return; st.scores = p.scores || {}; st.note = p.note || ''; if (waBad()) st.live = p.live || {}; else { st.flag = p.flag || ''; st.flagK4 = p.flagK4 || ''; } st._s = 'saving'; waDirty[st.sid] = true; n++; });
+  return n;
+}
+function waSync() {
+  const el = $('#wasync'); if (!el || !waData || !waData.students) return;
+  const S = waData.students, q = Object.keys(waDirty).length, bad = S.filter(st => st._s === 'err').length;
+  el.className = 'wa-sync' + (bad ? ' err' : q ? ' busy' : ' ok');
+  el.innerHTML = bad ? '⚠ ' + bad + ' not saved (see the red cards). Fix them and they save on the next tap.' :
+    q ? '⏳ Saving ' + q + '…' + (waWait ? ' The connection is slow, retrying by itself. <button type="button" class="minib" id="waretry">Retry now</button>' : '') :
+    '✓ Everything is saved';
+  const r = $('#waretry'); if (r) r.onclick = () => { clearTimeout(waTimer); waWait = 0; waFlush(); };
+}
+function waSave(i, light) {
+  const st = waData.students[i]; st._s = 'saving'; waDirty[st.sid] = true; waKeep(); waRedraw(i, light); waSync();
+  clearTimeout(waTimer); waTimer = setTimeout(waFlush, waWait ? waWait : 400);
+}
+async function waFlush() {
+  if (waBusy || !waData || !waData.students) return;
+  const task = waTask;
+  const ids = Object.keys(waDirty).slice(0, 40); if (!ids.length) { waSync(); return; }
+  const S = waData.students, idx = sid => S.findIndex(x => x.sid === sid);
+  const rows = ids.map(sid => waPayload(S[idx(sid)])), sent = rows.map(r => JSON.stringify(r));
+  ids.forEach(sid => delete waDirty[sid]);
+  waBusy = true;
+  const done = (sid, ok, msg) => { const i = idx(sid), st = S[i]; if (i === -1) return;
+    if (waDirty[sid]) return; // tapped again while sending: the next round carries it
+    st._s = ok ? 'ok' : 'err'; st._err = msg || ''; waRedraw(i, true); };
+  try {
+    if (waOldServer && task === 'workout') { for (const r of rows) { await call('saveAssess', Object.assign({ task }, r)); done(r.email, true); } }
+    else {
+      const res = await call('saveAssessMany', { task, rows });
+      (res.results || []).forEach(x => done(x.sid, x.ok, x.error));
+    }
+    waWait = 0;
+  } catch (e) {
+    if (/Unknown action/i.test(e.message) && !waOldServer) { waOldServer = true; }
+    else if (PERMANENT.test(e.message)) { toast('Couldn’t save: ' + e.message, true); }
+    // Not saved: put them back in the queue (unless tapped again meanwhile) and retry with a growing wait.
+    rows.forEach((r, j) => { if (!waDirty[r.email]) waDirty[r.email] = true; });
+    waWait = Math.min(15000, (waWait || 1000) * 2);
+  } finally {
+    waBusy = false; waKeep(); waSync();
+    if (Object.keys(waDirty).length) { clearTimeout(waTimer); waTimer = setTimeout(waFlush, waWait || 300); }
+  }
+}
+function waClick(e) {
+  const b = e.target.closest('[data-wa]');
+  if (b) { const p = b.dataset.wa.split('|'), i = Number(p[0]), k = p[1], n = Number(p[2]), st = waData.students[i]; st.scores = st.scores || {};
+    if (st.scores[k] === n) delete st.scores[k]; else st.scores[k] = n; waSave(i); return true; }
+  const fb = e.target.closest('[data-waflag]');
+  if (fb && waBad()) { const p = fb.dataset.waflag.split('|'), i = Number(p[0]), st = waData.students[i], L = waLive(st); if (L[p[1]] === p[2]) delete L[p[1]]; else L[p[1]] = p[2]; st._focus = Object.keys(L).length === 1 && L[p[1]] === p[2]; if (!st.day) st.day = ymdLocal(); waSave(i); return true; }
+  if (fb) { const p = fb.dataset.waflag.split('|'), i = Number(p[0]), st = waData.students[i], key = p[1] === 'k4' ? 'flagK4' : 'flag'; st[key] = st[key] === p[2] ? '' : p[2]; st._focus = !!st[key]; if (!st.day) st.day = ymdLocal(); waSave(i); return true; }
+  const tk = e.target.closest('[data-watask]');
+  if (tk) { const t = tk.dataset.watask; if (t === waTask) return true; if (waBusy || Object.keys(waDirty).length) { toast('Still saving: wait for ✓ Everything is saved, then switch.', true); return true; } waFilter = 'all'; openWa(t); return true; }
+  const ev = e.target.closest('[data-waev]');
+  if (ev) { assessFrom = 'wassess'; assessData = null; show('assess', waData.students[Number(ev.dataset.waev)].sid); return true; }
+  return false;
+}
+function waNoteWire(root) {
+  root.addEventListener('change', e => { const n = e.target.closest('[data-wanote]'); if (!n) return; const i = Number(n.dataset.wanote), st = waData.students[i]; if ((st.note || '') === n.value.trim()) return; st.note = n.value.trim(); waSave(i, true); });
+}
+function waTiles() {
+  const S = waData.students || [];
+  const tile = (n, t) => '<div class="hc-tile"><b>' + n + '</b><span>' + t + '</span></div>';
+  if (waBad()) {
+    if (waMode === 'today') return waBadRows().map(r => tile(S.filter(st => st.live && st.live[r[0]]).length + ' / ' + S.length, r[2] + ' ' + r[3] + ' seen')).join('') + tile(S.filter(st => st.check).length + ' / ' + S.length, '🤝 practice checks in');
+    const avgB = k => { const v = S.map(st => st.scores && st.scores[k]).filter(x => x != null); return v.length ? (v.reduce((a, b) => a + b, 0) / v.length).toFixed(1) : '–'; };
+    return tile(S.filter(waDone).length + ' / ' + S.length, 'fully marked') + tile(S.filter(st => st.check).length + ' / ' + S.length, '🤝 practice checks in') + waCrit().map(c => tile(avgB(c[0]), c[1] + ' ' + c[2] + ' average')).join('');
+  }
+  if (waMode === 'today') return WA_FLAGS.map(r => tile(S.filter(st => st[r[1]]).length + ' / ' + S.length, r[2] + ' ' + r[3] + ' rated')).join('') + tile(S.filter(st => !st.flag && !st.flagK4).length, 'not rated yet');
+  const done = S.filter(waDone).length, ready = S.filter(waReady).length;
+  const avg = k => { const v = S.map(st => st.scores && st.scores[k]).filter(x => x != null); return v.length ? (v.reduce((a, b) => a + b, 0) / v.length).toFixed(1) : '–'; };
+  return tile(done + ' / ' + S.length, 'fully rated') + tile(ready, 'ready to mark') + waCrit().map(c => tile(avg(c[0]), c[1] + ' ' + c[2] + ' average')).join('');
+}
+function waRubric() {
+  if (waBad()) return waGuide(true);
+  const F = RUBRICS.fitness; if (!F) return '';
+  return '<details class="wa-rub"><summary>📋 What Got it and Leading look like</summary>' + waCrit().map(c => F[c[0]] ? '<div class="wa-rc"><b>' + c[1] + ' ' + esc(F[c[0]].name) + '</b><div><i>✅ Got it (5–6)</i> ' + esc(F[c[0]].got) + '.</div><div><i>🌟 Leading (7)</i> ' + esc(F[c[0]].leading) + '.</div></div>' : '').join('') + '</details>';
+}
+function wassessView() {
+  const D = waData, today = waMode === 'today', bad = waBad();
+  const switcher = '<div class="wa-task" role="group" aria-label="Which assessment">' + WA_TASKS.map(t => '<button type="button" class="wa-tk' + (t[0] === waTask ? ' on' : '') + '" aria-pressed="' + (t[0] === waTask) + '" data-watask="' + t[0] + '">' + t[1] + ' ' + t[2] + '</button>').join('') + '</div>';
+  const tabNames = bad ? ['1 · Watch (singles, doubles, Festival)', '2 · Mark (after the Festival)'] : ['1 · Workout day', '2 · Mark (after the reflection)'];
+  const tabs = '<div class="wa-sync ok" id="wasync" role="status" aria-live="polite"></div><div class="wa-tabs" role="tablist"><button type="button" role="tab" class="wa-tab' + (today ? ' on' : '') + '" aria-selected="' + today + '" data-wamode="today">' + tabNames[0] + '</button><button type="button" role="tab" class="wa-tab' + (!today ? ' on' : '') + '" aria-selected="' + !today + '" data-wamode="grade">' + tabNames[1] + '</button></div>';
+  const lede = bad ? (today ? 'While they play, pick the band you see in each area. Tap again to clear; change it any lesson as they improve. <b>🤝 them</b> marks where the student put themselves on their practice check. The bands become the suggested marks in the Mark tab.' :
+      'Mark each criterion 1–7; it saves straight away (tap again to clear). Each row shows their practice check, the band you saw and a suggested mark (dashed). Take part also uses your AP check-outs (effort + team) from this unit.') :
+    (today ? 'Watch the workout and pick a band for each row: <b>🧭 Training</b> (how they work) and <b>📘 Workout quality</b> (what they do). Tap again to clear. The bands become the suggested numbers in the Mark tab. Assessing &amp; improving is marked from the reflection, after Friday.' : 'Rate each criterion 1–7; it saves straight away (tap again to clear). Training on my own shows your check-outs, their home weeks and the workout-day flag, with a suggested number (dashed). Tap a name for the full evidence.');
+  const head = '<button type="button" class="back light" id="toWaBack">← Back to class</button><div class="phero tight"><div class="k">TEACHER · ASSESSMENT · ' + (D && D.klass && D.klass !== 'all' ? esc(D.klass) : 'ALL CLASSES') + '</div><h1>' + (bad ? '🏸 Badminton' : '🏆 Personal Workout') + '</h1>' + switcher +
+    '<p>' + lede + '</p></div>' + tabs;
+  if (!D || D.loading) return '<div class="wrap">' + head + '<div class="loading"><div class="spinner"></div>Loading the class…</div></div>';
+  if (D.error) return '<div class="wrap">' + head + '<p class="lockmsg">' + esc(D.error) + '</p></div>';
+  const S = D.students || [];
+  if (today) return '<div class="wrap hcw">' + head + '<div class="hc-tiles ' + (bad ? 'wa-tiles5' : 'wa-tiles3') + '" id="watiles">' + waTiles() + '</div>' + waGuide() + '<div class="wa-grid">' + S.map(waTodayCard).join('') + '</div>' +
+    (bad ? '<p class="small">The band you pick here → suggested mark in the Mark tab. Students never see your bands or marks.</p></div>' :
+    '<p class="small">🧭 Training is averaged with your AP check-outs, then ±1 for home weeks → suggested Training on my own. 📘 Workout quality → suggested Planning (check it against the final plan). Students never see these.</p></div>');
+  const keep = st => waFilter === 'todo' ? !waDone(st) : waFilter === 'ready' ? waReady(st) : waFilter === 'nocheck' ? !st.check : true;
+  const rows = S.map((st, i) => keep(st) ? waRow(st, i) : '').join('');
+  const opt = (v, t) => '<option value="' + v + '"' + (waFilter === v ? ' selected' : '') + '>' + t + '</option>';
+  const filt = bad ? opt('all', 'everyone') + opt('todo', 'still to mark') + opt('ready', 'practice check in') + opt('nocheck', 'no practice check yet') :
+    opt('all', 'everyone') + opt('ready', 'ready to mark (reflection 4/4 + plan changed)') + opt('todo', 'still to rate');
+  return '<div class="wrap hcw">' + head +
+    '<div class="hc-tiles ' + (bad ? 'wa-tiles3' : 'wa-tiles') + '" id="watiles">' + waTiles() + '</div>' + waRubric() +
+    '<div class="wa-bar"><label>Show <select id="wafilter">' + filt + '</select></label>' +
+      '<button type="button" class="minib" id="wacopy">📋 Copy for Canvas</button><button type="button" class="minib" id="wacsv">⬇ CSV</button><button type="button" class="minib" id="wareload">↻ Refresh</button></div>' +
+    (rows || '<p class="as-look">Nobody in this list. 🎉</p>') +
+    '<p class="small">Marks are kept in the Sheet (Assess tab) and are never shown to students. Canvas is still the official record: enter them there, or use Copy for Canvas. Pick a class in the Class menu on the dashboard to see only that class.</p></div>';
+}
+function waTable() {
+  const head = ['Student', 'Class'].concat(waCrit().map(c => c[2] + ' (' + c[3] + ')')).concat(['Note']);
+  return [head].concat((waData.students || []).map(st => [st.name, st.klass].concat(waCrit().map(c => st.scores && st.scores[c[0]] != null ? st.scores[c[0]] : '')).concat([st.note || ''])));
+}
+async function waCopy() {
+  const tsv = waTable().map(r => r.map(c => String(c).replace(/[\t\n]/g, ' ')).join('\t')).join('\n');
+  try { await navigator.clipboard.writeText(tsv); toast('Copied: paste into a spreadsheet, or keep it open next to SpeedGrader.'); }
+  catch (e) { toast('Couldn’t copy here. Use ⬇ CSV instead.', true); }
+}
+function waCsv() {
+  const csv = waTable().map(r => r.map(c => { c = String(c); return /[",\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; }).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' }), url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = (waBad() ? 'badminton-' : 'personal-workout-') + (waData.klass || 'all') + '.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+// ── Teacher: printable workout cards for a whole class (front: the plan to practise from;
+// back: how it's assessed). One A4 per student; print double-sided for the back page.
+let cardsData = null, cardsBack = true;
+async function openCards() {
+  if (!teacherFilter || teacherFilter === 'all') return toast('Pick a class first (the Class menu), then print its cards.', true);
+  cardsData = { loading: true, klass: teacherFilter }; show('cards');
+  try { cardsData = await call('classPlans', { klass: teacherFilter }); }
+  catch (e) { cardsData = { error: /Unknown action/i.test(e.message) ? 'The server is still on the old version. Paste the new Code.gs into Apps Script, then Deploy → Manage deployments → ✏️ → Version: New version → Deploy. Then try again.' : e.message, klass: teacherFilter }; }
+  if (view === 'cards') show('cards');
+}
+function cardDose(part, r) {
+  const sr = r.sets && r.reps ? r.sets + ' × ' + r.reps : '', mn = part !== 'strength' && r.min ? r.min + ' min' : '';
+  return [sr, mn, r.int].filter(Boolean).join(' · ');
+}
+function cardFront(s) {
+  const p = normPlan(s.plan), MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const saved = s.plan && s.plan.savedAt ? new Date(s.plan.savedAt) : null, savedTxt = saved && !isNaN(saved) ? saved.getDate() + ' ' + MON[saved.getMonth()] : '—';
+  const goals = (s.goals || []).map(g => { const meta = goalMetaFor(g.component); return esc(goalLabel(g.component)) + (meta && g.target != null ? ' → ' + esc(fmtMetric(meta, g.target)) : ''); }).join(' · ');
+  const parts = WK_PARTS.map(w => {
+    const k = w[0], rows = p[k] || [], comp = wkTrains(k, p), why = (p.why || {})[k];
+    const title = k === 'strength' ? '③ ' + (p.sChoice === 'endurance' ? 'Muscular endurance' : p.sChoice === 'strength' ? 'Strength' : 'Strength or Muscular Endurance') : k === 'focus' ? '④ My Focus' : w[1];
+    return '<div class="pc-pt"><div class="pc-ph"><b>' + esc(title) + '</b><span>' + w[2] + ' min</span>' + (comp ? '<i>Trains ' + esc(comp.replace(/^your /, '')) + '</i>' : '') + (k === 'cardio' && p.hr ? '<em>❤️ ' + esc(p.hr) + '</em>' : '') + '</div>' +
+      '<table><tr class="hh"><th></th><th class="d">Plan</th><th class="ch">Change ✏️</th></tr>' +
+      rows.map(r => '<tr><td>' + esc(r.n) + '</td><td class="d">' + esc(cardDose(k, r)) + '</td><td class="ch"></td></tr>').join('') +
+      '<tr class="add"><td><span class="plus">+</span></td><td class="d"></td><td class="ch"></td></tr></table>' +
+      '<div class="pc-why">🧠 ' + (why ? esc(why) : '<span class="pc-miss">How does this part train it? Write it here, then in My PE Profile:</span>') + '</div>' +
+      (k === 'focus' && p.fWhy ? '<div class="pc-why">🎯 ' + esc(p.fWhy) + '</div>' : '') + '</div>';
+  }).join('');
+  const log = [0, 1, 2, 3].map(() => '<tr><td class="dt"></td>' + '<td><span class="pc-bx"></span></td>'.repeat(5) + '<td class="hr">Y &nbsp; N</td><td class="fl">easy · right · hard</td><td></td></tr>').join('');
+  return '<div class="pc-pg"><div class="pc-top"><div><div class="pc-k">PRACTISE · TRIAL · IMPROVE · 40 MIN</div><h1>' + esc(s.name) + '</h1></div><div class="pc-meta"><b>' + esc(s.klass) + '</b><span>Plan saved ' + savedTxt + '</span></div></div>' +
+    (goals ? '<div class="pc-goal">🎯 <b>My goals:</b> ' + goals + '</div>' : '') + parts +
+    '<div class="pc-log"><div class="pc-lh">Session log <small>sessions 1–3 are practice · session 4 is your assessment</small></div><table><tr><th class="dt">Date</th><th>①</th><th>②</th><th>③</th><th>④</th><th>⑤</th><th>In my HR zone?</th><th>It felt…</th><th>One change for next time, and why</th></tr>' + log + '</table></div>' +
+    '<div class="pc-ft"><span>➜ Changed something? Update My PE Profile before next session.' + (cardsBack ? ' How you’re assessed is on the back.' : '') + '</span><span>Updated <span class="pc-bx"></span></span></div></div>';
+}
+function cardBack(s) {
+  const F = RUBRICS.fitness || {}, MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const wk0 = new Date(weekKey(isoDay(new Date())) + 'T12:00:00'), weeks = [0, 1, 2].map(i => { const a = new Date(wk0); a.setDate(a.getDate() + 7 * i); const b = new Date(a); b.setDate(b.getDate() + 6); return a.getDate() + ' ' + MON[a.getMonth()] + ' – ' + b.getDate() + ' ' + MON[b.getMonth()]; });
+  const crit = ['k4', 's2', 'sm'].filter(k => F[k]).map(k => '<div class="pc-cr"><div class="pc-crh">' + FIT_SHOW[k][0] + ' <b>' + esc(F[k].name) + '</b> <small>' + esc(F[k].code) + '</small></div><div class="pc-bands"><div class="got"><b>✅ Got it looks like…</b>' + esc(F[k].got) + '.</div><div class="lead"><b>🌟 Leading looks like…</b>' + esc(F[k].leading) + '.</div></div></div>').join('');
+  return '<div class="pc-pg pc-back"><div class="pc-top"><div><div class="pc-k">PERSONAL WORKOUT ASSESSMENT · ' + esc(s.klass) + '</div><h1>How you’re assessed</h1></div><div class="pc-meta"><b>' + esc(s.name) + '</b></div></div>' +
+    '<p class="pc-lede">You’re marked on your <b>understanding</b> and your <b>effort</b>, not on being the fittest.</p>' + crit +
+    '<div class="pc-two"><div class="pc-box"><div class="pc-lh">🏠 Home sessions <small>at least one a week</small></div><table class="pc-hm"><tr><th>Week</th><th>Sessions</th><th>With friend / family</th><th>Logged in Profile</th></tr>' +
+      weeks.map(w => '<tr><td>' + w + '</td><td><span class="pc-bx"></span> <span class="pc-bx"></span> <span class="pc-bx"></span></td><td><span class="pc-bx"></span></td><td><span class="pc-bx"></span></td></tr>').join('') + '</table></div>' +
+    '<div class="pc-box"><div class="pc-lh">☑ Before your assessment</div>' + ['All five parts filled in, with times', 'I can explain how each part trains its component', 'My focus links to one of my goals, and I wrote why', 'I have logged my home sessions', 'I know what I’ll change after practising'].map(t => '<div class="pc-ck"><span class="pc-bx"></span>' + t + '</div>').join('') + '</div></div>' +
+    '<div class="pc-ft"><span>Reflection due in My PE Profile: did it work, what would you change, how consistent were you?</span></div></div>';
+}
+function cardsView() {
+  const back = '<button type="button" class="back light" id="tocardsback">← Back to class</button>';
+  if (!cardsData || cardsData.loading) return '<div class="wrap">' + back + '<div class="loading"><div class="spinner"></div>Getting ' + esc((cardsData && cardsData.klass) || '') + '’s plans…</div></div>';
+  if (cardsData.error) return '<div class="wrap">' + back + '<p class="lockmsg">' + esc(cardsData.error) + '</p></div>';
+  const withPlan = cardsData.students.filter(s => s.plan && planCount(s.plan)), without = cardsData.students.filter(s => !(s.plan && planCount(s.plan)));
+  const pages = withPlan.map(s => cardFront(s) + (cardsBack ? cardBack(s) : '')).join('');
+  return '<div class="pc-tools wrap">' + back +
+    '<div class="phero tight"><div class="k">TEACHER · PRINT</div><h1>Workout cards · ' + esc(cardsData.klass) + '</h1><p>' + withPlan.length + ' card' + (withPlan.length === 1 ? '' : 's') + ' ready. One A4 per student, printed from the plan saved in their profile right now.</p></div>' +
+    '<div class="pc-bar"><label><input type="checkbox" id="cardsback"' + (cardsBack ? ' checked' : '') + '> Add “How you’re assessed” on the back (print double-sided)</label><button type="button" class="ct-btn" id="cardsprint">🖨 Print ' + withPlan.length + ' card' + (withPlan.length === 1 ? '' : 's') + '</button></div>' +
+    (without.length ? '<div class="pc-miss-box">⚠ <b>No plan saved yet (' + without.length + '):</b> ' + without.map(s => esc(s.name)).join(', ') + '. They need to build their plan in My PE Profile first.</div>' : '') +
+    '<p class="small">In the print dialog choose A4, margins “None” or “Default”, and turn on <b>Two-sided</b> if you kept the back page.</p></div>' +
+    '<div class="pc-pages">' + pages + '</div>';
+}
+
 // ── Teacher: workout assessment evidence for one student (K4 plan · S2 goals & reflection · Self-Management log) ──
 let assessData = null;
 async function loadAssess(sid) {
@@ -1814,13 +2862,14 @@ function assessView(sid) {
   if (!p) k4 = miss('No workout plan saved yet.');
   else {
     k4 = WK_PARTS.map(w => {
-      const part = w[0], rows = p[part] || [], why = part === 'focus' ? p.fWhy : (p.why || {})[part];
+      const part = w[0], rows = p[part] || [], why = (p.why || {})[part];
       if (why && String(why).trim()) whys++;
       const choice = part === 'strength' && p.sChoice ? ' · ' + (p.sChoice === 'endurance' ? 'muscular endurance' : 'strength') : part === 'focus' && p.fChoice ? ' · ' + esc(goalLabel(p.fChoice)) : '';
       const ex = rows.length ? rows.map(r => '<li>' + esc(r.n) + (r.sets ? ' · ' + esc(r.sets) + ' × ' + esc(r.reps || '?') : '') + (r.min ? ' · ' + esc(r.min) + ' min' : '') + (r.int ? ' · ' + esc(r.int) : '') + '</li>').join('') : '<li>' + miss('nothing added') + '</li>';
       return '<div class="as-part"><div class="as-ph">' + w[1] + choice + ' <small>' + Math.round(partMins(part, p)) + ' / ' + w[2] + ' min</small></div><ul>' + ex + '</ul>' +
         (part === 'cardio' ? '<div class="as-why">❤️ HR zone: ' + (p.hr ? esc(p.hr) : miss('not set')) + '</div>' : '') +
-        '<div class="as-why">🧠 ' + (part === 'focus' ? 'Helps my goal: ' : 'Targets: ') + (why && String(why).trim() ? esc(why) : miss('no reason given')) + '</div></div>';
+        '<div class="as-why">🧠 How it trains ' + esc(wkTrains(part, p) || 'it') + ': ' + (why && String(why).trim() ? esc(why) : miss('not explained')) + '</div>' +
+        (part === 'focus' ? '<div class="as-why">🎯 Helps my goal: ' + (p.fWhy ? esc(p.fWhy) : miss('no link to a goal')) + '</div>' : '') + '</div>';
     }).join('');
   }
   const total = p ? Math.round(WK_PARTS.reduce((a, w) => a + partMins(w[0], p), 0)) : 0;
@@ -1836,17 +2885,34 @@ function assessView(sid) {
   const home = log.filter(e => e.where !== 'class'), weeks = {}; home.forEach(e => { weeks[weekKey(e.date)] = true; });
   const first = log.length ? new Date(log[0].date + 'T12:00:00') : null, spanW = first ? Math.max(1, Math.ceil((Date.now() - first) / (7 * 864e5))) : 0;
   const buddy = home.filter(e => e.who === 'friend' || e.who === 'family').length;
-  const lg = log.length ? '<table class="as-log"><tr><th>Date</th><th>Where</th><th>Who</th><th>Feel</th><th>Number</th></tr>' + log.slice().reverse().map(e => '<tr><td>' + esc(e.date) + '</td><td>' + (e.where === 'class' ? 'PE' : 'home') + '</td><td>' + esc(e.who || '') + '</td><td>' + esc(e.feel || '') + '</td><td>' + esc(e.num || '') + '</td></tr>').join('') + '</table>' : miss('No sessions logged.');
+  const lg = log.length ? '<table class="as-log"><tr><th>Date</th><th>Where</th><th>Who</th><th>Feel</th><th>HR zone</th><th>Number</th><th>Change</th></tr>' + log.slice().reverse().map(e => '<tr><td>' + esc(e.date) + '</td><td>' + (e.where === 'class' ? 'PE' : 'home') + '</td><td>' + esc(e.who || '') + '</td><td>' + esc(e.feel || '') + '</td><td>' + (e.hr === 'y' ? '✅' : e.hr === 'n' ? '❌' : '') + '</td><td>' + esc(e.num || '') + '</td><td>' + esc(e.chg || '') + '</td></tr>').join('') + '</table>' : miss('No sessions logged.');
   const chip = (ok, t) => '<span class="as-chip' + (ok ? ' ok' : '') + '">' + (ok ? '✓ ' : '') + t + '</span>';
   return '<div class="wrap as-wrap">' + back +
     '<div class="phero tight"><div class="k">WORKOUT ASSESSMENT EVIDENCE</div><h1>' + esc(st.name) + '</h1><p>' + esc(st.klass) + ' · grade each criterion 1–7 in Canvas. This page only reads the student’s profile.</p></div>' +
-    '<div class="as-card"><h3>📘 Knowledge (K4) · planning a workout</h3><div class="as-chips">' + chip(parts === 5, parts + ' / 5 parts filled') + chip(whys === 5, whys + ' / 5 reasons given') + chip(!!(p && p.hr), 'HR zone') + chip(total >= 40, total + ' min') + '</div>' + k4 +
-      '<p class="as-look">Look for: every part has a clear purpose, exercises match the components named, the focus links to a goal.</p></div>' +
-    '<div class="as-card"><h3>🔍 Skills (S2) · assessing and improving</h3><div class="as-chips">' + chip(goals.length >= 2, goals.length + ' goals') + chip(nRef === 4, nRef + ' / 4 reflection prompts') + '</div><h4>Goals</h4>' + gl + (gnote ? '<p class="as-note">“' + esc(gnote) + '”</p>' : '') + '<h4>Reflection</h4>' + (ref || miss('No reflection yet.')) +
-      '<p class="as-look">Look for: strengths and areas backed by numbers, a judgement of whether the workout worked, a specific change, a personal reason.</p></div>' +
+    (function () { if (assessFrom !== 'wassess' || waTask !== 'workout' || !waData || !waData.students) return ''; const i = waData.students.findIndex(x => x.sid === sid); return i === -1 ? '' : '<div class="as-card wa-solo">' + waRow(waData.students[i], i, true) + '</div>'; })() +
+    '<div class="as-card"><h3>📘 Knowledge (K4) · planning a workout</h3><div class="as-chips">' + chip(parts === 5, parts + ' / 5 parts filled') + chip(whys === 5, whys + ' / 5 “how” lines') + chip(!!(p && p.hr), 'HR zone') + chip(total >= 40, total + ' min') + '</div>' + (p ? planCheckHtml(p, goals, 'Plan check · do the choices match the component?') : '') + k4 +
+      '<p class="as-look">Look for: the “how” lines explain how each part trains its component, and the sets, reps, rest and effort match it. The structure and component names are given by the profile, so they are not evidence on their own.</p></div>' +
+    '<div class="as-card"><h3>🔍 Skills (S2) · assessing and improving</h3><div class="as-chips">' + chip(goals.length >= 2, goals.length + ' goals') + chip(nRef === 4, nRef + ' / 4 reflection prompts') + '</div><h4>Goals</h4>' + gl + (gnote ? '<p class="as-note">“' + esc(gnote) + '”</p>' : '') + '<h4>Evidence from the log</h4>' + evidenceHtml(log, true) + '<h4>Reflection</h4>' + (ref || miss('No reflection yet.')) +
+      '<p class="as-look">Look for: strengths and areas backed by numbers, a judgement of whether the workout worked (numbers, heart-rate zone), changes that follow from what happened, a personal reason.</p></div>' +
     '<div class="as-card"><h3>🧭 Self-Management · training independently</h3><div class="as-chips">' + chip(home.length > 0, home.length + ' home sessions') + chip(spanW && Object.keys(weeks).length >= spanW, Object.keys(weeks).length + ' of ' + spanW + ' weeks with a home session') + chip(buddy > 0, buddy + ' with a friend or family') + '</div>' + lg +
       '<p class="as-look">Also use what you saw in lessons and in the assessment: organised, on task without reminders, consistent effort.</p></div>' +
+    hlTeacher(p) +
   '</div>';
+}
+// Teacher: a student's self-paced Health lesson (stored with the plan).
+function hlTeacher(p) {
+  const d = p && p.lessons && p.lessons.train, L = HL.train;
+  if (!d) return '<div class="as-card"><h3>' + L.e + ' Health lesson · ' + esc(L.name) + '</h3><p class="as-miss">Not started.</p></div>';
+  const sc = hlScore(d), how = HL_HOW.find(h => h[0] === d.how), pr = HL_PRIN.find(x => x[0] === d.prin), fe = HL_FEEL.find(f => f[0] === d.feel);
+  const miss = t => '<span class="as-miss">' + t + '</span>';
+  return '<div class="as-card"><h3>' + L.e + ' Health lesson · ' + esc(L.name) + '</h3><div class="as-chips">' +
+    '<span class="as-chip' + (d.done ? ' ok' : '') + '">' + (d.done ? 'done ' + esc(fmtDayMonth(d.done)) : 'step ' + Math.min((d.step || 0) + 1, 5) + ' of 5') + '</span>' +
+    '<span class="as-chip' + (sc >= 4 ? ' ok' : '') + '">check ' + sc + ' / ' + L.bank.length + '</span>' + (fe ? '<span class="as-chip">' + fe[1] + ' ' + esc(fe[2]) + '</span>' : '') + '</div><ul class="as-ul">' +
+    '<li><b>Logged since 22 Oct:</b> ' + (function () { const lg = ((p && p.log) || []).filter(e => String(e.date) >= '2026-10-22'), pe = lg.filter(e => e.where === 'class').length; return lg.length ? pe + ' in PE · ' + (lg.length - pe) + ' at home · ' + lg.filter(e => e.chg).length + ' with a change' : '<span class="as-miss">none</span>'; })() + (d.logAll ? ' · ticked “logged everything”' : '') + '</li>' +
+    '<li><b>Workout builder:</b> ' + (function () { const t = p ? planTodo(p, (assessData && assessData.goals && assessData.goals.items) || []) : null; return !p ? '<span class="as-miss">no plan</span>' : t.length ? '<span class="as-miss">' + t.length + ' still to do</span>' : '✓ nothing left to fix'; })() + '</li>' +
+    '<li><b>Progression:</b> ' + (d.ex ? esc(d.ex) + (how ? ' · ' + esc(how[1].toLowerCase()) : '') + ' · ' + esc(d.now || '?') + ' → ' + esc(d.next || '?') : miss('not yet')) + '</li>' +
+    '<li><b>Recovery:</b> ' + ((d.rest || []).length ? d.rest.map(r => esc((HL_REST.find(x => x[0] === r) || [, , r])[2])).join(', ') : miss('not yet')) + '</li>' +
+    '<li><b>Exit ticket:</b> ' + (pr ? esc(pr[2]) + ': “' + esc(d.exit || '') + '”' : miss('not yet')) + '</li></ul></div>';
 }
 async function saveSkillsUI(sid) {
   const btn = $('#sksave'); btn.disabled = true; btn.textContent = 'Saving…';
@@ -1907,10 +2973,14 @@ function coDesc(key, v) { const a = RUBRICS.ap[key], i = bandIx(v); return i == 
 function coMine(key, i) { const a = RUBRICS.ap[key]; return String((a.today && a.today[i]) || (a.student && a.student[i]) || a.levels[i]).replace(/\*/g, ''); } // the check-out rates one lesson: "Today I…"
 function coRemember() { try { sessionStorage.setItem(CO_KEY, JSON.stringify({ date: co.roster && co.roster.date, klass: co.klass, focus: co.focus })); } catch (e) {} }
 function coRecall(date) { try { const j = JSON.parse(sessionStorage.getItem(CO_KEY) || 'null'); return j && j.date === date ? j : null; } catch (e) { return null; } }
-function coName(s) { return s.first + (s.lastInitial ? ' ' + s.lastInitial + '.' : ''); }
+function coName(s) { const l = s.lastInitial || ''; return s.first + (l ? ' ' + l + (/^[A-Za-z]$/.test(l) ? '.' : '') : ''); }
 function coStudent(email) { return ((co.roster && co.roster.students) || []).find(s => s.email === email) || null; }
 
+// The check-out has its own address (…#checkout), so it can be saved to the iPad home screen and
+// opens straight into the check-out. Access is still the server's teacher check, not the address.
+function setHash(h) { try { history.replaceState(null, '', location.pathname + location.search + (h ? '#' + h : '')); } catch (e) {} }
 async function openCheckout(from) {
+  setHash('checkout');
   co = { from: from || 'landing', roster: null, klass: '', focus: '', step: 'names', sel: null, rating: null, given: {}, saving: {} };
   $('#app').innerHTML = '<div class="loading"><div class="spinner"></div>Loading classes…</div>';
   try {
@@ -1938,7 +3008,7 @@ async function coLoadClass(klass, quiet) {
   if (view === 'checkout') show('checkout');
   else if (view === 'kiosk' && co.step === 'names') show('kiosk');
 }
-function coLeave() { const from = co ? co.from : 'landing'; co = null; if (from === 'class' && classData) show('class'); else if (state.role === 'student') show('profile'); else renderTeacher(state); }
+function coLeave() { setHash(''); const from = co ? co.from : 'landing'; co = null; if (from === 'class' && classData) show('class'); else if (state.role === 'student') show('profile'); else renderTeacher(state); }
 
 function checkoutSetupView() {
   const r = co.roster, studs = r.students || [];
@@ -1971,9 +3041,9 @@ function kioskView() {
   if (co.step === 'rate' || co.step === 'word') {
     const s = coStudent(co.sel); if (!s) { co.step = 'names'; return kioskView(); }
     if (co.step === 'rate') {
-      const rows = AP_BANDS.map((b, i) => '<button type="button" class="ko-band kb' + i + '" data-rate="' + b.v + '"><span class="ko-lv">' + b.e + ' ' + esc(b.name) + '</span><span class="ko-bt">' + esc(coMine(co.focus, i)) + '</span></button>').reverse().join('');
+      const rows = AP_BANDS.map((b, i) => '<button type="button" class="ko-band kb' + i + '" data-rate="' + b.v + '"><ul class="ko-bt">' + coMine(co.focus, i).replace(/^Today I\s+/, '').replace(/\.$/, '').split(/;\s*/).map(x => '<li>' + esc(x) + '</li>').join('') + '</ul><span class="ko-lv">' + b.e + ' ' + esc(b.name) + '</span></button>').reverse().join('');
       return '<div class="wrap kiosk">' + kioskTop() +
-        '<div class="ko-q"><h1>Hi ' + esc(s.first) + ' 👋</h1><p>' + f[0] + ' <b>' + esc(f[1]) + '</b>: how did you do today? Tap the one that fits best.</p></div>' +
+        '<div class="ko-q"><p class="ko-hi">Hi ' + esc(s.first) + ' 👋 · ' + f[0] + ' <b>' + esc(f[1]) + '</b></p><h1>Today I…</h1><p>Tap the box that is most like you. It does not need to match every point.</p></div>' +
         '<div class="ko-bands">' + rows + '</div>' +
         '<button type="button" class="back light ko-back" data-kback="1">← Not me</button></div>';
     }
@@ -2066,6 +3136,16 @@ function spotWire(app) {
   });
 }
 
+// The summary always reloads the class when opened, so check-outs from the lesson that just
+// happened show up (it used to reuse the class data from when the dashboard was first opened).
+let apsState = { loading: false, at: null, err: '' };
+async function apsRefresh() {
+  if (apsState.loading) return;
+  apsState.loading = true; apsState.err = ''; if (view === 'apsummary') show('apsummary');
+  try { classData = await call('classOverview'); apsState.at = new Date(); }
+  catch (e) { if (e.authRequired) return; apsState.err = e.message; }
+  apsState.loading = false; if (view === 'apsummary') show('apsummary');
+}
 // Teacher: per-student check-out summary to support the Canvas rubric.
 function apSummaryView() {
   const rows = mxRows();
@@ -2084,7 +3164,7 @@ function apSummaryView() {
   return '<div class="wrap wide">' +
     '<button type="button" class="back light" id="apsback">← Class dashboard</button>' +
     '<div class="phero tight"><div class="k">TEACHER · AP CHECK-OUT SUMMARY</div><h1>Active Participation</h1><p>Lesson check-outs per student and AP criterion: <b>L</b> = your lesson ratings (average and count), <b>S</b> = the student’s own check-ins. The band comes from your average, or the student’s if you haven’t rated them yet. Canvas grades are not in here and are never changed by this: it’s evidence for your summative judgement. Tap a cell for the descriptors.</p></div>' +
-    '<div class="mxbar"><label class="mxf">Class <select id="apsclass">' + classOpts + '</select></label><div class="mxact"><button type="button" class="minib" id="apscsv">⬇ CSV</button></div></div>' +
+    '<div class="mxbar"><label class="mxf">Class <select id="apsclass">' + classOpts + '</select></label><div class="mxact"><span class="aps-upd">' + (apsState.loading ? '<span class="spinner sm"></span> Updating…' : apsState.err ? '⚠ Couldn’t update: ' + esc(apsState.err) : apsState.at ? 'Updated ' + apsState.at.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '') + '</span><button type="button" class="minib" id="apsreload">↻ Refresh</button><button type="button" class="minib" id="apscsv">⬇ CSV</button></div></div>' +
     '<div class="tablewrap mxwrap"><table class="mx aps-t"><thead><tr><th class="mx-nm">Student</th><th class="mx-cl">Class</th>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>' +
   '</div>';
 }
@@ -2215,18 +3295,10 @@ async function savePrediction() {
 const wire = (id, fn) => { const el = $('#' + id); if (el) el.addEventListener('click', fn); };
 
 // Leaving the plan editor never loses work: if it changed, save it in the background.
-function autosavePlan() {
-  syncPlanFromDom();
-  const d = JSON.parse(JSON.stringify(planDraft)), m = state.student.combine || { fitness: {}, skills: {} };
-  if (JSON.stringify(normPlan(m.plan)) === JSON.stringify(normPlan(d))) return;
-  m.plan = d; state.student.combine = m;
-  call('savePlan', { plan: d }).then(() => toast('Plan saved ✓'))
-    .catch(e => { if (!e.authRequired) { planDraft = d; toast('Couldn’t save your plan — open it and press Save (' + e.message + ')', true); } });
-}
 function show(v, arg) {
   const prevView = view;
-  if (prevView === 'plan' && v !== 'plan' && planDraft && document.querySelector('.wk-list')) autosavePlan();
-  view = v;
+  if (prevView === 'plan' && v !== 'plan' && planDraft) { syncPlanFromDom(); if (planDirty()) autoSavePlan(); } // leaving the plan by any route saves it
+  view = v; if (v !== 'cards') document.body.classList.remove('printing-cards');
   const app = $('#app');
   if (v === 'card' && state.student && !state.student.style) v = 'pack';
   view = v;
@@ -2248,7 +3320,13 @@ function show(v, arg) {
     wire('tocompare', () => show('compare')); wire('togoals', () => show('goals')); wire('toplan', () => show('plan'));
     goalSel = null; planDraft = null;
     wire('towo', () => { woStart('fitness'); show('workout'); });
-    onWrap(e => { const t = e.target.closest('[data-ov]'); if (t) openOv(t.dataset.ov); });
+    onWrap(e => { const h = e.target.closest('[data-hl]'); if (h) return hlOpen(h.dataset.hl); const t = e.target.closest('[data-ov]'); if (t) openOv(t.dataset.ov); });
+  } else if (v === 'hlesson') {
+    if (!hlDraft) return hlOpen(hlKey);
+    app.innerHTML = hlView();
+    wire('tohub', () => { hlRead(); show('profile'); });
+    onWrap(hlHandle);
+    app.firstElementChild.addEventListener('input', () => { hlRead(); const nb = $('#hl-next'); if (nb && !hlSaving) nb.disabled = !hlCanNext(); });
   } else if (v === 'archive') {
     app.innerHTML = archiveView(state);
     wire('tohub', () => show('profile')); wire('tocompare', () => { lastHub = 'fitness'; show('compare'); });
@@ -2258,7 +3336,7 @@ function show(v, arg) {
     wire('tohub', () => show('profile')); wire('usave', saveUnitUI);
     onWrap(e => {
       const t = e.target.closest('[data-crit]');
-      if (t) { const f = $('#ufocus'); if (f) unitDraft.focus = f.value.slice(0, 500); const i = +t.dataset.crit, j = +t.dataset.lv; unitDraft.levels[i] = unitDraft.levels[i] === j ? null : j; const y = window.scrollY; show('unit'); window.scrollTo(0, y); return; }
+      if (t) { const f = $('#ufocus'); if (f) unitDraft.focus = f.value.slice(0, 500); const hw = $('#uhow'); if (hw) unitDraft.how = hw.value.slice(0, 500); const i = +t.dataset.crit, j = +t.dataset.lv; unitDraft.levels[i] = unitDraft.levels[i] === j ? null : j; const y = window.scrollY; show('unit'); window.scrollTo(0, y); return; }
       const o = e.target.closest('[data-ov]'); if (o) openOv(o.dataset.ov);
     });
     badgeCheck();
@@ -2296,7 +3374,11 @@ function show(v, arg) {
     document.querySelectorAll('.gslider').forEach(r => r.addEventListener('input', () => { const k = r.getAttribute('data-key'), meta = goalMetaFor(k), lab = $('#glb-' + k); if (lab && meta) lab.textContent = fmtMetric(meta, Number(r.value)); }));
   } else if (v === 'plan') {
     app.innerHTML = planView(state);
-    wire('toprofile', () => show(lastHub)); wire('psaveplan', savePlanUI); wire('toeditgoals', () => show('goals')); wire('wk-go', savePlanAndGo);
+    wire('toprofile', () => leavePlan(() => show(lastHub))); wire('psaveplan', savePlanUI); wire('toeditgoals', () => leavePlan(() => show('goals'))); wire('wk-go', savePlanAndGo);
+    wire('rn-use', () => { const b = readBackup(); if (b) { planDraft = normPlan(b.plan); planRestored = ''; planChanged(); show('plan'); } });
+    wire('rn-drop', () => { dropBackup(); planRestored = ''; show('plan'); });
+    planChanged(); // status line + backup + autosave reflect whatever just changed
+    if (planRestored === 'auto' && planDirty() && !planSaving) autoSavePlan(); // brought-back edits save straight away
     const w = app.querySelector('.wrap');
     if (w) {
       w.addEventListener('click', e => {
@@ -2306,16 +3388,25 @@ function show(v, arg) {
         const rm = e.target.closest('[data-rm]'); if (rm) { const row = rm.closest('.wk-row'), list = row && row.parentNode; if (list) { const idx = Array.prototype.indexOf.call(list.querySelectorAll('.wk-row'), row), part = list.getAttribute('data-part'); syncPlanFromDom(); planDraft[part].splice(idx, 1); } return show('plan'); }
         const own = e.target.closest('[data-own]'); if (own) { const inp = w.querySelector('.wk-owni[data-part="' + own.dataset.own + '"]'); const v2 = inp && inp.value.trim(); if (v2) { syncPlanFromDom(); push(own.dataset.own, v2); show('plan'); } return; }
         const cho = e.target.closest('[data-choose]'); if (cho) { syncPlanFromDom(); const k = cho.dataset.choose === 'strength' ? 'sChoice' : 'fChoice'; if (planDraft[k] !== cho.dataset.val) { planDraft[k] = cho.dataset.val; Object.keys(wkOpen).forEach(x => wkOpen[x] = false); wkOpen[cho.dataset.choose] = true; if (k === 'sChoice') { const d = wkDefaults('strength', cho.dataset.val); planDraft.strength.forEach(r => { const isTime = /s$|sec|min|:/.test(String(r.reps).trim()); if (cho.dataset.val === 'endurance' && !isTime) r.reps = d.reps; if (cho.dataset.val === 'strength' && isTime) r.reps = d.reps; }); } } return show('plan'); }
+        const stp = e.target.closest('[data-step]'); if (stp) { syncPlanFromDom(); planStep = stp.dataset.step; show('plan'); window.scrollTo(0, 0); if (planDirty()) autoSavePlan(); return; }
+        if (e.target.closest('#hwf-open')) { const d = $('#hwf-box'); if (d) { d.open = true; hwOpen = true; d.scrollIntoView({ behavior: 'smooth', block: 'start' }); } return; }
         const day = e.target.closest('[data-day]'); if (day) { syncPlanFromDom(); planDraft.days[day.dataset.day] = !planDraft.days[day.dataset.day]; return show('plan'); }
         if (e.target.closest('#wk-eqadd')) { const i = $('#wk-eqi'), v3 = i && i.value.trim(); if (v3) { syncPlanFromDom(); planDraft.equip = (planDraft.equip || []); if (planDraft.equip.length < 20 && planDraft.equip.indexOf(v3) === -1) planDraft.equip.push(v3.slice(0, 30)); show('plan'); } return; }
         const eqr = e.target.closest('[data-eqrm]'); if (eqr) { syncPlanFromDom(); planDraft.equip.splice(+eqr.dataset.eqrm, 1); return show('plan'); }
-        const lg = e.target.closest('[data-log]'); if (lg) { syncPlanFromDom(); planDraft.log = planDraft.log || []; if (planDraft.log.length < 60) { const hn = $('#hw-num'); planDraft.log.push({ date: isoDay(new Date()), who: lg.dataset.log, num: hn ? hn.value.trim().slice(0, 40) : '' }); } toast(WHO[lg.dataset.log][2] ? 'Logged — ⭐ buddy bonus!' : 'Logged. Nice work.'); return show('plan'); }
-        const lr = e.target.closest('[data-logrm]'); if (lr) { syncPlanFromDom(); const q = lr.dataset.logrm.split('|'), j = (planDraft.log || []).findIndex(x => x.date === q[0] && x.who === q[1]); if (j >= 0) planDraft.log.splice(j, 1); return show('plan'); }
+        if (e.target.closest('#hwf-save')) { logSessionUI(); return; }
+        const lr = e.target.closest('[data-logrm]'); if (lr) { syncPlanFromDom(); const k = lr.dataset.logrm, j = (planDraft.log || []).findIndex(x => logKey(x) === k); if (j >= 0) { planDraft.log.splice(j, 1); planDraft.logRemoved = (planDraft.logRemoved || []).concat([k]).slice(-60); } planChanged(); return show('plan'); }
       });
       // minutes / heart-rate / goal text update the section status as you type (on leaving the field)
-      w.addEventListener('change', e => { if (e.target.matches('.wr-mins,.wr-int,.wkpart[data-part=strength] .wr-sets,.wkpart[data-part=strength] .wr-reps,#wk-hr,#wk-why')) { const y = window.scrollY; syncPlanFromDom(); show('plan'); window.scrollTo(0, y); } });
+      w.addEventListener('change', e => {
+        // a "how" line only changes its own section's status: update it in place (a full re-render here would swallow a click on Save)
+        if (e.target.matches('[id^=wk-why-],#wk-why,#wk-hr')) { syncPlanFromDom(); const part = e.target.id === 'wk-why' ? 'focus' : e.target.id === 'wk-hr' ? 'cardio' : e.target.id.slice(7), sec = w.querySelector('.wkpart[data-part="' + part + '"]'); if (sec) { const need = partNeeds(part), mins = partMins(part), tgtM = WK_PARTS.find(x => x[0] === part)[2], t = sec.querySelector('.wk-time'); sec.classList.toggle('ok', !need); if (t) { t.classList.toggle('ok', !need); t.textContent = need ? Math.round(mins * 10) / 10 + ' / ' + tgtM + ' min · ' + need : '✓ ' + Math.round(mins * 10) / 10 + ' min'; } } return; }
+        if (e.target.matches('.wr-mins,.wr-int,.wkpart[data-part=strength] .wr-sets,.wkpart[data-part=strength] .wr-reps')) { const y = window.scrollY; syncPlanFromDom(); show('plan'); window.scrollTo(0, y); }
+      });
       w.querySelectorAll('.wk-pick').forEach(d => d.addEventListener('toggle', () => { wkOpen[d.dataset.part] = d.open; if (d.open) w.querySelectorAll('.wk-pick').forEach(o => { if (o !== d && o.open) { o.open = false; wkOpen[o.dataset.part] = false; } }); }));
       enableWkDrag(w);
+      const ex = w.querySelector('.pl-extra'); if (ex) ex.addEventListener('toggle', () => { planExtraOpen = ex.open; });
+      // typing anywhere in the plan: back it up on this device and autosave shortly after
+      let typeT = null; w.addEventListener('input', e => { if (e.target.closest('.hwf')) return; clearTimeout(typeT); typeT = setTimeout(() => syncPlanFromDom(), 600); });
     }
   } else if (v === 'myskills') {
     app.innerHTML = myskillsView(state);
@@ -2334,6 +3425,7 @@ function show(v, arg) {
       tbl.addEventListener('change', e => { const sel = e.target.closest('.cellsel'); if (sel) mxSaveCell(sel); });
       tbl.addEventListener('click', e => { const ab = e.target.closest('[data-assess]'); if (ab) return show('assess', ab.getAttribute('data-assess')); const lb = e.target.closest('[data-lock]'); if (lb) mxToggleLock(lb.getAttribute('data-lock')); });
     }
+    wire('mxcards', openCards); wire('mxlesson', openHlClass); wire('mxwa', () => openWa());
     wire('mxlockall', () => mxLockAll(true)); wire('mxunlockall', () => mxLockAll(false)); wire('mxcsv', mxExportCsv);
   } else if (v === 'checkout') {
     app.innerHTML = checkoutSetupView();
@@ -2354,7 +3446,8 @@ function show(v, arg) {
     return;
   } else if (v === 'apsummary') {
     app.innerHTML = apSummaryView();
-    wire('apsback', () => show('class')); wire('apscsv', apsCsv);
+    wire('apsback', () => show('class')); wire('apscsv', apsCsv); wire('apsreload', apsRefresh);
+    if (prevView !== 'apsummary' && !apsState.loading) apsRefresh(); // fresh data every time it is opened
     const cl = $('#apsclass'); if (cl) cl.addEventListener('change', () => { teacherFilter = cl.value; show('apsummary'); });
     onWrap(e => { const t = e.target.closest('[data-aps]'); if (t) { const p = t.getAttribute('data-aps').split('|'); apsOverlay(p[0], p[1]); } });
   } else if (v === 'skillentry') {
@@ -2362,10 +3455,27 @@ function show(v, arg) {
     app.innerHTML = skillEntryView(currentSid);
     wire('toclassback', () => show('class')); wire('sksave', () => saveSkillsUI(currentSid));
     const cp = $('#skcp'); if (cp) cp.addEventListener('change', () => { teacherCp = cp.value; show('skillentry', currentSid); });
+  } else if (v === 'cards') {
+    app.innerHTML = cardsView(); document.body.classList.add('printing-cards');
+    wire('tocardsback', () => { document.body.classList.remove('printing-cards'); cardsData = null; show('class'); });
+    wire('cardsprint', () => window.print());
+    const cb = $('#cardsback'); if (cb) cb.addEventListener('change', () => { cardsBack = cb.checked; show('cards'); });
+  } else if (v === 'hlclass') {
+    app.innerHTML = hlClassView();
+    wire('tohlback', () => { hlClassData = null; show('class'); });
+    wire('hlreload', openHlClass);
+    onWrap(e => { const a = e.target.closest('[data-hlas]'); if (a) { assessFrom = 'hlclass'; assessData = null; show('assess', a.dataset.hlas); } });
+  } else if (v === 'wassess') {
+    app.innerHTML = wassessView();
+    wire('toWaBack', () => { if (Object.keys(waDirty).length) { toast('Still saving: wait for ✓ Everything is saved.', true); return; } waData = null; show('class'); }); waSync();
+    wire('wareload', () => openWa()); wire('wacopy', waCopy); wire('wacsv', waCsv);
+    const wf = $('#wafilter'); if (wf) wf.addEventListener('change', () => { waFilter = wf.value; show('wassess'); });
+    onWrap(e => { const m = e.target.closest('[data-wamode]'); if (m) { waMode = m.dataset.wamode; show('wassess'); return; } waClick(e); }); waNoteWire(app.firstElementChild);
   } else if (v === 'assess') {
     currentSid = arg || currentSid;
     app.innerHTML = assessView(currentSid);
-    wire('toclassback', () => { assessData = null; show('class'); });
+    wire('toclassback', () => { assessData = null; const to = assessFrom === 'hlclass' && hlClassData ? 'hlclass' : assessFrom === 'wassess' && waData ? 'wassess' : 'class'; assessFrom = ''; show(to); });
+    if (assessFrom === 'wassess' && waData && waTask === 'workout') { onWrap(waClick); waNoteWire(app.firstElementChild); }
   } else if (v === 'apself') {
     app.innerHTML = apSelfView();
     wire('toprofile', () => show(lastHub)); wire('apsave', saveApSelfUI);
@@ -2378,10 +3488,10 @@ function show(v, arg) {
     wire('tomyskills', () => show('myskills')); wire('toteacher', () => demo ? exitDemo() : loadClass()); wire('toarchive', () => show('archive'));
     wire('towo', () => { woStart('profile'); show('workout'); });
     wire('toapself', () => { apDraft = null; show('apself'); }); wire('toapself2', () => { apDraft = null; show('apself'); });
-    const apt = $('#aptrend'); if (apt) apt.addEventListener('click', e => { const c = e.target.closest('[data-apkey]'); if (!c) return; e.stopPropagation(); apKey = c.dataset.apkey; apt.innerHTML = apCompare() + apTrend(); });
+    const apt = $('#aptrend'); if (apt) apt.addEventListener('click', e => { const c = e.target.closest('[data-apkey]'); if (!c) return; e.stopPropagation(); apKey = c.dataset.apkey; const d = apt.querySelector('.aps-time'); if (d) d.innerHTML = '<summary>📈 See it over time</summary>' + apTrend(); });
     wire('hubnext', () => { const g = $('#hubnext').dataset.go, to = { topredict: 'predict', toentry: 'entry', tocompare: 'compare', togoals: 'goals', toplan: 'plan' }[g];
-      if (g === 'towo') { woStart('profile'); return show('workout'); } lastHub = 'fitness'; show(to); });
-    onWrap(e => { if (openUnit(e)) return; const t = e.target.closest('[data-ov]'); if (t) openOv(t.dataset.ov); });
+      if (g === 'towo') { woStart('profile'); return show('workout'); } if (g === 'tolesson') return hlOpen('train'); lastHub = 'fitness'; show(to); });
+    onWrap(e => { const h = e.target.closest('[data-hl]'); if (h) return hlOpen(h.dataset.hl); if (openUnit(e)) return; const t = e.target.closest('[data-ov]'); if (t) openOv(t.dataset.ov); });
   }
   if (!(v === 'plan' && prevView === 'plan') && !(v === 'apself' && prevView === 'apself')) window.scrollTo(0, 0);
   badgeCheck();
@@ -2389,8 +3499,10 @@ function show(v, arg) {
 
 function render(b) {
   state = b; seenBadges = null;
+  if (b.role === 'student' && b.alsoTeacher && location.hash === '#checkout') { openCheckout('landing'); return; } // a teacher who is also on the class list
   if (b.role === 'student') { show(b.student.style ? 'profile' : 'card'); return; } // first visit → build your card
-  if (b.role === 'teacher') { renderTeacher(b); return; }
+  if (b.role === 'teacher') { renderTeacher(b); if (location.hash === '#checkout') openCheckout('landing'); return; }
+  if (location.hash === '#checkout') setHash(''); // not a teacher: just the normal page
   document.body.classList.remove('dark'); $('#app').innerHTML = otherView(b); wire('signout', signOut);
 }
 function renderTeacher(b) {
@@ -2400,9 +3512,10 @@ function renderTeacher(b) {
   document.querySelectorAll('.demobox [data-demo]').forEach(x => x.addEventListener('click', () => startDemo(x.getAttribute('data-demo'))));
 }
 async function loadClass() {
-  $('#app').innerHTML = '<div class="loading"><div class="spinner"></div>Loading the class…</div>';
-  try { classData = await call('classOverview'); show('class'); }
-  catch (e) { toast('Couldn’t load the class: ' + e.message, true); if (state.role === 'student') show('profile'); else renderTeacher(state); }
+  $('#app').innerHTML = '<div class="loading"><div class="spinner"></div><span id="ldmsg">Loading the class…</span></div>';
+  const slow = setTimeout(() => { const m = $('#ldmsg'); if (m) m.textContent = 'Still loading the class… the server can take up to 30 seconds after a quiet spell.'; }, 10000);
+  try { classData = await call('classOverview'); clearTimeout(slow); show('class'); }
+  catch (e) { clearTimeout(slow); toast('Couldn’t load the class: ' + e.message, true); if (state.role === 'student') show('profile'); else renderTeacher(state); }
 }
 
 $('#ov').addEventListener('click', e => { if (e.target === e.currentTarget || e.target.closest('[data-close]')) closeOv(); });
