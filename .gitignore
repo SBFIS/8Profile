@@ -35,3 +35,6 @@ dist/site/
 # dev screenshots
 dev/prev_*.png
 dev/shot_*.png
+
+# second copy of the page written by dev/build-site.js; removed from the repo in a92a907
+pe/
