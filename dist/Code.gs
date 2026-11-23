@@ -92,7 +92,7 @@ function apHeaders_() {
 
 var TABS = {
   Config:        ['Key', 'Value', 'What it does'],
-  Students:      ['Email', 'Name', 'Class'],
+  Students:      ['Email', 'Name', 'Class', 'Known as'],                       // Known as (optional, teacher-typed) replaces Name on every screen; Canvas matching still uses Name
   Teachers:      ['Email', 'Name'],
   Profile:       ['Email', 'Style', 'Goal', 'Updated'],
   Predictions:   predictionHeaders_(),
@@ -102,12 +102,13 @@ var TABS = {
   Participation: apHeaders_(),                                                   // teacher-reported, self + teacher per key
   APLog:         ['Email', 'Date', 'Source', 'Round'].concat(AP_KEYS).concat(['Updated', 'overall', 'Word']), // every AP rating: student self-checks (often) + teacher grades (4 rounds) + teacher lesson ratings ('lesson'); overall = the single Canvas AP grade; Word = check-out evidence word
   Bands:         ['Email'].concat(BAND_KEYS).concat(['Updated']),                // the three report bands
-  Outcomes:      ['Email', 'Outcome', 'Value', 'Updated'],                       // latest 1–7 per standard (K1…C3), imported from Canvas Learning Mastery
+  Outcomes:      ['Email', 'Outcome', 'Value', 'Updated', 'Unit'],               // 1–7 per standard (K1…C3) per unit, imported from Canvas Learning Mastery; Unit added last so it appends onto an existing tab
   Goals:         ['Email', 'Component', 'Goal', 'Updated', 'Target'],            // focus goals: Target added last so it appends cleanly onto an existing Goals tab; plus one '_note' row
 
   Plan:          ['Email', 'Plan', 'Updated'],                                   // the student's personal workout plan (JSON)
   Locks:         ['Email', 'Checkpoint', 'Locked', 'Updated'],                   // teacher finalize-lock per student per checkpoint
-  Reflections:   ['Email', 'Key', 'Text', 'Updated']                             // student reflections + unit self-assessments, one row per key
+  Reflections:   ['Email', 'Key', 'Text', 'Updated'],                            // student reflections + unit self-assessments, one row per key
+  Assess:        ['Email', 'Task', 'k4', 's2', 'sm', 'Note', 'Updated', 'Flag', 'Day', 'FlagK4', 'serve', 'rally', 'move', 'part', 'Live'] // teacher's summative ratings (1–7) per task (workout: k4 s2 sm; badminton: serve rally move part) + live bands (workout: Flag/FlagK4; badminton: Live JSON) and the day first assessed; teacher-only, never sent to a student
 };
 // Reflection slots a student may write. Unit keys hold a small JSON self-assessment.
 var REFLECT_KEYS = ['compare-intro', 'unit-badminton'];
@@ -243,7 +244,7 @@ function identity_(cfg, token) {
   var owner = lower_(Session.getEffectiveUser().getEmail());
   var teacher = email === owner || readTab_('Teachers').some(function (t) { return lower_(t.Email) === email; });
   var me = readTab_('Students').filter(function (r) { return lower_(r.Email) === email; })[0];
-  if (me) return { role: 'student', email: email, name: str_(me.Name), klass: str_(me.Class), picture: v.picture, teacher: teacher };
+  if (me) return { role: 'student', email: email, name: rosterName_(me), klass: str_(me.Class), picture: v.picture, teacher: teacher };
   if (teacher) return { role: 'teacher', email: email };
   return { role: 'unknown', email: email };
 }
@@ -289,7 +290,7 @@ function doPost(e) {
 }
 // Opening the API URL in a browser is not the app; say so, with no data.
 // Bump with each server change: opening the /exec link in a browser shows which build is live.
-var BUILD = '2026-10-26 · workout assessment evidence + AP check-out';
+var BUILD = '2026-11-18a · Badminton on the Assess screen (live bands, practice checks, marks)';
 function doGet() {
   return ContentService.createTextOutput(JSON.stringify({ ok: false, build: BUILD, error: 'This is the data service for My PE Profile. Open the app link your PE teacher shared.' }))
     .setMimeType(ContentService.MimeType.JSON);
@@ -313,6 +314,11 @@ function handle_(body) {
     case 'setLock':         return setLock_(cfg, id, body.emails, body.checkpoint, body.locked);
     case 'classOverview':   return classOverview_(cfg, id);
     case 'classStudent':    return classStudent_(cfg, id, body.email);
+    case 'classPlans':      return classPlans_(cfg, id, body.klass);
+    case 'classLessons':    return classLessons_(cfg, id, body.klass);
+    case 'classAssess':     return classAssess_(cfg, id, body.klass, body.task);
+    case 'saveAssessMany':  return saveAssessMany_(cfg, id, body.task, body.rows);
+    case 'saveAssess':      return saveAssess_(cfg, id, body.email, body.task, body.scores, body.note, body.flag, body.flagK4);
     case 'checkoutRoster':  return checkoutRoster_(cfg, id, body.klass, body.focus);
     case 'saveCheckin':     return saveCheckin_(cfg, id, body.email, body.focus, body.who, body.rating, body.word);
     default: throw new Error('Unknown action');
@@ -432,15 +438,34 @@ function apFor_(email) {
   var row = readTab_('Participation').filter(function (r) { return lower_(r.Email) === email; })[0];
   return apLatest_(apLogFor_(email), row || null);
 }
-// The student's latest grade per standard, e.g. { K4: 5, S1: 6, C1: 5 }.
+// Units of the year (same dates as UNITS in App.html): an outcome import is labelled with
+// the unit it was taken in, so each unit's grades stay as a step in the student's story.
+var UNIT_DATES = [['fitness', '2026-09-01', '2026-11-16'], ['badminton', '2026-11-17', '2027-01-26'], ['parkour', '2027-01-27', '2027-03-08'],
+                  ['tactics', '2027-03-09', '2027-04-13'], ['tchouk', '2027-04-14', '2027-07-31']];
+var UNIT_KEYS = UNIT_DATES.map(function (u) { return u[0]; });
+function unitForDate_(ymd) {
+  var hit = UNIT_DATES.filter(function (u) { return ymd >= u[1] && ymd <= u[2]; })[0];
+  return hit ? hit[0] : (ymd < UNIT_DATES[0][1] ? UNIT_DATES[0][0] : UNIT_DATES[UNIT_DATES.length - 1][0]);
+}
+// The student's latest grade per standard, e.g. { K4: 5, S1: 6, C1: 5 }, plus every unit's
+// value in year order (the story): [{ code, v, unit, date }].
 var OUTCOME_CODES = ['K1', 'K2', 'K3', 'K4', 'K5', 'S1', 'S2', 'S3', 'S4', 'C1', 'C2', 'C3'];
-function outcomesFor_(email) {
-  var out = {};
+function outcomeRows_(email) {
+  var rows = [];
   readTab_('Outcomes').forEach(function (r) {
     if (lower_(r.Email) !== email) return;
-    var code = str_(r.Outcome).toUpperCase(), n = numOrNull_(r.Value);
-    if (OUTCOME_CODES.indexOf(code) !== -1 && n !== null && n >= 1 && n <= 7) out[code] = n;
+    var code = str_(r.Outcome).toUpperCase(), n = numOrNull_(r.Value), unit = lower_(r.Unit);
+    if (OUTCOME_CODES.indexOf(code) === -1 || n === null || n < 1 || n > 7) return;
+    if (unit && UNIT_KEYS.indexOf(unit) === -1) unit = '';
+    rows.push({ code: code, v: Math.round(n), unit: unit, date: str_(r.Updated).slice(0, 10) });
   });
+  var ord = function (x) { return x.unit ? UNIT_KEYS.indexOf(x.unit) : -1; };
+  rows.sort(function (a, b) { return ord(a) - ord(b) || (a.date < b.date ? -1 : a.date > b.date ? 1 : 0); });
+  return rows;
+}
+function outcomesFor_(email, rows) {
+  var out = {};
+  (rows || outcomeRows_(email)).forEach(function (r) { out[r.code] = r.v; }); // sorted, so the last one wins
   return out;
 }
 function bandsFor_(email) {
@@ -499,14 +524,14 @@ function reflectionsFor_(email) {
 // the profile in its "fills in at the Combine" state until there is real data).
 function measuredFor_(email) {
   var fitness = fitnessFor_(email), skills = skillsFor_(email),
-      apLog = apLogFor_(email), bands = bandsFor_(email), outcomes = outcomesFor_(email),
+      apLog = apLogFor_(email), bands = bandsFor_(email), outcomeLog = outcomeRows_(email), outcomes = outcomesFor_(email, outcomeLog),
       g = goalsFor_(email), plan = planFor_(email);
   var row = readTab_('Participation').filter(function (r) { return lower_(r.Email) === email; })[0] || null;
   var ap = apLatest_(apLog, row);
   var any = Object.keys(fitness).length || Object.keys(skills).length ||
             Object.keys(ap).length || apLog.self.length || apLog.teacher.length || Object.keys(bands).length || Object.keys(outcomes).length || g.items.length || g.note || plan;
   if (!any) return null;
-  return { fitness: fitness, skills: skills, ap: ap, apLog: apLog, bands: bands, outcomes: outcomes, goals: g.items, goalNote: g.note, plan: plan };
+  return { fitness: fitness, skills: skills, ap: ap, apLog: apLog, bands: bands, outcomes: outcomes, outcomeLog: outcomeLog, goals: g.items, goalNote: g.note, plan: plan };
 }
 
 // Everything the page needs, for the caller only.
@@ -733,7 +758,24 @@ function savePlan_(cfg, id, plan) {
   requireStudent_(id);
   if (plan === null || plan === undefined) throw new Error('Missing plan');
   var json; try { json = JSON.stringify(plan); } catch (e) { throw new Error('Bad plan'); }
-  if (json.length > 20000) throw new Error('Plan is too long');
+  if (json.length > 45000) throw new Error('Plan is too long');
+  if (typeof plan !== 'object' || plan instanceof Array) throw new Error('Bad plan');
+  // Logged sessions are merged, not overwritten: a plan page left open on one device (or an older
+  // draft in the same tab) must never wipe a session logged since. The client lists the sessions it
+  // deliberately removed in logRemoved; everything else already on the server is kept.
+  var prev = planFor_(id.email) || {}, removed = {}, seen = {}, merged = [];
+  (plan.logRemoved instanceof Array ? plan.logRemoved : []).slice(0, 60).forEach(function (k) { removed[String(k)] = true; });
+  function key(e) { return e && e.id ? String(e.id) : [e && e.date, e && e.where || '', e && e.who || '', e && e.num || ''].join('|'); }
+  ((prev.log instanceof Array) ? prev.log : []).concat((plan.log instanceof Array) ? plan.log : []).forEach(function (e) {
+    if (!e || typeof e !== 'object') return;
+    var k = key(e); if (removed[k] || seen[k]) return; seen[k] = true; merged.push(e);
+  });
+  merged.sort(function (a, b) { return String(a.date) < String(b.date) ? -1 : String(a.date) > String(b.date) ? 1 : 0; });
+  plan.log = merged.slice(-60);
+  delete plan.logRemoved;
+  plan.savedAt = new Date().toISOString();
+  json = JSON.stringify(plan);
+  if (json.length > 45000) throw new Error('Plan is too long');
   upsert_('Plan', { Email: id.email }, { Plan: json, Updated: new Date() });
   return { ok: true, plan: plan };
 }
@@ -862,7 +904,7 @@ function classOverview_(cfg, id) {
   var out = [];
   readTab_('Students').forEach(function (r) {
     var email = lower_(r.Email); if (!email) return;
-    out.push({ id: email, name: str_(r.Name), klass: str_(r.Class),
+    out.push({ id: email, name: rosterName_(r), klass: str_(r.Class),
       fitness: combine[email] || {}, skills: skills[email] || {},
       ap: apLatest_(apLog[email] || { self: [], teacher: [] }, null, ap[email]),
       bands: bands[email] || {}, locked: locks[email] || {}, checkinSummary: checkins[email] || {} });
@@ -874,7 +916,7 @@ function classStudent_(cfg, id, targetEmail) {
   var email = lower_(targetEmail);
   var r = readTab_('Students').filter(function (x) { return lower_(x.Email) === email; })[0];
   if (!r) throw new Error('That student is not on the class list');
-  return { role: 'classStudent', student: { id: email, name: str_(r.Name), klass: str_(r.Class),
+  return { role: 'classStudent', student: { id: email, name: rosterName_(r), klass: str_(r.Class),
     fitness: fitnessFor_(email), skills: skillsFor_(email), ap: apFor_(email), apLog: apLogFor_(email), bands: bandsFor_(email),
     plan: planFor_(email), goals: goalsFor_(email) } };  // teacher assessment view: the student's workout, goals, log and reflection
 }
@@ -903,12 +945,25 @@ function checkinSummary_(rows) {
   });
   return out;
 }
-// "Last, First" or "First Last" → first name + last initial, for the name buttons.
-function shortName_(raw) {
+// "Last, First" or "First Last" → first name + last initial, for the name buttons
+// (wholeLast: the whole last-name part instead, used to tell two "Juho L." apart).
+function shortName_(raw, wholeLast) {
   var name = str_(raw).replace(/\s+/g, ' '), first, last;
   if (name.indexOf(',') !== -1) { last = str_(name.split(',')[0]); first = nameParts_(name).first; }
   else { var p = name.split(' '); first = p[0] || ''; last = p.length > 1 ? p[p.length - 1] : ''; }
-  return { first: first, lastInitial: last.charAt(0).toUpperCase() };
+  return { first: first, lastInitial: wholeLast ? last : last.charAt(0).toUpperCase() };
+}
+// The name a screen shows: the teacher's "Known as" if filled, else the roster Name.
+function rosterName_(r) { return str_(r['Known as']) || str_(r.Name); }
+// Two buttons must never read the same: clashing ones show the whole last-name part
+// ("Juho L" / "Juho L2"), and if that still clashes, a number.
+function uniqueButtons_(rows) {
+  var label = function (r) { return lower_(r.first + ' ' + r.lastInitial); }, count = {};
+  rows.forEach(function (r) { count[label(r)] = (count[label(r)] || 0) + 1; });
+  rows.forEach(function (r) { if (count[label(r)] > 1 && !r.known && r.full.lastInitial) r.lastInitial = r.full.lastInitial; });
+  count = {}; rows.forEach(function (r) { count[label(r)] = (count[label(r)] || 0) + 1; });
+  var seen = {};
+  rows.forEach(function (r) { var k = label(r); if (count[k] > 1) { seen[k] = (seen[k] || 0) + 1; r.lastInitial = (r.lastInitial ? r.lastInitial + ' ' : '') + '(' + seen[k] + ')'; } });
 }
 // Teacher-only: one class's names for the kiosk, who has checked out today on the focus, and
 // the spotlight five (fewest lesson ratings in 30 days → oldest last lesson rating → alphabetical).
@@ -934,9 +989,10 @@ function checkoutRoster_(cfg, id, klass, focus) {
     if (src === 'lesson') { if (date >= from) st.recent++; if (date > st.last) st.last = date; }
   });
   var rows = mine.map(function (r) {
-    var email = lower_(r.Email), n = shortName_(r.Name);
-    return { email: email, first: n.first, lastInitial: n.lastInitial, sortName: lower_(r.Name), doneToday: { self: stats[email].self, teacher: stats[email].teacher } };
+    var email = lower_(r.Email), known = str_(r['Known as']), n = known ? { first: known, lastInitial: '' } : shortName_(r.Name);
+    return { email: email, first: n.first, lastInitial: n.lastInitial, sortName: lower_(r.Name), known: !!known, full: shortName_(r.Name, true), doneToday: { self: stats[email].self, teacher: stats[email].teacher } };
   });
+  uniqueButtons_(rows);
   var cmp = function (a, b) { return a < b ? -1 : (a > b ? 1 : 0); };
   out.spotlight = rows.slice().sort(function (a, b) {
     var x = stats[a.email], y = stats[b.email];
@@ -967,6 +1023,294 @@ function saveCheckin_(cfg, id, targetEmail, focus, who, rating, word) {
   fields[f] = n;
   upsert_('APLog', { Email: email, Date: date, Source: src }, fields);
   return { ok: true, date: date };
+}
+
+// Printable workout cards for one class (teacher only). Returns just what a card shows: each student's
+// name, the five parts with their "how" lines, heart-rate zone, focus link and goals. No log, no reflection.
+function classPlans_(cfg, id, klass) {
+  requireTeacher_(id);
+  klass = str_(klass);
+  if (!klass) throw new Error('Pick a class first');
+  var roster = readTab_('Students').filter(function (r) { return str_(r.Class) === klass; });
+  if (!roster.length) throw new Error('No students in that class');
+  var plans = {}, goals = {};
+  readTab_('Plan').forEach(function (r) { var e = lower_(r.Email); if (!e) return; try { plans[e] = JSON.parse(str_(r.Plan) || 'null'); } catch (x) {} });
+  var parts = ['warmup', 'cardio', 'strength', 'focus', 'cooldown'];
+  var students = roster.map(function (r) {
+    var e = lower_(r.Email), p = plans[e], card = null;
+    if (p && typeof p === 'object') {
+      card = { v: p.v || 0, sChoice: str_(p.sChoice), fChoice: str_(p.fChoice), hr: str_(p.hr), fWhy: str_(p.fWhy), savedAt: str_(p.savedAt), why: {} };
+      parts.forEach(function (k) {
+        card[k] = ((p[k] instanceof Array) ? p[k] : []).slice(0, 8).map(function (x) { x = x || {}; return { n: str_(x.n).slice(0, 40), sets: str_(x.sets), reps: str_(x.reps), min: str_(x.min), int: str_(x.int) }; });
+        card.why[k] = str_((p.why || {})[k]).slice(0, 160);
+      });
+    }
+    return { name: rosterName_(r), klass: klass, plan: card, goals: goalsFor_(e).items };
+  }).sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
+  return { role: 'classPlans', klass: klass, students: students };
+}
+
+// Teacher: one class's (or all classes') self-paced Health lesson in one call, so the overview
+// loads at once. Per student: the lesson answers, a count of sessions logged since the unit's
+// workout started (never the log itself), and the plan's parts for the builder to-do count.
+// The id is the roster email, as in the class dashboard, so a row can open that student's page.
+// No session log, no reflection, no goals notes.
+var LESSON_KEYS = ['train'];
+var LESSON_LOG_FROM = '2026-10-22';
+function lessonOut_(d) {
+  if (!d || typeof d !== 'object') return null;
+  var quiz = {}; Object.keys(d.quiz || {}).slice(0, 8).forEach(function (k) { var n = Number(d.quiz[k]); if (isFinite(n)) quiz[k] = n; });
+  var qs = (d.qs instanceof Array ? d.qs : []).slice(0, 8).map(function (x) { return (x instanceof Array) ? [Number(x[0]) || 0, Number(x[1]) || 0] : [0, 0]; });
+  return { step: Number(d.step) || 0, done: str_(d.done).slice(0, 10), score: d.score == null ? null : Number(d.score), feel: str_(d.feel).slice(0, 10), logAll: !!d.logAll,
+           quiz: quiz, qs: qs, ex: str_(d.ex).slice(0, 60), how: str_(d.how).slice(0, 4), now: str_(d.now).slice(0, 60), next: str_(d.next).slice(0, 60),
+           rest: (d.rest instanceof Array ? d.rest : []).slice(0, 6).map(function (x) { return str_(x).slice(0, 10); }), prin: str_(d.prin).slice(0, 15), exit: str_(d.exit).slice(0, 400) };
+}
+function classLessons_(cfg, id, klass) {
+  requireTeacher_(id);
+  klass = str_(klass);
+  if (!klass) throw new Error('Pick a class first');
+  var roster = readTab_('Students').filter(function (r) { return lower_(r.Email) && (klass === 'all' || str_(r.Class) === klass); });
+  if (!roster.length) throw new Error('No students in that class');
+  var plans = {};
+  readTab_('Plan').forEach(function (r) { var e = lower_(r.Email); if (!e) return; try { plans[e] = JSON.parse(str_(r.Plan) || 'null'); } catch (x) {} });
+  var parts = ['warmup', 'cardio', 'strength', 'focus', 'cooldown'];
+  var students = roster.map(function (r) {
+    var e = lower_(r.Email), p = plans[e], plan = null, lessons = {}, logSum = { pe: 0, home: 0, chg: 0 };
+    if (p && typeof p === 'object') {
+      plan = { v: p.v || 0, sChoice: str_(p.sChoice), fChoice: str_(p.fChoice), hr: str_(p.hr), fWhy: str_(p.fWhy), lsDone: str_(p.lsDone).slice(0, 200), why: {} };
+      parts.forEach(function (k) {
+        plan[k] = ((p[k] instanceof Array) ? p[k] : []).slice(0, 8).map(function (x) { x = x || {}; return { n: str_(x.n).slice(0, 40), sets: str_(x.sets), reps: str_(x.reps), min: str_(x.min), int: str_(x.int) }; });
+        plan.why[k] = str_((p.why || {})[k]).slice(0, 160);
+      });
+      LESSON_KEYS.forEach(function (k) { var o = lessonOut_((p.lessons || {})[k]); if (o) lessons[k] = o; });
+      plan.lessons = lessons;
+      ((p.log instanceof Array) ? p.log : []).forEach(function (x) {
+        if (!x || str_(x.date) < LESSON_LOG_FROM) return;
+        if (str_(x.where) === 'class') logSum.pe++; else logSum.home++;
+        if (str_(x.chg)) logSum.chg++;
+      });
+    }
+    return { sid: e, name: rosterName_(r), klass: str_(r.Class), plan: plan, goals: goalsFor_(e).items, logSum: logSum };
+  }).sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
+  return { role: 'classLessons', klass: klass, students: students };
+}
+
+// ---------- Summative assessment on the dashboard (teacher only) ----------
+// The teacher rates each criterion 1–7 while the class performs, next to a short evidence
+// summary built from the plan. Ratings live in the Assess tab; no student function reads it,
+// and Canvas stays the official record (the screen copies the ratings out for it).
+var ASSESS_TASKS = ['workout', 'badminton'];
+var ASSESS_KEYS_BY = { workout: ['k4', 's2', 'sm'], badminton: ['serve', 'rally', 'move', 'part'] };
+var ASSESS_KEYS = ASSESS_KEYS_BY.workout;
+// Where a task's AP check-outs start, and which AP areas count (badminton: Take part and try hard = effort + team).
+var ASSESS_AP_BY = { workout: { from: '2026-10-22', keys: ['effort', 'manage'] }, badminton: { from: '2026-11-17', keys: ['effort', 'team'] } };
+var ASSESS_NOTE_MAX = 300;
+var ASSESS_FLAGS = ['ny', 'ap', 'got', 'lead']; // workout-day band per row: Not yet, Approaching, Got it, Leading
+var ASSESS_FLAG_OLD = { up: 'lead', down: 'ap' }; // first version's 🌟/⚠
+var REF_KEYS = ['strength', 'worked', 'change', 'matters'];
+function assessTask_(task) {
+  task = lower_(task) || 'workout';
+  if (ASSESS_TASKS.indexOf(task) === -1) throw new Error('Unknown task');
+  return task;
+}
+function classAssess_(cfg, id, klass, task) {
+  requireTeacher_(id);
+  task = assessTask_(task);
+  klass = str_(klass);
+  if (!klass) throw new Error('Pick a class first');
+  var roster = readTab_('Students').filter(function (r) { return lower_(r.Email) && (klass === 'all' || str_(r.Class) === klass); });
+  if (!roster.length) throw new Error('No students in that class');
+  var keys = ASSESS_KEYS_BY[task], plans = {}, saved = {}, planDay = {}, apIdx = apLogIndex_([]);
+  readTab_('Plan').forEach(function (r) { var e = lower_(r.Email); if (!e) return; planDay[e] = ymd_(r.Updated); try { plans[e] = JSON.parse(str_(r.Plan) || 'null'); } catch (x) {} });
+  readTab_('Assess').forEach(function (r) {
+    var e = lower_(r.Email); if (!e || lower_(r.Task) !== task) return;
+    var sc = {}; keys.forEach(function (k) { var n = numOrNull_(r[k]); if (n !== null && n >= 1 && n <= 7) sc[k] = Math.round(n); });
+    var fl = lower_(r.Flag); fl = ASSESS_FLAG_OLD[fl] || fl;
+    var fk = lower_(r.FlagK4); fk = ASSESS_FLAG_OLD[fk] || fk;
+    saved[e] = { scores: sc, note: str_(r.Note).slice(0, ASSESS_NOTE_MAX), updated: ymd_(r.Updated), flag: ASSESS_FLAGS.indexOf(fl) === -1 ? '' : fl, flagK4: ASSESS_FLAGS.indexOf(fk) === -1 ? '' : fk, day: ymd_(r.Day), live: assessLiveRead_(r.Live, keys) };
+  });
+  if (task === 'badminton') return classAssessUnit_(roster, saved, apIdx, klass, task, keys);
+  var parts = ['warmup', 'cardio', 'strength', 'focus', 'cooldown'];
+  var students = roster.map(function (r) {
+    var e = lower_(r.Email), p = plans[e], ev = null;
+    if (p && typeof p === 'object') {
+      var weeks = {}, log = (p.log instanceof Array) ? p.log : [];
+      ev = { parts: 0, whys: 0, hr: !!str_(p.hr), fWhy: !!str_(p.fWhy), sChoice: str_(p.sChoice), refs: 0, pe: 0, home: 0, chg: 0, weeks: 0 };
+      parts.forEach(function (k) {
+        if ((p[k] instanceof Array) && p[k].length) ev.parts++;
+        if (str_((p.why || {})[k])) ev.whys++;
+      });
+      REF_KEYS.forEach(function (k) { if (str_((p.ref || {})[k])) ev.refs++; });
+      log.forEach(function (x) {
+        if (!x || !str_(x.date)) return;
+        if (str_(x.where) === 'class') ev.pe++; else { ev.home++; weeks[weekOf_(str_(x.date))] = true; }
+        if (str_(x.chg)) ev.chg++;
+      });
+      ev.weeks = Object.keys(weeks).length;
+    }
+    var a = saved[e] || { scores: {}, note: '', updated: '', flag: '', flagK4: '', day: '' };
+    return { sid: e, name: rosterName_(r), klass: str_(r.Class), ev: ev, scores: a.scores, note: a.note, updated: a.updated, flag: a.flag, flagK4: a.flagK4, day: a.day, planDay: planDay[e] || '', ap: assessAp_(apIdx[e], task) };
+  }).sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
+  return { role: 'classAssess', klass: klass, task: task, keys: keys, students: students };
+}
+// A unit task (badminton): live bands per criterion, the student's practice check (their own
+// Reflections row, shown to the teacher only: the four levels, focus and how), AP check-outs, marks.
+function classAssessUnit_(roster, saved, apIdx, klass, task, keys) {
+  var checks = {}, rk = 'unit-' + task;
+  readTab_('Reflections').forEach(function (r) {
+    var e = lower_(r.Email); if (!e || str_(r.Key) !== rk) return;
+    var o = null; try { o = JSON.parse(str_(r.Text) || 'null'); } catch (x) {}
+    if (!o || typeof o !== 'object') return;
+    var lv = (o.levels instanceof Array ? o.levels : []).slice(0, keys.length);
+    var levels = keys.map(function (k, i) { var n = lv[i]; return (typeof n === 'number' && n >= 0 && n <= 3 && n % 1 === 0) ? n : null; });
+    checks[e] = { levels: levels, focus: str_(o.focus).slice(0, 500), how: str_(o.how).slice(0, 500), updated: ymd_(r.Updated) };
+  });
+  var students = roster.map(function (r) {
+    var e = lower_(r.Email), a = saved[e] || { scores: {}, note: '', updated: '', live: {}, day: '' };
+    return { sid: e, name: rosterName_(r), klass: str_(r.Class), scores: a.scores, note: a.note, updated: a.updated, live: a.live || {}, day: a.day, check: checks[e] || null, ap: assessAp_(apIdx[e], task) };
+  }).sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
+  return { role: 'classAssess', klass: klass, task: task, keys: keys, students: students };
+}
+// Live bands, stored as JSON {criterion: 'ny'|'ap'|'got'|'lead'}; anything else is dropped.
+function assessLiveRead_(raw, keys) {
+  var o = null, out = {}; try { o = JSON.parse(str_(raw) || 'null'); } catch (x) {}
+  if (!o || typeof o !== 'object') return out;
+  keys.forEach(function (k) { var v = lower_(o[k]); if (ASSESS_FLAGS.indexOf(v) !== -1) out[k] = v; });
+  return out;
+}
+function assessLiveWrite_(live, keys) {
+  if (live === undefined) return undefined;
+  if (!live || typeof live !== 'object') throw new Error('Bad live bands');
+  var out = {};
+  keys.forEach(function (k) {
+    var v = lower_(live[k]); if (!v) return;
+    if (ASSESS_FLAGS.indexOf(v) === -1) throw new Error('Band must be ny, ap, got, lead or empty');
+    out[k] = v;
+  });
+  return Object.keys(out).length ? JSON.stringify(out) : '';
+}
+// Training on my own: the AP check-outs (effort + manage myself) from the training lessons,
+// teacher lesson ratings and the student's own, averaged. Null when the class never did check-outs.
+function assessAp_(o, task) {
+  if (!o) return null;
+  var cfgAp = ASSESS_AP_BY[task || 'workout'] || ASSESS_AP_BY.workout;
+  var avg = function (list) {
+    var t = 0, n = 0, days = {};
+    list.forEach(function (x) { if (x.date < cfgAp.from) return; cfgAp.keys.forEach(function (k) { var v = x.v[k]; if (v == null) return; t += v; n++; days[x.date] = true; }); });
+    return { avg: n ? round1_(t / n) : null, n: Object.keys(days).length };
+  };
+  var l = avg(o.lesson || []), s = avg(o.self || []);
+  if (!l.n && !s.n) return null;
+  return { lessonAvg: l.avg, lessonN: l.n, selfAvg: s.avg, selfN: s.n };
+}
+// Monday of the week a yyyy-mm-dd date falls in (for "weeks with a home session").
+function weekOf_(ymd) {
+  var d = new Date(ymd + 'T12:00:00Z'); if (isNaN(d)) return ymd;
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+function saveAssess_(cfg, id, targetEmail, task, scores, note, flag, flagK4) {
+  requireTeacher_(id);
+  task = assessTask_(task);
+  var email = lower_(targetEmail);
+  if (!email) throw new Error('Missing student');
+  if (!readTab_('Students').some(function (r) { return lower_(r.Email) === email; })) throw new Error('That student is not on the class list');
+  if (!scores || typeof scores !== 'object') throw new Error('Missing scores');
+  var fields = { Updated: new Date() }, out = {};
+  ASSESS_KEYS_BY[task].forEach(function (k) {
+    var v = scores[k];
+    if (v === '' || v === null || v === undefined) { fields[k] = ''; return; }
+    var n = Number(v);
+    if (!isFinite(n) || n % 1 !== 0 || n < 1 || n > 7) throw new Error('Rating must be a whole number 1–7');
+    fields[k] = n; out[k] = n;
+  });
+  note = str_(note);
+  if (note.length > ASSESS_NOTE_MAX) throw new Error('Note too long (max ' + ASSESS_NOTE_MAX + ' characters)');
+  fields.Note = note;
+  if (flag !== undefined) {
+    flag = lower_(flag);
+    if (flag && ASSESS_FLAGS.indexOf(flag) === -1) throw new Error('Flag must be ny, ap, got, lead or empty');
+    fields.Flag = flag;
+  }
+  if (flagK4 !== undefined) {
+    flagK4 = lower_(flagK4);
+    if (flagK4 && ASSESS_FLAGS.indexOf(flagK4) === -1) throw new Error('Flag must be ny, ap, got, lead or empty');
+    fields.FlagK4 = flagK4;
+  }
+  var had = readTab_('Assess').filter(function (r) { return lower_(r.Email) === email && lower_(r.Task) === task; })[0];
+  var day = had && ymd_(had.Day);
+  if (!day) fields.Day = ymd_(new Date());
+  upsert_('Assess', { Email: email, Task: task }, fields);
+  return { ok: true, task: task, scores: out, note: note, flag: fields.Flag !== undefined ? fields.Flag : lower_(had && had.Flag), day: day || fields.Day };
+}
+
+// Several students in one call: one roster read, one lock, one write. The dashboard queues taps and
+// sends them together, so a busy lesson (many quick taps) no longer races dozens of separate saves.
+var ASSESS_MANY_MAX = 60;
+function assessFields_(x, task) {
+  if (!x || typeof x !== 'object') throw new Error('Bad request');
+  var scores = x.scores || {}, fields = {}, keys = ASSESS_KEYS_BY[task || 'workout'];
+  if (typeof scores !== 'object') throw new Error('Missing scores');
+  keys.forEach(function (k) {
+    var v = scores[k];
+    if (v === '' || v === null || v === undefined) { fields[k] = ''; return; }
+    var n = Number(v);
+    if (!isFinite(n) || n % 1 !== 0 || n < 1 || n > 7) throw new Error('Rating must be a whole number 1–7');
+    fields[k] = n;
+  });
+  var note = str_(x.note);
+  if (note.length > ASSESS_NOTE_MAX) throw new Error('Note too long (max ' + ASSESS_NOTE_MAX + ' characters)');
+  fields.Note = note;
+  ['flag', 'flagK4'].forEach(function (k) {
+    if (x[k] === undefined) return;
+    var f = lower_(x[k]);
+    if (f && ASSESS_FLAGS.indexOf(f) === -1) throw new Error('Flag must be ny, ap, got, lead or empty');
+    fields[k === 'flag' ? 'Flag' : 'FlagK4'] = f;
+  });
+  var lv = assessLiveWrite_(x.live, keys);
+  if (lv !== undefined) fields.Live = lv;
+  return fields;
+}
+function saveAssessMany_(cfg, id, task, rows) {
+  requireTeacher_(id);
+  task = assessTask_(task);
+  if (!(rows instanceof Array) || !rows.length) throw new Error('Missing rows');
+  if (rows.length > ASSESS_MANY_MAX) throw new Error('Too many rows at once (max ' + ASSESS_MANY_MAX + ')');
+  var roster = {};
+  readTab_('Students').forEach(function (r) { var e = lower_(r.Email); if (e) roster[e] = true; });
+  var good = [], results = rows.map(function (x) {
+    var email = lower_(x && x.email);
+    try {
+      if (!email) throw new Error('Missing student');
+      if (!roster[email]) throw new Error('That student is not on the class list');
+      good.push({ email: email, fields: assessFields_(x, task) });
+      return { sid: email, ok: true };
+    } catch (e) { return { sid: email, ok: false, error: e.message }; }
+  });
+  if (good.length) {
+    var lock = LockService.getScriptLock();
+    lock.waitLock(25000);
+    try {
+      var sh = ensureTab_('Assess', TABS.Assess), lastCol = sh.getLastColumn(), lastRow = sh.getLastRow();
+      var headers = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(String), col = {};
+      headers.forEach(function (h, i) { col[h] = i; });
+      var data = lastRow > 1 ? sh.getRange(2, 1, lastRow - 1, lastCol).getValues() : [], at = {}, today = ymd_(new Date()), now = new Date();
+      data.forEach(function (r, i) { at[lower_(r[col.Email]) + '|' + lower_(r[col.Task])] = i; });
+      var added = [], touched = {};
+      good.forEach(function (g) {
+        var key = g.email + '|' + task, i = at[key], row;
+        if (i === undefined) { row = headers.map(function () { return ''; }); row[col.Email] = g.email; row[col.Task] = task; data.push(row); i = data.length - 1; at[key] = i; added.push(i); }
+        row = data[i];
+        Object.keys(g.fields).forEach(function (k) { if (col[k] !== undefined) row[col[k]] = g.fields[k]; });
+        row[col.Updated] = now;
+        if (!ymd_(row[col.Day])) row[col.Day] = today;
+        touched[i] = true;
+      });
+      // Write only the rows that changed (existing ones in place, new ones appended).
+      Object.keys(touched).map(Number).sort(function (a, b) { return a - b; }).forEach(function (i) { sh.getRange(i + 2, 1, 1, lastCol).setValues([data[i]]); });
+    } finally { lock.releaseLock(); }
+  }
+  return { ok: true, task: task, results: results, saved: good.length };
 }
 
 // ---------- Sheet menu (teacher, inside the Sheet) ----------
@@ -1017,8 +1361,10 @@ function apNameKey_(n) {
   return t.replace(/[^a-z\u00c0-\u024f]+/g, ' ').trim().split(' ').sort().join(' ');
 }
 // Pure: rows = the CanvasImport values (header row first). Returns counts, never data.
-function importApRows_(rows, round) {
+function importApRows_(rows, round, unit) {
   round = lower_(round);
+  unit = lower_(unit) || unitForDate_(ymd_(new Date()));
+  if (UNIT_KEYS.indexOf(unit) === -1) throw new Error('Unit must be one of ' + UNIT_KEYS.join(', '));
   if (AP_ROUNDS.indexOf(round) === -1) throw new Error('Round must be one of ' + AP_ROUNDS.join(', '));
   if (!rows || rows.length < 2) throw new Error('The import tab is empty');
   var headers = rows[0].map(str_);
@@ -1067,7 +1413,7 @@ function importApRows_(rows, round) {
     Object.keys(outcomeCols).forEach(function (code) {
       var v = numOrNull_(row[outcomeCols[code]]);
       if (v === null || v < 1 || v > 7) return;
-      upsert_('Outcomes', { Email: email, Outcome: code }, { Value: Math.round(v), Updated: new Date() }); nOut++;
+      upsert_('Outcomes', { Email: email, Outcome: code, Unit: unit }, { Value: Math.round(v), Updated: new Date() }); nOut++;
     });
     if (nOut) outcomesImported++;
     if (!n) { if (!nOut) blank++; continue; }
@@ -1076,7 +1422,7 @@ function importApRows_(rows, round) {
     imported++;
   }
   return { imported: imported, unmatched: unmatched, blank: blank, missing: (overallCol !== -1 || hasOutcomes) && missing.length === AP_KEYS.length ? [] : missing,
-           overall: overallCol !== -1, outcomes: Object.keys(outcomeCols), outcomesImported: outcomesImported };
+           overall: overallCol !== -1, outcomes: Object.keys(outcomeCols), outcomesImported: outcomesImported, unit: unit };
 }
 // The tab a Canvas CSV landed in, found by its header row (no renaming needed).
 function canvasTab_() {
@@ -1094,12 +1440,15 @@ function importApFromCanvas() {
   if (!sh) { ui.alert('No Canvas export found', 'In Canvas: Grades → Export → Export entire gradebook (or Learning Mastery → Export). Then here: File → Import → Upload → "Insert new sheet(s)", and run this again.', ui.ButtonSet.OK); return; }
   var ans = ui.prompt('Which AP round is this?', 'Type one of: ' + AP_ROUNDS.join(' · '), ui.ButtonSet.OK_CANCEL);
   if (ans.getSelectedButton() !== ui.Button.OK) return;
+  var guess = unitForDate_(ymd_(new Date()));
+  var u = ui.prompt('Which unit are any outcome grades from?', 'Leave blank for ' + guess + ', or type one of: ' + UNIT_KEYS.join(' · ') + '. Each unit keeps its own grades, so students see their progress.', ui.ButtonSet.OK_CANCEL);
+  if (u.getSelectedButton() !== ui.Button.OK) return;
   var res;
-  try { res = importApRows_(sh.getDataRange().getValues(), ans.getResponseText()); }
+  try { res = importApRows_(sh.getDataRange().getValues(), ans.getResponseText(), u.getResponseText()); }
   catch (e) { ui.alert('Import stopped', e.message, ui.ButtonSet.OK); return; }
   var msg = res.imported + ' students imported into APLog (' + lower_(ans.getResponseText()) + ').';
   if (res.overall) msg += '\nUsed the overall AP grade from the Grades export.';
-  if (res.outcomes.length) msg += '\nUnit outcomes (' + res.outcomes.join(', ') + ') saved for ' + res.outcomesImported + ' students: they feed the Athlete Card.';
+  if (res.outcomes.length) msg += '\nUnit outcomes (' + res.outcomes.join(', ') + ') saved for ' + res.outcomesImported + ' students under ' + res.unit + ': they feed My report picture and the Athlete Card.';
   if (res.missing.length) msg += '\n\nNo column found for: ' + res.missing.join(', ') + '.';
   if (res.blank) msg += '\n' + res.blank + ' rows had no AP scores yet.';
   if (res.unmatched.length) msg += '\n\nNot on the Students tab (check spelling):\n' + res.unmatched.join('\n');
@@ -1158,7 +1507,7 @@ function clearProfileData() {
   var ui = SpreadsheetApp.getUi();
   var ans = ui.alert('Clear all student data?', 'This deletes every student\'s saved style, goals, self-predictions, Combine, skills, participation (incl. the AP log), bands and workout plan. The Students roster is not touched. Continue?', ui.ButtonSet.YES_NO);
   if (ans !== ui.Button.YES) return;
-  ['Profile', 'Predictions', 'Combine', 'Skills', 'Participation', 'APLog', 'Outcomes', 'Bands', 'Goals', 'Plan', 'Locks', 'Reflections'].forEach(function (n) {
+  ['Profile', 'Predictions', 'Combine', 'Skills', 'Participation', 'APLog', 'Outcomes', 'Bands', 'Goals', 'Plan', 'Locks', 'Reflections', 'Assess'].forEach(function (n) {
     var s = ensureTab_(n, TABS[n]);
     if (s.getLastRow() > 1) s.getRange(2, 1, s.getLastRow() - 1, s.getLastColumn()).clearContent();
   });
