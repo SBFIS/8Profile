@@ -64,3 +64,4 @@ This repo logs progress to Scott's Project Pulse sheet so his morning review kno
 - At natural stopping points, or when Scott says "log it", use the `log-update` skill for that row. Base it on `git log`, and say plainly whether work is "deployed and tested", "built, not tested" or "planned".
 - A Stop hook (`.claude/hooks/pulse.py`) reminds you automatically after new commits. Don't remove it.
 - No student names or data, and no secrets, in any log entry.
+- **Live version:** students use the copy in `Frankfurt-International-School/SB`, which Scott updates by hand. Claude can't push there. Never describe work here as live or deployed until Scott confirms he has copied it to SB. When copying, leave out `.claude/` and this CLAUDE.md.
