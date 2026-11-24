@@ -2493,6 +2493,7 @@ const WA_BANDS = [[[1, 2], 'Not yet', 'lo'], [[3, 4], 'Approaching', 'ap'], [[5,
 const OLD_SERVER = 'The server is still on the old version. Paste the new Code.gs into Apps Script, then Deploy → Manage deployments → ✏️ → Version: New version → Deploy. Then try again.';
 async function openWa(task) {
   if (typeof task === 'string' && WA_CRIT_BY[task]) waTask = task;
+  waOne = null;
   const k = teacherFilter || 'all';
   waData = { loading: true, klass: k }; show('wassess');
   try { waData = await call('classAssess', { klass: k, task: waTask }); if (waData.task && waData.task !== waTask) throw new Error('Unknown task'); }
@@ -2621,6 +2622,49 @@ function waRowBad(st, i) {
     waCheckCard(st) + crit +
     '<input class="wa-note" data-wanote="' + i + '" maxlength="300" placeholder="Note for Canvas (optional)" value="' + esc(st.note || '') + '"></div>';
 }
+// ── Mark one by one (workout): every student's plan, reflection and log arrive with the class,
+// so moving to the next student is instant. Left: the evidence, grouped by what it shows.
+// Right: the same marking row as the list. ← → keys (or the buttons) move through the list.
+let waOne = null, waOneList = [];
+function waOneOpen(list, at) { waOneList = list; waOne = Math.max(0, Math.min(list.length - 1, at || 0)); show('wassess'); window.scrollTo(0, 0); }
+function waOneGo(d) {
+  if (waOne == null || !waOneList.length) return;
+  waOne = Math.max(0, Math.min(waOneList.length - 1, waOne + d));
+  const el = document.querySelector('.wo1'); if (el) { el.outerHTML = waOneHtml(); window.scrollTo(0, 0); }
+}
+function waOneNextTodo() { const S = waData.students, n = waOneList.length; for (let k = 1; k <= n; k++) { const j = (waOne + k) % n; if (!waDone(S[waOneList[j]])) return waOneGo(j - waOne); } toast('Everyone in this list is marked. 🎉'); }
+function waPlanHtml(st) {
+  const w = st.work; if (!w) return '<p class="wo1-miss">No plan saved yet.</p>';
+  const p = normPlan(w), why = p.why || {};
+  const goals = (st.goals || []).map(g => { const meta = goalMetaFor(g.component); return esc(goalLabel(g.component)) + (meta && g.target != null ? ' → ' + esc(fmtMetric(meta, g.target)) : ''); }).join(' · ');
+  const parts = WK_PARTS.map(wp => {
+    const k = wp[0], rows = p[k] || [], comp = wkTrains(k, p);
+    const title = k === 'strength' ? '③ ' + (p.sChoice === 'endurance' ? 'Muscular endurance' : p.sChoice === 'strength' ? 'Strength' : 'Strength or endurance (not chosen)') : k === 'focus' ? '④ Focus' + (p.fChoice ? ': ' + esc(CHOICE_NAME[p.fChoice] || p.fChoice) : '') : wp[1];
+    return '<div class="wo1-pt"><div class="wo1-ph"><b>' + title + '</b>' + (comp ? '<i>' + esc(comp.replace(/^your /, '')) + '</i>' : '') + (k === 'cardio' && p.hr ? '<em>❤️ ' + esc(p.hr) + '</em>' : '') + '</div>' +
+      (rows.length ? '<ul>' + rows.map(r => '<li>' + esc(r.n) + (cardDose(k, r) ? ' <span>' + esc(cardDose(k, r)) + '</span>' : '') + '</li>').join('') + '</ul>' : '<p class="wo1-miss">Nothing planned.</p>') +
+      '<div class="wo1-why">🧠 ' + (String(why[k] || '').trim() ? esc(why[k]) : '<span class="wo1-miss">no “how” line</span>') + '</div>' +
+      (k === 'focus' && p.fWhy ? '<div class="wo1-why">🎯 ' + esc(p.fWhy) + '</div>' : '') + '</div>';
+  }).join('');
+  return (goals ? '<div class="wo1-goal">🎯 Goals: ' + goals + '</div>' : '') + '<div class="wo1-parts">' + parts + '</div>' + planCheckHtml(p, st.goals || [], 'Plan check (automatic)');
+}
+function waRefHtml(st) {
+  const r = (st.work && st.work.ref) || {};
+  return REF_PROMPTS.map(q => '<div class="wo1-q"><b>' + q[1] + '</b>' + (String(r[q[0]] || '').trim() ? '<p>' + esc(r[q[0]]) + '</p>' : '<p class="wo1-miss">Not written yet.</p>') + '</div>').join('');
+}
+function waOneHtml() {
+  const S = waData.students, i = waOneList[waOne], st = S[i]; if (!st) return '<div class="wo1"></div>';
+  const done = waOneList.filter(j => waDone(S[j])).length;
+  const nav = '<div class="wo1-nav"><button type="button" class="minib" data-wo1="back">☰ List</button><button type="button" class="minib" data-wo1="prev"' + (waOne ? '' : ' disabled') + '>← Prev</button>' +
+    '<span class="wo1-pos"><b>' + (waOne + 1) + '</b> of ' + waOneList.length + ' · ' + done + ' marked</span>' +
+    '<button type="button" class="minib" data-wo1="next"' + (waOne < waOneList.length - 1 ? '' : ' disabled') + '>Next →</button><button type="button" class="minib" data-wo1="todo">Next unmarked ⏭</button></div>';
+  const tag = k => { const c = WA_CRIT_BY.workout.find(x => x[0] === k); return '<span class="wo1-tag">' + c[1] + ' ' + esc(c[2]) + '</span>'; };
+  const log = (st.work && st.work.log) || [];
+  return '<div class="wo1">' + nav + '<div class="wo1-grid"><div class="wo1-ev">' +
+    '<section><h3>The plan ' + tag('k4') + '</h3>' + waPlanHtml(st) + '</section>' +
+    '<section><h3>The reflection ' + tag('s2') + '</h3>' + waRefHtml(st) + '</section>' +
+    '<section><h3>Sessions ' + tag('s2') + tag('sm') + '</h3>' + (log.length ? evidenceHtml(log, true) : '<p class="wo1-miss">No sessions logged.</p>') + '</section>' +
+    '</div><div class="wo1-mk">' + waRow(st, i, true) + '<p class="small">Saves as you tap. ← → keys move between students.</p></div></div></div>';
+}
 function waRow(st, i, solo) {
   if (waBad()) return waRowBad(st, i);
   const sc = st.scores || {};
@@ -2636,9 +2680,10 @@ function waRow(st, i, solo) {
     '<input class="wa-note" data-wanote="' + i + '" maxlength="300" placeholder="Note for Canvas (optional)" value="' + esc(st.note || '') + '"></div>';
 }
 function waRedraw(i, light) {
-  document.querySelectorAll('.wa-row[data-wi="' + i + '"]').forEach(el => { const solo = !!el.closest('.as-wrap'), html = waRow(waData.students[i], i, solo);
+  document.querySelectorAll('.wa-row[data-wi="' + i + '"]').forEach(el => { const solo = !!el.closest('.as-wrap, .wo1'), html = waRow(waData.students[i], i, solo);
     if (light) { const t = document.createElement('div'); t.innerHTML = html; el.querySelector('.wa-hd').replaceWith(t.querySelector('.wa-hd')); el.className = t.firstElementChild.className; return; } // status only, so the next tap lands
     el.outerHTML = html; });
+  const pos = document.querySelector('.wo1-pos'); if (pos && waOne != null) { const S = waData.students; pos.innerHTML = '<b>' + (waOne + 1) + '</b> of ' + waOneList.length + ' · ' + waOneList.filter(j => waDone(S[j])).length + ' marked'; }
   document.querySelectorAll('.wa-tc[data-wi="' + i + '"]').forEach(el => {
     const st = waData.students[i], typing = el.querySelector('.wa-note') === document.activeElement;
     if (typing || light) { const t = document.createElement('div'); t.innerHTML = waTodayCard(st, i); el.querySelector('.wa-st').replaceWith(t.querySelector('.wa-st')); return; } // keep what they are typing
@@ -2716,7 +2761,10 @@ function waClick(e) {
   if (fb) { const p = fb.dataset.waflag.split('|'), i = Number(p[0]), st = waData.students[i], key = p[1] === 'k4' ? 'flagK4' : 'flag'; st[key] = st[key] === p[2] ? '' : p[2]; st._focus = !!st[key]; if (!st.day) st.day = ymdLocal(); waSave(i); return true; }
   const tk = e.target.closest('[data-watask]');
   if (tk) { const t = tk.dataset.watask; if (t === waTask) return true; if (waBusy || Object.keys(waDirty).length) { toast('Still saving: wait for ✓ Everything is saved, then switch.', true); return true; } waFilter = 'all'; openWa(t); return true; }
+  const o1 = e.target.closest('[data-wo1]');
+  if (o1) { const a = o1.dataset.wo1; if (a === 'back') { waOne = null; show('wassess'); } else if (a === 'prev') waOneGo(-1); else if (a === 'next') waOneGo(1); else if (a === 'todo') waOneNextTodo(); else if (a === 'start') { const v = waVisible(); if (!v.length) return toast('Nobody in this list.', true), true; const at = Math.max(0, v.findIndex(j => !waDone(waData.students[j]))); waOneOpen(v, at); } else if (/^at:/.test(a)) { const v = waVisible(); waOneOpen(v, v.indexOf(Number(a.slice(3)))); } return true; }
   const ev = e.target.closest('[data-waev]');
+  if (ev && !waBad()) { const v = waVisible(); waOneOpen(v, v.indexOf(Number(ev.dataset.waev))); return true; }
   if (ev) { assessFrom = 'wassess'; assessData = null; show('assess', waData.students[Number(ev.dataset.waev)].sid); return true; }
   return false;
 }
@@ -2748,7 +2796,7 @@ function wassessView() {
   const tabs = '<div class="wa-sync ok" id="wasync" role="status" aria-live="polite"></div><div class="wa-tabs" role="tablist"><button type="button" role="tab" class="wa-tab' + (today ? ' on' : '') + '" aria-selected="' + today + '" data-wamode="today">' + tabNames[0] + '</button><button type="button" role="tab" class="wa-tab' + (!today ? ' on' : '') + '" aria-selected="' + !today + '" data-wamode="grade">' + tabNames[1] + '</button></div>';
   const lede = bad ? (today ? 'While they play, pick the band you see in each area. Tap again to clear; change it any lesson as they improve. <b>🤝 them</b> marks where the student put themselves on their practice check. The bands become the suggested marks in the Mark tab.' :
       'Mark each criterion 1–7; it saves straight away (tap again to clear). Each row shows their practice check, the band you saw and a suggested mark (dashed). Take part also uses your AP check-outs (effort + team) from this unit.') :
-    (today ? 'Watch the workout and pick a band for each row: <b>🧭 Training</b> (how they work) and <b>📘 Workout quality</b> (what they do). Tap again to clear. The bands become the suggested numbers in the Mark tab. Assessing &amp; improving is marked from the reflection, after Friday.' : 'Rate each criterion 1–7; it saves straight away (tap again to clear). Training on my own shows your check-outs, their home weeks and the workout-day flag, with a suggested number (dashed). Tap a name for the full evidence.');
+    (today ? 'Watch the workout and pick a band for each row: <b>🧭 Training</b> (how they work) and <b>📘 Workout quality</b> (what they do). Tap again to clear. The bands become the suggested numbers in the Mark tab. Assessing &amp; improving is marked from the reflection, after Friday.' : 'Tap <b>📖 Mark one by one</b> (or a name): each student’s plan, reflection and session log sit next to the marking row, and Next moves straight on, with no loading. Or rate from the list below. Everything saves as you tap.');
   const head = '<button type="button" class="back light" id="toWaBack">← Back to class</button><div class="phero tight"><div class="k">TEACHER · ASSESSMENT · ' + (D && D.klass && D.klass !== 'all' ? esc(D.klass) : 'ALL CLASSES') + '</div><h1>' + (bad ? '🏸 Badminton' : '🏆 Personal Workout') + '</h1>' + switcher +
     '<p>' + lede + '</p></div>' + tabs;
   if (!D || D.loading) return '<div class="wrap">' + head + '<div class="loading"><div class="spinner"></div>Loading the class…</div></div>';
@@ -2757,18 +2805,28 @@ function wassessView() {
   if (today) return '<div class="wrap hcw">' + head + '<div class="hc-tiles ' + (bad ? 'wa-tiles5' : 'wa-tiles3') + '" id="watiles">' + waTiles() + '</div>' + waGuide() + '<div class="wa-grid">' + S.map(waTodayCard).join('') + '</div>' +
     (bad ? '<p class="small">The band you pick here → suggested mark in the Mark tab. Students never see your bands or marks.</p></div>' :
     '<p class="small">🧭 Training is averaged with your AP check-outs, then ±1 for home weeks → suggested Training on my own. 📘 Workout quality → suggested Planning (check it against the final plan). Students never see these.</p></div>');
-  const keep = st => waFilter === 'todo' ? !waDone(st) : waFilter === 'ready' ? waReady(st) : waFilter === 'nocheck' ? !st.check : true;
-  const rows = S.map((st, i) => keep(st) ? waRow(st, i) : '').join('');
+  if (!bad && waOne != null && waOneList.length) return '<div class="wrap hcw wo1-wrap">' + tabs + waOneHtml() + '</div>';
+  const vis = waVisible(), rows = vis.map(i => waRow(S[i], i)).join('');
   const opt = (v, t) => '<option value="' + v + '"' + (waFilter === v ? ' selected' : '') + '>' + t + '</option>';
   const filt = bad ? opt('all', 'everyone') + opt('todo', 'still to mark') + opt('ready', 'practice check in') + opt('nocheck', 'no practice check yet') :
     opt('all', 'everyone') + opt('ready', 'ready to mark (reflection 4/4 + plan changed)') + opt('todo', 'still to rate');
   return '<div class="wrap hcw">' + head +
     '<div class="hc-tiles ' + (bad ? 'wa-tiles3' : 'wa-tiles') + '" id="watiles">' + waTiles() + '</div>' + waRubric() +
     '<div class="wa-bar"><label>Show <select id="wafilter">' + filt + '</select></label>' +
-      '<button type="button" class="minib" id="wacopy">📋 Copy for Canvas</button><button type="button" class="minib" id="wacsv">⬇ CSV</button><button type="button" class="minib" id="wareload">↻ Refresh</button></div>' +
+      (bad ? '' : '<button type="button" class="ct-btn wo1-go" data-wo1="start">📖 Mark one by one</button>') + '<button type="button" class="minib" id="wacopy">📋 Copy for Canvas</button><button type="button" class="minib" id="wacsv">⬇ CSV</button><button type="button" class="minib" id="wareload">↻ Refresh</button></div>' +
     (rows || '<p class="as-look">Nobody in this list. 🎉</p>') +
     '<p class="small">Marks are kept in the Sheet (Assess tab) and are never shown to students. Canvas is still the official record: enter them there, or use Copy for Canvas. Pick a class in the Class menu on the dashboard to see only that class.</p></div>';
 }
+function waVisible() {
+  const S = (waData && waData.students) || [];
+  const keep = st => waFilter === 'todo' ? !waDone(st) : waFilter === 'ready' ? waReady(st) : waFilter === 'nocheck' ? !st.check : true;
+  return S.map((st, i) => keep(st) ? i : -1).filter(i => i !== -1);
+}
+document.addEventListener('keydown', e => {
+  if (view !== 'wassess' || waOne == null || e.altKey || e.ctrlKey || e.metaKey) return;
+  const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
+  if (e.key === 'ArrowRight') { e.preventDefault(); waOneGo(1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); waOneGo(-1); }
+});
 function waTable() {
   const head = ['Student', 'Class'].concat(waCrit().map(c => c[2] + ' (' + c[3] + ')')).concat(['Note']);
   return [head].concat((waData.students || []).map(st => [st.name, st.klass].concat(waCrit().map(c => st.scores && st.scores[c[0]] != null ? st.scores[c[0]] : '')).concat([st.note || ''])));
@@ -3470,7 +3528,7 @@ function show(v, arg) {
     wire('toWaBack', () => { if (Object.keys(waDirty).length) { toast('Still saving: wait for ✓ Everything is saved.', true); return; } waData = null; show('class'); }); waSync();
     wire('wareload', () => openWa()); wire('wacopy', waCopy); wire('wacsv', waCsv);
     const wf = $('#wafilter'); if (wf) wf.addEventListener('change', () => { waFilter = wf.value; show('wassess'); });
-    onWrap(e => { const m = e.target.closest('[data-wamode]'); if (m) { waMode = m.dataset.wamode; show('wassess'); return; } waClick(e); }); waNoteWire(app.firstElementChild);
+    onWrap(e => { const m = e.target.closest('[data-wamode]'); if (m) { waMode = m.dataset.wamode; waOne = null; show('wassess'); return; } waClick(e); }); waNoteWire(app.firstElementChild);
   } else if (v === 'assess') {
     currentSid = arg || currentSid;
     app.innerHTML = assessView(currentSid);

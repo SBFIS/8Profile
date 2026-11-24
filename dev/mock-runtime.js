@@ -72,6 +72,13 @@
       equip: ['water bottle'], days: { tue: true, thu: true, sat: true },
       log: [{ date: ago(1), who: 'friend', where: 'home', feel: 'right', hr: 'y', num: '21 push-ups', chg: 'Add a 5th interval: I hit my zone easily' }, { date: ago(5), who: 'me', where: 'class', feel: 'easy', hr: 'n', num: '18 push-ups', chg: 'Make the intervals Hard: I only reached 140 bpm' }, { date: ago(9), who: 'me', where: 'home', num: '4 × 1 min at 160 bpm' }], reflection: '' } });
     const TT = tokenFor('teacher@example.edu'); // the owner is a teacher
+    // a synthetic finished workout plan + reflection, so the Assess → Mark one by one view has evidence to show
+    callApi({ action: 'savePlan', token: tok, plan: { v: 3, sChoice: 'endurance', fChoice: 'agility', hr: '150–165 bpm', fWhy: 'Agility helps me change direction in football.', savedAt: '2026-11-20T10:00:00Z',
+      warmup: [{ n: 'Jog', min: '3', int: 'easy' }, { n: 'Leg swings', sets: '1', reps: '10', int: 'easy' }], cardio: [{ n: 'Shuttle runs', min: '8', int: 'hard' }],
+      strength: [{ n: 'Squats', sets: '3', reps: '15', int: 'medium' }, { n: 'Plank', sets: '3', reps: '40 s', int: 'medium' }], focus: [{ n: 'Ladder drill', sets: '4', reps: '20 s', int: 'hard' }], cooldown: [{ n: 'Walk', min: '3', int: 'easy' }],
+      why: { warmup: 'Easy jog then swings to raise my heart rate slowly.', cardio: 'Hard shuttles for 8 minutes keep me in my zone.', strength: '15 reps and 40 s holds with short rest build endurance.', focus: '', cooldown: 'Walking brings my heart rate down.' },
+      ref: { strength: 'My strength is squats (35 in a minute). I want to improve my mile (9:40).', worked: 'I was in my zone 3 of 4 times. Squats went from 30 to 35.', change: 'Add a fourth ladder set.', matters: '' },
+      log: [{ id: 'a1', date: '2026-11-05', where: 'class', who: 'me', feel: 'right', hr: 'y', num: 'squats 30', chg: '' }, { id: 'a2', date: '2026-11-08', where: 'home', who: 'friend', feel: 'hard', hr: 'n', num: '', chg: 'Shorter rest on squats' }, { id: 'a3', date: '2026-11-12', where: 'class', who: 'me', feel: 'right', hr: 'y', num: 'squats 35', chg: 'Added a plank set' }] } });
     // synthetic badminton practice checks (copied from the paper sheet) for the 🏆 Assess screen
     callApi({ action: 'saveReflection', token: T1, key: 'unit-badminton', text: JSON.stringify({ v: 'd', levels: [2, 1, 2, 3], focus: 'Serve short so they have to come forward.', how: 'Ten short serves at the start of every lesson.' }) });
     callApi({ action: 'saveReflection', token: tok, key: 'unit-badminton', text: JSON.stringify({ v: 'd', levels: [3, 3, 2, 2], focus: 'Get back to the middle after each shot.', how: '' }) });

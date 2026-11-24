@@ -290,7 +290,7 @@ function doPost(e) {
 }
 // Opening the API URL in a browser is not the app; say so, with no data.
 // Bump with each server change: opening the /exec link in a browser shows which build is live.
-var BUILD = '2026-11-18a · Badminton on the Assess screen (live bands, practice checks, marks)';
+var BUILD = '2026-11-24a · Workout marking one by one: plan, reflection and log in the Assess screen';
 function doGet() {
   return ContentService.createTextOutput(JSON.stringify({ ok: false, build: BUILD, error: 'This is the data service for My PE Profile. Open the app link your PE teacher shared.' }))
     .setMimeType(ContentService.MimeType.JSON);
@@ -1130,7 +1130,12 @@ function classAssess_(cfg, id, klass, task) {
     saved[e] = { scores: sc, note: str_(r.Note).slice(0, ASSESS_NOTE_MAX), updated: ymd_(r.Updated), flag: ASSESS_FLAGS.indexOf(fl) === -1 ? '' : fl, flagK4: ASSESS_FLAGS.indexOf(fk) === -1 ? '' : fk, day: ymd_(r.Day), live: assessLiveRead_(r.Live, keys) };
   });
   if (task === 'badminton') return classAssessUnit_(roster, saved, apIdx, klass, task, keys);
-  var parts = ['warmup', 'cardio', 'strength', 'focus', 'cooldown'];
+  var parts = ['warmup', 'cardio', 'strength', 'focus', 'cooldown'], goals = {};
+  readTab_('Goals').forEach(function (r) {
+    var e = lower_(r.Email), c = lower_(r.Component); if (!e || GOAL_COMPONENTS.indexOf(c) === -1) return;
+    var t = numOrNull_(r.Target), g = str_(r.Goal); if (t === null && !g) return;
+    (goals[e] = goals[e] || []).push({ component: c, target: t, goal: g.slice(0, 120) });
+  });
   var students = roster.map(function (r) {
     var e = lower_(r.Email), p = plans[e], ev = null;
     if (p && typeof p === 'object') {
@@ -1149,9 +1154,24 @@ function classAssess_(cfg, id, klass, task) {
       ev.weeks = Object.keys(weeks).length;
     }
     var a = saved[e] || { scores: {}, note: '', updated: '', flag: '', flagK4: '', day: '' };
-    return { sid: e, name: rosterName_(r), klass: str_(r.Class), ev: ev, scores: a.scores, note: a.note, updated: a.updated, flag: a.flag, flagK4: a.flagK4, day: a.day, planDay: planDay[e] || '', ap: assessAp_(apIdx[e], task) };
+    return { sid: e, name: rosterName_(r), klass: str_(r.Class), ev: ev, scores: a.scores, note: a.note, updated: a.updated, flag: a.flag, flagK4: a.flagK4, day: a.day, planDay: planDay[e] || '', ap: assessAp_(apIdx[e], task), work: assessWork_(p, parts), goals: goals[e] || [] };
   }).sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
   return { role: 'classAssess', klass: klass, task: task, keys: keys, students: students };
+}
+// The workout evidence a teacher marks from, so the whole class loads in one call (teacher-only):
+// the plan's parts and "how" lines, the reflection answers and the session log. No other fields.
+function assessWork_(p, parts) {
+  if (!p || typeof p !== 'object') return null;
+  var cut = function (v, n) { return str_(v).slice(0, n); }, w = { v: Number(p.v) || 0, sChoice: cut(p.sChoice, 20), fChoice: cut(p.fChoice, 20), hr: cut(p.hr, 40), fWhy: cut(p.fWhy, 400), savedAt: cut(p.savedAt, 30), why: {}, ref: {}, log: [] };
+  parts.forEach(function (k) {
+    w[k] = ((p[k] instanceof Array) ? p[k] : []).slice(0, 10).map(function (x) { x = x || {}; return { n: cut(x.n, 60), sets: cut(x.sets, 10), reps: cut(x.reps, 20), min: cut(x.min, 10), int: cut(x.int, 10) }; });
+    w.why[k] = cut((p.why || {})[k], 400);
+  });
+  if (!w.v && p.main instanceof Array) w.main = p.main.slice(0, 10).map(function (x) { x = x || {}; return { n: cut(x.n, 60), sets: cut(x.sets, 10), reps: cut(x.reps, 20), min: cut(x.min, 10), int: cut(x.int, 10) }; });
+  REF_KEYS.forEach(function (k) { w.ref[k] = cut((p.ref || {})[k], 1200); });
+  if (!w.ref.worked && str_(p.reflection || p.notes)) w.ref.worked = cut(p.reflection || p.notes, 1200);
+  w.log = ((p.log instanceof Array) ? p.log : []).slice(-40).map(function (x) { x = x || {}; return { date: cut(x.date, 10), where: cut(x.where, 10), who: cut(x.who, 10), feel: cut(x.feel, 10), hr: cut(x.hr, 3), num: cut(x.num, 40), chg: cut(x.chg, 160) }; }).filter(function (x) { return x.date; });
+  return w;
 }
 // A unit task (badminton): live bands per criterion, the student's practice check (their own
 // Reflections row, shown to the teacher only: the four levels, focus and how), AP check-outs, marks.
