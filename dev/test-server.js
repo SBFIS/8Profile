@@ -51,6 +51,7 @@ check('expired token → authRequired', authErr(as(S1, 'bootstrap', {}, { exp: n
 check('valid token → ok', as(S1, 'bootstrap').ok === true);
 check('verified token is cached (second call makes no tokeninfo request)', (() => { const tok = tokenFor(S3); post('bootstrap', {}, tok); const n = FakeSheets.fetchCount; post('bootstrap', {}, tok); return FakeSheets.fetchCount === n; })());
 check('unknown action → error, not authRequired', (() => { const r = as(S1, 'nothing'); return !r.ok && /Unknown action/.test(r.error) && !r.authRequired; })());
+check('every response carries the build id (and only the id), so the page can show a page/server mismatch', (() => { const r = JSON.parse(doPost({ postData: { contents: '{nope' } }).getContent()); return /^\d{4}-\d{2}-\d{2}[a-z]$/.test(r.build); })());
 check('bad JSON body → Bad request', (() => { const r = JSON.parse(doPost({ postData: { contents: '{nope' } }).getContent()); return !r.ok && /Bad request/.test(r.error); })());
 check('doGet returns no data', (() => { const r = JSON.parse(doGet().getContent()); return r.ok === false && !JSON.stringify(r).includes('example.edu'); })());
 check('doGet shows the live build stamp', JSON.parse(doGet().getContent()).build === BUILD);

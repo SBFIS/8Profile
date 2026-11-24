@@ -286,11 +286,12 @@ function doPost(e) {
     var msg = (err && err.message) ? err.message : String(err);
     out = { ok: false, error: msg, authRequired: /sign in/i.test(msg) };
   }
+  out.build = BUILD.split(' ')[0]; // lets the page show whether it and the server are the same build
   return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
 }
 // Opening the API URL in a browser is not the app; say so, with no data.
 // Bump with each server change: opening the /exec link in a browser shows which build is live.
-var BUILD = '2026-11-24a · Workout marking one by one: plan, reflection and log in the Assess screen';
+var BUILD = '2026-11-24b · Page and server show their build to teachers, so a missed upload or deploy is obvious';
 function doGet() {
   return ContentService.createTextOutput(JSON.stringify({ ok: false, build: BUILD, error: 'This is the data service for My PE Profile. Open the app link your PE teacher shared.' }))
     .setMimeType(ContentService.MimeType.JSON);

@@ -15,7 +15,7 @@
   const latency = parseInt(q.get('latency') || '200', 10);
   const failWrites = q.get('fail') === '1';
   window.__preview = { fastRetry: true };
-  window.PE_CONFIG = { apiUrl: 'https://api.example/exec', clientId: 'preview-client', domain: 'example.edu' };
+  window.PE_CONFIG = { apiUrl: 'https://api.example/exec', clientId: 'preview-client', domain: 'example.edu', pageBuild: (String(typeof BUILD !== 'undefined' ? BUILD : '').split(' ')[0]) };
 
   if (q.get('reset') !== '1') {
     try { const j = localStorage.getItem(STORE); if (j) FakeSheets.book = FakeSheets.Book.fromJSON(JSON.parse(j)); } catch (e) {}

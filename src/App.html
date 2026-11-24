@@ -22,10 +22,22 @@ function loadToken() { try { const t = sessionStorage.getItem(TOKEN_KEY); if (t 
 function keepToken(t) { token = t; try { sessionStorage.setItem(TOKEN_KEY, t); } catch (e) {} }
 function dropToken() { token = null; try { sessionStorage.removeItem(TOKEN_KEY); } catch (e) {} }
 
+// Teachers see which build the page and the server are on; a mismatch says which step was missed.
+let serverBuild = '';
+function buildBar() {
+  const pb = (CFG && CFG.pageBuild) || '';
+  if (!pb || !serverBuild) return '';
+  if (serverBuild === pb) return '<div class="bld ok">✓ Page and server are both on build ' + esc(pb) + '</div>';
+  const srvOld = !/^\d{4}-/.test(serverBuild) || serverBuild < pb;
+  return '<div class="bld bad"><b>⚠ Out of step.</b> This page is build ' + esc(pb) + ', the server is ' + esc(serverBuild) + '. ' +
+    (srvOld ? 'The server was not redeployed: in Apps Script paste the new Code.gs, then Deploy → Manage deployments → ✏️ → Version: New version → Deploy.'
+            : 'This page is an old copy: upload the new index.html to SB, wait a minute, then reload with Cmd+Shift+R.') + '</div>';
+}
 async function rawCall(action, payload) {
   if (!CFG.apiUrl) throw new Error('This page is not connected to the data service yet');
   const r = await fetch(CFG.apiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(Object.assign({ action, token }, payload || {})) });
   const j = await r.json();
+  if (j) serverBuild = j.build || 'older than 2026-11-24b';
   if (!j || !j.ok) { const e = new Error((j && j.error) || 'Request failed'); e.authRequired = !!(j && j.authRequired); throw e; }
   return j.data;
 }
@@ -2359,7 +2371,7 @@ function classView() {
     '<div class="mxbar">' +
       '<label class="mxf">Class <select id="mxclass">' + classOpts + '</select></label>' +
       '<div class="cptabs">' + cpBtns + '</div>' +
-      '<div class="mxact"><button type="button" class="minib" id="mxlockall">🔒 Lock all</button><button type="button" class="minib" id="mxunlockall">🔓 Unlock all</button><button type="button" class="minib" id="mxcsv">⬇ CSV</button><button type="button" class="minib" id="mxcards">🖨 Workout cards</button><button type="button" class="minib" id="mxlesson">📈 Health lesson</button><button type="button" class="minib" id="mxwa">🏆 Assess</button></div>' +
+      buildBar() + '<div class="mxact"><button type="button" class="minib" id="mxlockall">🔒 Lock all</button><button type="button" class="minib" id="mxunlockall">🔓 Unlock all</button><button type="button" class="minib" id="mxcsv">⬇ CSV</button><button type="button" class="minib" id="mxcards">🖨 Workout cards</button><button type="button" class="minib" id="mxlesson">📈 Health lesson</button><button type="button" class="minib" id="mxwa">🏆 Assess</button></div>' +
     '</div>' +
     '<div class="mxleg"><span class="lk lv-lo"></span>below L4<span class="lk lv-mid"></span>at L4<span class="lk lv-hi"></span>above<span class="sep"></span>7 skills · 3 report bands (K/S/C, 1–7) · 5 participation keys</div>' +
     '<div class="tablewrap mxwrap"><table class="mx"><thead><tr>' +
@@ -2660,7 +2672,7 @@ function waOneHtml() {
   const tag = k => { const c = WA_CRIT_BY.workout.find(x => x[0] === k); return '<span class="wo1-tag">' + c[1] + ' ' + esc(c[2]) + '</span>'; };
   const log = (st.work && st.work.log) || [];
   const old = S.length && S.every(x => !('work' in x)) ? '<p class="lockmsg">The server is older than this page, so plans, reflections and logs can’t show here yet. In Apps Script, paste the new Code.gs and deploy a new version (Manage deployments → ✏️ → New version), then tap ↻ Refresh. The /exec page should say build 2026-11-24a or later.</p>' : '';
-  return '<div class="wo1">' + nav + old + '<div class="wo1-grid"><div class="wo1-ev">' +
+  return '<div class="wo1">' + nav + buildBar() + old + '<div class="wo1-grid"><div class="wo1-ev">' +
     '<section><h3>The plan ' + tag('k4') + '</h3>' + waPlanHtml(st) + '</section>' +
     '<section><h3>The reflection ' + tag('s2') + '</h3>' + waRefHtml(st) + '</section>' +
     '<section><h3>Sessions ' + tag('s2') + tag('sm') + '</h3>' + (log.length ? evidenceHtml(log, true) : '<p class="wo1-miss">No sessions logged.</p>') + '</section>' +
@@ -2799,7 +2811,7 @@ function wassessView() {
       'Mark each criterion 1–7; it saves straight away (tap again to clear). Each row shows their practice check, the band you saw and a suggested mark (dashed). Take part also uses your AP check-outs (effort + team) from this unit.') :
     (today ? 'Watch the workout and pick a band for each row: <b>🧭 Training</b> (how they work) and <b>📘 Workout quality</b> (what they do). Tap again to clear. The bands become the suggested numbers in the Mark tab. Assessing &amp; improving is marked from the reflection, after Friday.' : 'Tap <b>📖 Mark one by one</b> (or a name): each student’s plan, reflection and session log sit next to the marking row, and Next moves straight on, with no loading. Or rate from the list below. Everything saves as you tap.');
   const head = '<button type="button" class="back light" id="toWaBack">← Back to class</button><div class="phero tight"><div class="k">TEACHER · ASSESSMENT · ' + (D && D.klass && D.klass !== 'all' ? esc(D.klass) : 'ALL CLASSES') + '</div><h1>' + (bad ? '🏸 Badminton' : '🏆 Personal Workout') + '</h1>' + switcher +
-    '<p>' + lede + '</p></div>' + tabs;
+    '<p>' + lede + '</p></div>' + buildBar() + tabs;
   if (!D || D.loading) return '<div class="wrap">' + head + '<div class="loading"><div class="spinner"></div>Loading the class…</div></div>';
   if (D.error) return '<div class="wrap">' + head + '<p class="lockmsg">' + esc(D.error) + '</p></div>';
   const S = D.students || [];

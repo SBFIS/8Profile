@@ -8,7 +8,10 @@ const root = path.join(__dirname, '..');
 const read = p => fs.readFileSync(path.join(root, p), 'utf8');
 require('child_process').execFileSync(process.execPath, [path.join(__dirname, 'build-rubrics.js')], { stdio: 'inherit' });
 const cfg = JSON.parse(read('site.config.json'));
-const pub = { apiUrl: cfg.apiUrl, clientId: cfg.clientId, domain: cfg.domain };
+// The page carries the build of the server it was made with, so teachers can see at a glance
+// whether the uploaded page and the deployed server match.
+const pageBuild = (read('src/Code.gs').match(/var BUILD = '([^ ']+)/) || [])[1] || '';
+const pub = { apiUrl: cfg.apiUrl, clientId: cfg.clientId, domain: cfg.domain, pageBuild };
 const html = read('src/Index.html')
   .replace('<!--STYLES-->', () => read('src/Styles.html'))
   .replace('<!--GSI-->', () => '<script src="https://accounts.google.com/gsi/client" async defer></script>')
