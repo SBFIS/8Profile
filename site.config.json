@@ -1,6 +1,6 @@
 {
   "_comment": "Public values baked into index.html by dev/build-site.js. The API URL is the Apps Script /exec deployment; the client ID is the Google sign-in client (public by design). Neither is a secret; access is enforced by Google sign-in and the server's token check.",
-  "apiUrl": "https://script.google.com/a/macros/fis.edu/s/AKfycbxwkT1d2WDmDGEJp_BtJP1UDbvb0o8U4diTs-2OJKWvYaCdQs9rkzKBKjpZiFOx7E3R/exec",
+  "apiUrl": "https://script.google.com/a/macros/fis.edu/s/AKfycbyhK1gZmjhQh5zYq2SUOUzS1e-nd8opIMfHh3h93UGMzA95NA0LbWHOmSNq9VJZWO2M/exec",
   "clientId": "701639243214-ud6m1qtmc6ma0pq6v24tk39afbuhcblv.apps.googleusercontent.com",
   "domain": "fis.edu"
 }
