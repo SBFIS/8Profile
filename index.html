@@ -4153,7 +4153,8 @@ function waOneHtml() {
     '<button type="button" class="minib" data-wo1="next"' + (waOne < waOneList.length - 1 ? '' : ' disabled') + '>Next →</button><button type="button" class="minib" data-wo1="todo">Next unmarked ⏭</button></div>';
   const tag = k => { const c = WA_CRIT_BY.workout.find(x => x[0] === k); return '<span class="wo1-tag">' + c[1] + ' ' + esc(c[2]) + '</span>'; };
   const log = (st.work && st.work.log) || [];
-  return '<div class="wo1">' + nav + '<div class="wo1-grid"><div class="wo1-ev">' +
+  const old = S.length && S.every(x => !('work' in x)) ? '<p class="lockmsg">The server is older than this page, so plans, reflections and logs can’t show here yet. In Apps Script, paste the new Code.gs and deploy a new version (Manage deployments → ✏️ → New version), then tap ↻ Refresh. The /exec page should say build 2026-11-24a or later.</p>' : '';
+  return '<div class="wo1">' + nav + old + '<div class="wo1-grid"><div class="wo1-ev">' +
     '<section><h3>The plan ' + tag('k4') + '</h3>' + waPlanHtml(st) + '</section>' +
     '<section><h3>The reflection ' + tag('s2') + '</h3>' + waRefHtml(st) + '</section>' +
     '<section><h3>Sessions ' + tag('s2') + tag('sm') + '</h3>' + (log.length ? evidenceHtml(log, true) : '<p class="wo1-miss">No sessions logged.</p>') + '</section>' +
