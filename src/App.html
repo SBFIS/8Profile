@@ -2672,7 +2672,7 @@ function waOneHtml() {
   const tag = k => { const c = WA_CRIT_BY.workout.find(x => x[0] === k); return '<span class="wo1-tag">' + c[1] + ' ' + esc(c[2]) + '</span>'; };
   const log = (st.work && st.work.log) || [];
   const old = S.length && S.every(x => !('work' in x)) ? '<p class="lockmsg">The server is older than this page, so plans, reflections and logs can’t show here yet. In Apps Script, paste the new Code.gs and deploy a new version (Manage deployments → ✏️ → New version), then tap ↻ Refresh. The /exec page should say build 2026-11-24a or later.</p>' : '';
-  return '<div class="wo1">' + nav + buildBar() + old + '<div class="wo1-grid"><div class="wo1-ev">' +
+  return '<div class="wo1">' + nav + buildBar() + old + waRubricFull() + '<div class="wo1-grid"><div class="wo1-ev">' +
     '<section><h3>The plan ' + tag('k4') + '</h3>' + waPlanHtml(st) + '</section>' +
     '<section><h3>The reflection ' + tag('s2') + '</h3>' + waRefHtml(st) + '</section>' +
     '<section><h3>Sessions ' + tag('s2') + tag('sm') + '</h3>' + (log.length ? evidenceHtml(log, true) : '<p class="wo1-miss">No sessions logged.</p>') + '</section>' +
@@ -2796,6 +2796,17 @@ function waTiles() {
   const done = S.filter(waDone).length, ready = S.filter(waReady).length;
   const avg = k => { const v = S.map(st => st.scores && st.scores[k]).filter(x => x != null); return v.length ? (v.reduce((a, b) => a + b, 0) / v.length).toFixed(1) : '–'; };
   return tile(done + ' / ' + S.length, 'fully rated') + tile(ready, 'ready to mark') + waCrit().map(c => tile(avg(c[0]), c[1] + ' ' + c[2] + ' average')).join('');
+}
+// Full workout rubric (3 criteria × 4 levels) for the one-by-one view; stays open or closed as you move on.
+let waRubOpen = (() => { try { return localStorage.getItem('wo1-rub') === '1'; } catch (e) { return false; } })();
+document.addEventListener('toggle', e => { const d = e.target; if (d && d.classList && d.classList.contains('wo1-rub')) { waRubOpen = d.open; try { localStorage.setItem('wo1-rub', d.open ? '1' : '0'); } catch (x) {} } }, true);
+function waRubricFull() {
+  const F = RUBRICS.fitness; if (!F) return '';
+  const head = '<div class="wg-h"></div>' + WA_OBS.map(o => '<div class="wg-h wa-' + o[4] + '">' + o[1] + ' ' + o[2] + '<small>' + o[5].join('–') + '</small></div>').join('');
+  const rows = WA_CRIT_BY.workout.map(c => { const r = F[c[0]]; if (!r) return '';
+    return '<div class="wg-l">' + c[1] + ' <b>' + esc(c[2]) + '</b><small>' + esc(r.code || c[3]) + '</small></div>' + r.levels.map((t, j) => '<div class="wg-c wa-' + WA_OBS[j][4] + '"><i>' + WA_OBS[j][1] + ' ' + WA_OBS[j][2] + '</i>' + esc(t) +
+      (j === 2 && r.got ? '<span class="wg-s">In the profile: ' + esc(r.got) + '.</span>' : j === 3 && r.leading ? '<span class="wg-s">In the profile: ' + esc(r.leading) + '.</span>' : '') + '</div>').join(''); }).join('');
+  return '<details class="wa-guide wo1-rub"' + (waRubOpen ? ' open' : '') + '><summary>📏 Rubric: what each level looks like (tap to show or hide)</summary><div class="wg">' + head + rows + '</div></details>';
 }
 function waRubric() {
   if (waBad()) return waGuide(true);
