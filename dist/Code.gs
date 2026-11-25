@@ -291,7 +291,7 @@ function doPost(e) {
 }
 // Opening the API URL in a browser is not the app; say so, with no data.
 // Bump with each server change: opening the /exec link in a browser shows which build is live.
-var BUILD = '2026-11-25a · Health: students record their active-day lunch; teachers mark Nutrition (K1, C3) one by one';
+var BUILD = '2026-11-25b · Health: students record their active-day lunch; teachers mark Nutrition (K1, C3) one by one';
 function doGet() {
   return ContentService.createTextOutput(JSON.stringify({ ok: false, build: BUILD, error: 'This is the data service for My PE Profile. Open the app link your PE teacher shared.' }))
     .setMimeType(ContentService.MimeType.JSON);
@@ -1204,7 +1204,7 @@ function lunchCheck_(o, updated) {
     x = x || {};
     var k = ((x.k instanceof Array) ? x.k : []).map(lower_).filter(function (v, i, a) { return LUNCH_PARTS.indexOf(v) !== -1 && a.indexOf(v) === i; });
     var w = lower_(x.w);
-    return { n: str_(x.n).slice(0, 60), w: LUNCH_WHEN.indexOf(w) === -1 ? 'lunch' : w, k: k };
+    return { n: str_(x.n).slice(0, 90), w: LUNCH_WHEN.indexOf(w) === -1 ? 'lunch' : w, k: k };
   }).filter(function (x) { return x.n; });
   var r = ((o.r instanceof Array) ? o.r : []).slice(0, 3).map(function (t) { return str_(t).slice(0, 500); });
   while (r.length < 3) r.push('');
