@@ -657,6 +657,46 @@ tr.r-flag td.mx-nm{box-shadow:inset 3px 0 0 #c0392b}
 .lockb.on{background:#fbe9d6}
 .flag{font-size:12px}
 .flag.off{opacity:.4}
+
+/* Health · Nutrition: my active-day lunch (student) and the teacher's marking cards */
+.ln-ban{background:#2e6566;box-shadow:0 6px 18px rgba(46,101,102,.25)}
+.ln-ban.done{background:#e8f4f4;color:var(--ink);box-shadow:none}
+.ln-rows{display:flex;flex-direction:column;gap:10px;margin:0 0 10px}
+.ln-row{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:10px 12px}
+.ln-top{display:flex;gap:8px;align-items:center}
+.ln-top select{font:inherit;font-size:15px;border:1.5px solid var(--line);border-radius:10px;padding:8px;background:#fff}
+.ln-n{flex:1;min-width:0;font:inherit;font-size:16px;border:1.5px solid var(--line);border-radius:10px;padding:8px 10px}
+.ln-x{font:inherit;border:0;background:none;color:var(--muted);font-size:18px;cursor:pointer;padding:6px}
+.ln-parts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ln-p{font:inherit;font-size:14px;font-weight:600;border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:6px 11px;cursor:pointer;color:var(--ink);touch-action:manipulation}
+.ln-p.on{border-color:#2e6566;background:#e8f4f4;color:#1d4a4b}
+.ln-check{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:10px 12px;margin:10px 0}
+.ln-check p{margin:6px 0 0;font-size:15px;font-weight:600}
+.ln-covs{display:flex;flex-wrap:wrap;gap:6px}
+.ln-cov{font-size:13px;font-weight:700;border-radius:999px;padding:4px 10px;background:#f1ecea;color:var(--muted)}
+.ln-cov.ok{background:var(--ap-t);color:#1f7a45}
+.ln-q{display:flex;flex-direction:column;gap:6px;margin:0 0 12px}
+.ln-q b{font-size:16px}
+.ln-q textarea{font:inherit;font-size:16px;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;resize:vertical}
+.nu-ev{background:var(--paper);border-radius:12px;padding:10px 12px;margin:0 0 10px}
+.nu-day{font-weight:800;margin-bottom:6px}
+.nu-t{border-collapse:collapse;width:100%;font-size:14px}
+.nu-t td{border-top:1px solid var(--line);padding:4px 6px;vertical-align:top}
+.nu-w{color:var(--muted);font-weight:700;width:60px}
+.nu-k{white-space:nowrap;letter-spacing:2px;text-align:right}
+.nu-r{margin:8px 0 0 18px;padding:0;font-size:14px}
+.nu-r li{margin:3px 0}
+.nu-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin:6px 0}
+.nu-rl1{font-weight:700;font-size:14px}.nu-rl1 small{color:var(--muted);font-weight:600}
+.nu-nums{display:flex;gap:4px}
+.nu-n{font:inherit;font-weight:800;width:38px;height:38px;border-radius:10px;border:1.5px solid var(--line);background:#fff;cursor:pointer}
+.nu-n.b0.on{background:#fde8e8;border-color:#e3a3a3}.nu-n.b1.on{background:#fff4e0;border-color:#e8c27a}.nu-n.b2.on{background:#e6f6ec;border-color:#7fd1a1}.nu-n.b3.on{background:#e8f0fe;border-color:#8fb0f3}
+.nu-note{font:inherit;font-size:14px;width:100%;border:1.5px solid var(--line);border-radius:10px;padding:7px 10px;margin-top:6px}
+.nu-rub{margin:10px 0}
+.nu-rc{margin:8px 0}.nu-rl{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:4px}
+@media(max-width:640px){.nu-rl{grid-template-columns:1fr 1fr}}
+.nu-rlv{font-size:12.5px;border-radius:10px;padding:6px 8px;background:#fff;border:1px solid var(--line)}
+.nu-rlv i{display:block;font-style:normal;font-weight:800;margin-bottom:2px}
 </style>
 
 <style>

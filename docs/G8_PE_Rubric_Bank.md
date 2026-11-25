@@ -30,9 +30,9 @@ The three reported bands are **Knowledge · Skills · Concept Transfer**. Each i
 
 | Report band | Fed by (outcome · unit) |
 |---|---|
-| **Knowledge** | K4 fitness concepts (Fitness) · K5 safe practice (Parkour) · *K1–K3 health (Health — to add)* |
+| **Knowledge** | K4 fitness concepts (Fitness) · K5 safe practice (Parkour) · K1 nutrition (Health) · *K2–K3 health (to add)* |
 | **Skills** | **S1 fundamental skills** (Combine ladder — repeatable) · S1/S3 game skills in context (Badminton serve/rally/movement · Parkour variety/flow) · S2 assess/improve (Fitness) · S4 team contribution (Tchoukball) · S4 social skills (AP) |
-| **Concept Transfer** | C1 significance of participation (AP · Badminton) · **C2 transfer across game families (Tactics Cup — now assessed)** · *C3 health decisions (Health — to add)* |
+| **Concept Transfer** | C1 significance of participation (AP · Badminton) · **C2 transfer across game families (Tactics Cup — now assessed)** · C3 plan for my day (Health · Nutrition) |
 | **ATL / self-management** *(reported separately)* | Self Management · Growth Mindset · Self Awareness (AP) · Self Management (Fitness) · Collaboration (Tchoukball) |
 
 ---
@@ -264,10 +264,32 @@ No rubric — it's **measurement**, not a graded task. It produces the raw evide
 
 ---
 
+## 8 · Health — Nutrition (Fuel for an Active Day)
+
+*Written Nov 2026. Evidence: the student's lunch plan for one real day (paper planner, then recorded in My PE Profile) and their three reflection answers. Students are never marked on the food itself, only on what they plan and explain.*
+
+### What each part does — PE.G6-10.K1 (HEAL) → **Knowledge**
+| Band | Descriptor | Student: I… |
+|---|---|---|
+| **7** | Explains accurately what every food in the plan gives the body and why it matters for that day, including slow vs fast carbs and when to eat. | I can say what every food in my lunch does for my body, and why it helps on my day (for example slow carbs for steady energy, protein after training). |
+| **5–6** | Correctly identifies what each food counts as and explains how most of them help the day. | I know what each food in my lunch counts as, and I can explain how most of them help my day. |
+| **3–4** | Identifies what most foods count as; explanations are general ("it's healthy") or partly wrong. | I know what most of my foods are, but I mostly say "it's healthy" instead of what it does. |
+| **1–2** | Few foods correctly identified; little or no explanation. | I am not sure what most of my foods do for my body. |
+
+### Plan for my day — PE.G6-10.C3 (HEAL) → **Concept Transfer**
+| Band | Descriptor | Student: I… |
+|---|---|---|
+| **7** | The plan clearly fits the needs of the chosen day (portions, snack timing, water) and a specific change from the usual lunch is justified by its effect on energy, recovery or focus. | My lunch fits my day exactly, and I can explain how my change will help my energy, recovery or focus. |
+| **5–6** | The plan fits the chosen day and covers the main parts; one change is given with a reason. | My lunch fits my day and has the main parts. I made one change and can say why. |
+| **3–4** | The plan partly fits the day (a part is missing, or snack or water not thought about); the change has little reason. | My lunch is missing something my day needs, or I did not think about a snack or water. |
+| **1–2** | The plan does not match the day; no change or no reason. | My lunch does not match my day, and I did not make a change. |
+
+---
+
 ## Gaps to fill
 
-- **Concept Transfer — now much stronger.** **C1** (AP · Badminton) and **C2** (Tactics Cup, drafted above) are both written. Only **C3** (health decisions) is still missing — it would come from Health.
+- **Concept Transfer — now much stronger.** **C1** (AP · Badminton) and **C2** (Tactics Cup, drafted above) are both written. **C3** now has a Nutrition rubric (§8).
 - **Adaptive Sport** — **not assessed this year** (moved to year-end as an experience & reflection closer). No rubric needed.
 - **Tactics Cup C2** — draft rubric now written (§6). Refine wording, and confirm the synthesis task format (written or oral).
-- **Health** — K1–K3 and C3 descriptors needed for the Knowledge and Concept Transfer bands.
+- **Health** — Nutrition K1 and C3 written (§8). K2, K3 and the other Health units still needed.
 - **Parkour** — add a 3–4 (Intermediate) descriptor so it uses the full four-band scale.

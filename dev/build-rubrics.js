@@ -25,7 +25,7 @@ if (Object.keys(ladders).length !== 7) throw new Error('Expected 7 ladders, got 
 // Unit rubrics: each "## N · <Family> — <Unit>" section with "### <Criterion> — <standard>" tables,
 // bands written as 7 / 5–6 / 3–4 / 1–2. Output criteria bottom-up: [Beginning, Intermediate, Proficient, Advanced].
 // Only the units the app shows are required; add a key here to surface another unit.
-const UNIT_KEYS = { 'Badminton': 'badminton' };
+const UNIT_KEYS = { 'Badminton': 'badminton', 'Nutrition (Fuel for an Active Day)': 'nutrition' };
 const BAND_ORDER = ['1–2', '3–4', '5–6', '7'];
 const units = {};
 md.split('\n## ').forEach(block => {

@@ -404,7 +404,7 @@ function profileView(b) {
     (function () { const ns = nextStep(); return '<div class="hello"><div class="hello-l"><h1 class="hi">' + greeting() + ', ' + esc(st.first) + ' 👋</h1>' +
       '<button type="button" class="nextstep" id="hubnext" data-go="' + ns[0] + '"><span class="ns-l">Your next step</span><span class="ns-t">' + ns[1] + ' ' + esc(ns[2]) + '</span><span class="ns-go">Go</span></button></div>' +
       '<span class="yearlab">GRADE 8 PE · ' + esc(b.config.yearLabel) + '</span></div>'; })() +
-    hlBanner('hub') +
+    hlBanner('hub') + lunchBanner() +
     '<div class="cardteaser">' + avatar(st, 'ct-av') +
       '<div class="ct-id"><div class="ct-name">' + esc(st.name) + ' <span class="ct-tier">◆ ' + tierOf(earned().length) + '</span></div>' + (st.klass ? '<div class="ct-sub">' + esc(st.klass) + '</div>' : '') +
       '<div class="ct-arch">' + (skin ? skin.e + ' ' + esc(styles[k]).toUpperCase() : '✨ PICK YOUR PE STYLE') + '</div></div>' +
@@ -517,6 +517,8 @@ function archiveView(b) {
     out += item('🏸', 'Badminton — practice check', (R['unit-badminton'].updated || '').slice(0, 10),
       '<div class="arc-lv">' + cr.map((c, i) => '<span>' + esc(c.name) + ' <b>' + (bad.v === 'd' && bad.levels && bad.levels[i] != null ? ['Not yet', 'Approaching', 'Got it', 'Leading'][bad.levels[i]] : '—') + '</b></span>').join('') + '</div>' + (bad.focus ? '<div class="arc-q">My focus for the final assessment</div><p>' + esc(bad.focus) + '</p>' : ''),
       '<button type="button" class="lnk" data-unit="badminton">Open Badminton</button>'); }
+  { const ln = lunchSaved(); if (ln) { const dy = LUNCH_DAYS.find(x => x[0] === ln.day);
+    out += item('🍱', 'Health — my active day lunch', (R['unit-nutrition'].updated || '').slice(0, 10), '<p>' + (dy ? dy[1] + ' ' + esc(dy[2]) + ': ' : '') + ln.items.map(x => esc(x.n)).join(', ') + '</p>', '<button type="button" class="lnk" id="tolunch">Open my lunch</button>'); } }
   return '<div class="wrap">' +
     '<button type="button" class="back light" id="tohub">← Back to my profile</button>' +
     '<div class="phero"><div class="k">MY ARCHIVE</div><h1>📚 What I\'ve done so far</h1><p>Once you finish a reflection or a self-check it moves here, so your working pages stay clear. Nothing is lost — it\'s your record of the year.</p></div>' +
@@ -657,6 +659,7 @@ function celebrate(em) {
 function nextStep() {
   const m = measured(), plan = m && m.plan, wk = homeLog(m).filter(e => weekKey(e.date) === weekKey(todayIso())).length;
   if (hlActive('train') && !hlDone('train')) return ['tolesson', '📈', 'Health lesson: Training principles'];
+  if (lunchActive() && !lunchDone()) return ['tolunch', '🍱', 'Health: record my lunch'];
   if (!predictionSaved()) return ['topredict', '🔮', 'Predict yourself'];
   if (!(m && m.fitness && Object.keys(m.fitness).length)) return ['toentry', '📝', 'Enter your Combine results'];
   if (!reflections()['compare-intro']) return ['tocompare', '🔍', 'Compare & reflect'];
@@ -785,6 +788,86 @@ function hlBanner(where) {
     (d ? 'Your answers are saved. Open to look again.' : stepN ? 'Step ' + (stepN + 1) + ' of 5 · carry on where you stopped' : 'Five short steps. Work on your own; your answers save as you go.') + '</span></span><span class="hl-go">' + (d ? 'Open' : stepN ? 'Continue' : 'Start') + '</span></button>';
 }
 function hlOpen(k) { hlKey = k; if (!hlForm.date) hlForm.date = todayIso(); const s = hlSaved(k); hlDraft = JSON.parse(JSON.stringify(s || { step: 0, quiz: {}, rest: [] })); if (hlDraft.done) hlDraft.step = 5; show('hlesson'); }
+// ═══════════════ Health · Nutrition: my active-day lunch (planned on paper, recorded here) ═══════════════
+// Saved as the student's own 'unit-nutrition' reflection (JSON). The teacher marks it in 🍱 Nutrition.
+// A plan for a day, never a log of what they ate: no calories, no photos.
+const LUNCH = { from: '2026-11-30', to: '2027-03-31' };
+const LUNCH_DAYS = [['pe', '🏃', 'PE day'], ['train', '⚽', 'Training day'], ['match', '🏆', 'Match day'], ['study', '📚', 'Busy school day']];
+const LUNCH_PARTS = [['e', '⚡', 'Energy'], ['r', '🔧', 'Repair'], ['f', '🔋', 'Long-lasting'], ['v', '🌈', 'Vitamins'], ['c', '🦴', 'Calcium'], ['w', '💧', 'Water']];
+const LUNCH_WHEN = [['lunch', 'Lunch'], ['snack', 'Snack'], ['drink', 'Drink']];
+const LUNCH_Q = [['My ___ gives me energy because ___.', 'My pasta gives me energy because it has carbs.'],
+  ['My ___ helps my body repair or grow because ___.', 'My eggs help my muscles repair because they have protein.'],
+  ['I usually eat ___. I changed it to ___ because ___.', 'I usually eat a pretzel. I changed it to a wrap because it gives me protein too.']];
+const LUNCH_MAX = 8, LUNCH_RMAX = 350;
+let lunchDraft = null;
+function lunchActive() { const t = todayIso(); return t >= LUNCH.from && t <= LUNCH.to; }
+function lunchSaved() { const s = reflJson('unit-nutrition'); return s && s.v === 1 ? s : null; }
+function lunchDone(s) { s = s === undefined ? lunchSaved() : s; return !!(s && s.day && (s.items || []).filter(x => (x.n || '').trim()).length >= 2 && (s.r || []).length === 3 && s.r.every(t => (t || '').trim().length >= 10)); }
+function lunchBanner() {
+  if (!state.student || !lunchActive()) return '';
+  const s = lunchSaved(), d = lunchDone(s);
+  return '<button type="button" class="hl-ban ln-ban' + (d ? ' done' : '') + '" id="tolunch"><span class="hl-be">🍱</span><span class="hl-bt"><span class="hl-bk">HEALTH · NUTRITION' + (d ? ' · SAVED ✓' : '') + '</span><b>My active day lunch</b><span>' +
+    (d ? 'Your lunch is saved. Open it to make a change.' : s ? 'Keep going: finish your foods and your three sentences.' : 'Copy your planner here: your day, your foods, and your three sentences.') + '</span></span><span class="hl-go">' + (d ? 'Open' : s ? 'Continue' : 'Start') + '</span></button>';
+}
+function lunchOpen() {
+  const s = lunchSaved(), blank = () => ({ n: '', w: 'lunch', k: [] });
+  lunchDraft = s ? JSON.parse(JSON.stringify(s)) : { v: 1, day: '', items: [blank(), blank(), blank(), blank(), { n: '', w: 'snack', k: [] }, { n: '', w: 'drink', k: [] }], r: ['', '', ''] };
+  while (lunchDraft.r.length < 3) lunchDraft.r.push('');
+  if (!lunchDraft.items.length) lunchDraft.items.push(blank());
+  show('lunch');
+}
+function lunchRead() {
+  if (!lunchDraft) return;
+  document.querySelectorAll('[data-ln]').forEach(i => { const it = lunchDraft.items[+i.dataset.ln]; if (it) it.n = i.value.slice(0, 60); });
+  document.querySelectorAll('[data-lw]').forEach(s => { const it = lunchDraft.items[+s.dataset.lw]; if (it) it.w = s.value; });
+  LUNCH_Q.forEach((q, i) => { const t = $('#lr-' + i); if (t) lunchDraft.r[i] = t.value.slice(0, LUNCH_RMAX); });
+}
+function lunchCheckHtml() {
+  const d = lunchDraft, used = d.items.filter(x => (x.n || '').trim()), have = {};
+  used.forEach(x => x.k.forEach(k => { have[k] = true; }));
+  const missing = LUNCH_PARTS.filter(p => !have[p[0]]), snack = used.some(x => x.w === 'snack');
+  let tip = !used.length ? 'Write your foods, then tap what each one does.' : missing.length ? 'Not ticked yet: ' + missing.map(p => p[1] + ' ' + p[2]).join(', ') + '.' : '✅ Every part has a tick.';
+  if ((d.day === 'train' || d.day === 'match') && !snack) tip += ' Your day needs a snack before training.';
+  return '<div class="ln-check"><div class="ln-covs">' + LUNCH_PARTS.map(p => '<span class="ln-cov' + (have[p[0]] ? ' ok' : '') + '">' + p[1] + ' ' + p[2] + '</span>').join('') + '</div><p>' + esc(tip) + '</p></div>';
+}
+function lunchView() {
+  const d = lunchDraft;
+  const days = LUNCH_DAYS.map(x => '<button type="button" class="hl-chip' + (d.day === x[0] ? ' on' : '') + '" data-lday="' + x[0] + '" aria-pressed="' + (d.day === x[0]) + '">' + x[1] + ' ' + x[2] + '</button>').join('');
+  const rows = d.items.map((it, i) => '<div class="ln-row"><div class="ln-top"><select data-lw="' + i + '" aria-label="When">' + LUNCH_WHEN.map(w => '<option value="' + w[0] + '"' + (it.w === w[0] ? ' selected' : '') + '>' + w[1] + '</option>').join('') + '</select>' +
+    '<input type="text" class="ln-n" data-ln="' + i + '" maxlength="60" placeholder="Food or drink" value="' + esc(it.n) + '" aria-label="Food or drink"><button type="button" class="ln-x" data-lrm="' + i + '" aria-label="Remove this row">✕</button></div>' +
+    '<div class="ln-parts">' + LUNCH_PARTS.map(p => { const on = it.k.indexOf(p[0]) !== -1; return '<button type="button" class="ln-p' + (on ? ' on' : '') + '" data-lk="' + i + ':' + p[0] + '" aria-pressed="' + on + '">' + p[1] + ' ' + p[2] + '</button>'; }).join('') + '</div></div>').join('');
+  const qs = LUNCH_Q.map((q, i) => '<label class="ln-q"><b>' + (i + 1) + '. ' + esc(q[0]) + '</b><textarea id="lr-' + i + '" rows="2" maxlength="' + LUNCH_RMAX + '" placeholder="' + esc(q[1]) + '">' + esc(d.r[i] || '') + '</textarea></label>').join('');
+  return '<div class="wrap">' +
+    '<button type="button" class="back light" id="tohub">← Back to my profile</button>' +
+    '<div class="phero"><div class="k">HEALTH · NUTRITION</div><h1>🍱 My active day lunch</h1><p>Copy your paper planner. Your teacher looks at what you know. The food itself is not marked.</p></div>' +
+    '<h3 class="sec"><span class="em">📅</span> A · My day</h3><div class="hl-chips">' + days + '</div>' +
+    '<h3 class="sec"><span class="em">🍽️</span> B · My lunch <span class="tap">· write the food, tap what it does</span></h3><div class="ln-rows">' + rows + '</div>' +
+    (d.items.length < LUNCH_MAX ? '<button type="button" class="minib" id="ln-add">+ Add a row</button>' : '') +
+    lunchCheckHtml() +
+    '<h3 class="sec"><span class="em">💬</span> C · Explain it <span class="tap">· finish the sentences</span></h3>' + qs +
+    '<div class="pbar"><div class="pcount">' + (lunchDone(d) ? '✅ Ready' : 'Your day, 2 or more foods, 3 sentences') + '</div><button type="button" class="ct-btn" id="ln-save">Save my lunch</button></div>' +
+  '</div>';
+}
+async function lunchSave() {
+  lunchRead();
+  const d = lunchDraft, clean = { v: 1, day: d.day, items: d.items.filter(x => (x.n || '').trim()).map(x => ({ n: x.n.trim().slice(0, 60), w: x.w, k: x.k.slice() })), r: d.r.map(t => (t || '').trim().slice(0, LUNCH_RMAX)) };
+  if (!clean.day) return toast('Tap your day first.', true);
+  if (!clean.items.length) return toast('Write the foods from your planner first.', true);
+  const btn = $('#ln-save'); btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const res = await call('saveReflection', { key: 'unit-nutrition', text: JSON.stringify(clean) });
+    state.student.reflections = Object.assign({}, reflections(), { [res.key]: res.reflection });
+    toast(lunchDone(clean) ? 'Saved. Your teacher can see it now.' : 'Saved. Finish the rest when you can.');
+    btn.disabled = false; btn.textContent = 'Save my lunch';
+  } catch (e) { btn.disabled = false; btn.textContent = 'Save my lunch'; toast('Could not save: ' + e.message, true); }
+}
+function lunchHandle(e) {
+  const dy = e.target.closest('[data-lday]'); if (dy) { lunchRead(); lunchDraft.day = dy.dataset.lday; return show('lunch'); }
+  const k = e.target.closest('[data-lk]'); if (k) { lunchRead(); const [i, p] = k.dataset.lk.split(':'), it = lunchDraft.items[+i], j = it.k.indexOf(p); if (j === -1) it.k.push(p); else it.k.splice(j, 1); return show('lunch'); }
+  const rm = e.target.closest('[data-lrm]'); if (rm) { lunchRead(); lunchDraft.items.splice(+rm.dataset.lrm, 1); if (!lunchDraft.items.length) lunchDraft.items.push({ n: '', w: 'lunch', k: [] }); return show('lunch'); }
+  if (e.target.closest('#ln-add')) { lunchRead(); if (lunchDraft.items.length < LUNCH_MAX) lunchDraft.items.push({ n: '', w: 'lunch', k: [] }); show('lunch'); const ins = document.querySelectorAll('[data-ln]'); if (ins.length) ins[ins.length - 1].focus(); return; }
+  if (e.target.closest('#ln-save')) return lunchSave();
+}
 // The same "workout builder" to-do list the profile shows, so the lesson and the builder line up.
 function hlTodoHtml(title) {
   const m = measured(), plan = m && m.plan;
@@ -2371,7 +2454,7 @@ function classView() {
     '<div class="mxbar">' +
       '<label class="mxf">Class <select id="mxclass">' + classOpts + '</select></label>' +
       '<div class="cptabs">' + cpBtns + '</div>' +
-      buildBar() + '<div class="mxact"><button type="button" class="minib" id="mxlockall">🔒 Lock all</button><button type="button" class="minib" id="mxunlockall">🔓 Unlock all</button><button type="button" class="minib" id="mxcsv">⬇ CSV</button><button type="button" class="minib" id="mxcards">🖨 Workout cards</button><button type="button" class="minib" id="mxlesson">📈 Health lesson</button><button type="button" class="minib" id="mxwa">🏆 Assess</button></div>' +
+      buildBar() + '<div class="mxact"><button type="button" class="minib" id="mxlockall">🔒 Lock all</button><button type="button" class="minib" id="mxunlockall">🔓 Unlock all</button><button type="button" class="minib" id="mxcsv">⬇ CSV</button><button type="button" class="minib" id="mxcards">🖨 Workout cards</button><button type="button" class="minib" id="mxlesson">📈 Health lesson</button><button type="button" class="minib" id="mxwa">🏆 Assess</button><button type="button" class="minib" id="mxnut">🍱 Nutrition</button></div>' +
     '</div>' +
     '<div class="mxleg"><span class="lk lv-lo"></span>below L4<span class="lk lv-mid"></span>at L4<span class="lk lv-hi"></span>above<span class="sep"></span>7 skills · 3 report bands (K/S/C, 1–7) · 5 participation keys</div>' +
     '<div class="tablewrap mxwrap"><table class="mx"><thead><tr>' +
@@ -2416,6 +2499,64 @@ async function mxLockAll(locked) {
     rows.forEach(s => { s.locked = s.locked || {}; if (locked) s.locked[teacherCp] = true; else delete s.locked[teacherCp]; });
     toast((locked ? 'Locked ' : 'Unlocked ') + emails.length + ' · ' + CP_LABEL[teacherCp]); show('class');
   } catch (e) { toast('Couldn’t update locks: ' + e.message, true); }
+}
+// ── Teacher: mark Health · Nutrition one student at a time (classAssess / saveAssessMany, task 'nutrition').
+// Each card shows the student's lunch record next to the two rubric rows; a tap saves at once.
+let nutData = null, nutFilter = 'all', nutRub = false;
+const NUT_CRIT = [['k1', '🧠', 'What each part does', 'K1'], ['c3', '📅', 'Plan for my day', 'C3']];
+async function openNut() {
+  const k = teacherFilter || 'all';
+  nutData = { loading: true, klass: k }; show('nutri');
+  try { nutData = await call('classAssess', { klass: k, task: 'nutrition' }); if (nutData.task !== 'nutrition') throw new Error('Unknown task'); }
+  catch (e) { nutData = { error: /Unknown (action|task)/i.test(e.message) ? OLD_SERVER : e.message, klass: k }; }
+  if (view === 'nutri') show('nutri');
+}
+function nutRubric() {
+  const R = (RUBRICS.units || {}).nutrition; if (!R) return '';
+  const band = ['🌱 Not yet 1–2', '🧗 Approaching 3–4', '✅ Got it 5–6', '🌟 Leading 7'];
+  return '<details class="wo1-rub nu-rub"' + (nutRub ? ' open' : '') + '><summary>📏 Rubric: ' + R.criteria.map(c => esc(c.name) + ' (' + esc(c.std) + ')').join(' · ') + '</summary>' +
+    R.criteria.map(c => '<div class="nu-rc"><b>' + esc(c.name) + '</b><div class="nu-rl">' + c.levels.map((t, j) => '<div class="nu-rlv nu-' + j + '"><i>' + band[j] + '</i>' + esc(t) + '</div>').join('') + '</div></div>').join('') + '</details>';
+}
+function nutCard(st) {
+  const c = st.check, day = c && LUNCH_DAYS.find(x => x[0] === c.day);
+  const ev = !c ? '<div class="wa-ck none">🍱 No lunch saved in the profile yet</div>' :
+    '<div class="nu-ev"><div class="nu-day">' + (day ? day[1] + ' ' + day[2] : 'No day picked') + (c.updated ? ' · saved ' + esc(fmtDayMonth(c.updated)) : '') + '</div>' +
+    '<table class="nu-t">' + c.items.map(it => '<tr><td class="nu-w">' + esc((LUNCH_WHEN.find(w => w[0] === it.w) || ['', ''])[1]) + '</td><td>' + esc(it.n) + '</td><td class="nu-k">' + LUNCH_PARTS.filter(p => it.k.indexOf(p[0]) !== -1).map(p => '<span title="' + p[2] + '">' + p[1] + '</span>').join('') + '</td></tr>').join('') + '</table>' +
+    '<ol class="nu-r">' + c.r.map(t => '<li>' + (t ? esc(t) : '<i>not written</i>') + '</li>').join('') + '</ol></div>';
+  const rows = NUT_CRIT.map(cr => '<div class="nu-row"><span class="nu-rl1">' + cr[1] + ' ' + esc(cr[2]) + ' <small>' + cr[3] + '</small></span><span class="nu-nums">' +
+    [1, 2, 3, 4, 5, 6, 7].map(n => '<button type="button" class="nu-n b' + (n <= 2 ? 0 : n <= 4 ? 1 : n <= 6 ? 2 : 3) + (st.scores && st.scores[cr[0]] === n ? ' on' : '') + '" data-nu="' + esc(st.sid) + '|' + cr[0] + '|' + n + '">' + n + '</button>').join('') + '</span></div>').join('');
+  return '<div class="as-card nu-card" id="nu-' + esc(st.sid.replace(/[^a-z0-9]/gi, '')) + '"><h3>' + esc(st.name) + ' <small>' + esc(st.klass || '') + '</small></h3>' + ev + rows +
+    '<input type="text" class="nu-note" data-nunote="' + esc(st.sid) + '" maxlength="300" placeholder="Note (optional)" value="' + esc(st.note || '') + '"></div>';
+}
+function nutView() {
+  const d = nutData || {};
+  const head = '<div class="wrap"><button type="button" class="back light" id="nu-back">← Back to the class</button><h2 class="disp">🍱 Health · Nutrition marks</h2>';
+  if (d.loading) return head + '<p class="small">Loading ' + esc(d.klass === 'all' ? 'all classes' : d.klass) + '…</p></div>';
+  if (d.error) return head + '<p class="err">' + esc(d.error) + '</p></div>';
+  const all = d.students || [], has = all.filter(s => s.check), done = all.filter(s => s.scores && s.scores.k1 != null && s.scores.c3 != null);
+  let list = all; if (nutFilter === 'lunch') list = has; else if (nutFilter === 'todo') list = has.filter(s => !(s.scores && s.scores.k1 != null && s.scores.c3 != null)); else if (nutFilter === 'none') list = all.filter(s => !s.check);
+  const f = (k, t) => '<button type="button" class="hl-chip' + (nutFilter === k ? ' on' : '') + '" data-nuf="' + k + '">' + t + '</button>';
+  return head + buildBar() + '<p class="small">' + esc(d.klass === 'all' ? 'All classes' : d.klass) + ' · ' + has.length + ' of ' + all.length + ' have saved a lunch · ' + done.length + ' marked. Marks save as you tap; copy them into Canvas.</p>' +
+    nutRubric() + '<div class="hl-chips">' + f('all', 'All') + f('lunch', 'Has a lunch') + f('todo', 'To mark') + f('none', 'No lunch yet') + '<button type="button" class="minib" id="nu-csv">⬇ CSV for Canvas</button></div>' +
+    (list.length ? list.map(nutCard).join('') : '<p class="small">Nobody here.</p>') + '</div>';
+}
+const nutSaveT = {};
+function nutSave(sid) {
+  clearTimeout(nutSaveT[sid]);
+  nutSaveT[sid] = setTimeout(async () => {
+    const st = (nutData.students || []).find(s => s.sid === sid); if (!st) return;
+    try { const r = await call('saveAssessMany', { task: 'nutrition', rows: [{ email: sid, scores: { k1: st.scores.k1 == null ? '' : st.scores.k1, c3: st.scores.c3 == null ? '' : st.scores.c3 }, note: st.note || '' }] });
+      const res = r.results && r.results[0]; if (res && !res.ok) throw new Error(res.error); toast('Saved ' + st.name.split(' ')[0]); }
+    catch (e) { toast('Not saved: ' + e.message, true); }
+  }, 400);
+}
+function nutHandle(e) {
+  if (e.target.closest('#nu-back')) return loadClass();
+  const fb = e.target.closest('[data-nuf]'); if (fb) { nutFilter = fb.dataset.nuf; return show('nutri'); }
+  const b = e.target.closest('[data-nu]');
+  if (b) { const [sid, k, n] = b.dataset.nu.split('|'), st = nutData.students.find(s => s.sid === sid); if (!st) return; st.scores = st.scores || {}; st.scores[k] = st.scores[k] === +n ? null : +n;
+    b.parentNode.querySelectorAll('.nu-n').forEach(x => x.classList.toggle('on', st.scores[k] != null && x.textContent === String(st.scores[k]))); nutSave(sid); return; }
+  if (e.target.closest('#nu-csv')) { const rows = [['Name', 'Class', 'K1 What each part does', 'C3 Plan for my day', 'Note']].concat((nutData.students || []).map(s => [s.name, s.klass || '', s.scores && s.scores.k1 != null ? s.scores.k1 : '', s.scores && s.scores.c3 != null ? s.scores.c3 : '', s.note || ''])); const csv = rows.map(r => r.map(c => { c = String(c); return /[",\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; }).join(',')).join('\n'); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = 'nutrition-marks.csv'; document.body.appendChild(a); a.click(); a.remove(); }
 }
 function mxExportCsv() {
   const rows = mxRows();
@@ -3403,6 +3544,17 @@ function show(v, arg) {
     goalSel = null; planDraft = null;
     wire('towo', () => { woStart('fitness'); show('workout'); });
     onWrap(e => { const h = e.target.closest('[data-hl]'); if (h) return hlOpen(h.dataset.hl); const t = e.target.closest('[data-ov]'); if (t) openOv(t.dataset.ov); });
+  } else if (v === 'lunch') {
+    if (!lunchDraft) return lunchOpen();
+    app.innerHTML = lunchView();
+    wire('tohub', () => { lunchRead(); show('profile'); });
+    onWrap(lunchHandle);
+  } else if (v === 'nutri') {
+    app.innerHTML = nutView();
+    onWrap(nutHandle);
+    const w = app.firstElementChild;
+    if (w) { w.addEventListener('input', e => { const t = e.target.closest('[data-nunote]'); if (!t) return; const st = nutData.students.find(s => s.sid === t.dataset.nunote); if (st) { st.note = t.value.slice(0, 300); nutSave(st.sid); } });
+      const rd = w.querySelector('.nu-rub'); if (rd) rd.addEventListener('toggle', () => { nutRub = rd.open; }); }
   } else if (v === 'hlesson') {
     if (!hlDraft) return hlOpen(hlKey);
     app.innerHTML = hlView();
@@ -3411,7 +3563,7 @@ function show(v, arg) {
     app.firstElementChild.addEventListener('input', () => { hlRead(); const nb = $('#hl-next'); if (nb && !hlSaving) nb.disabled = !hlCanNext(); });
   } else if (v === 'archive') {
     app.innerHTML = archiveView(state);
-    wire('tohub', () => show('profile')); wire('tocompare', () => { lastHub = 'fitness'; show('compare'); });
+    wire('tohub', () => show('profile')); wire('tocompare', () => { lastHub = 'fitness'; show('compare'); }); wire('tolunch', lunchOpen);
     onWrap(openUnit);
   } else if (v === 'unit') {
     app.innerHTML = unitView(state);
@@ -3507,7 +3659,7 @@ function show(v, arg) {
       tbl.addEventListener('change', e => { const sel = e.target.closest('.cellsel'); if (sel) mxSaveCell(sel); });
       tbl.addEventListener('click', e => { const ab = e.target.closest('[data-assess]'); if (ab) return show('assess', ab.getAttribute('data-assess')); const lb = e.target.closest('[data-lock]'); if (lb) mxToggleLock(lb.getAttribute('data-lock')); });
     }
-    wire('mxcards', openCards); wire('mxlesson', openHlClass); wire('mxwa', () => openWa());
+    wire('mxcards', openCards); wire('mxlesson', openHlClass); wire('mxwa', () => openWa()); wire('mxnut', openNut);
     wire('mxlockall', () => mxLockAll(true)); wire('mxunlockall', () => mxLockAll(false)); wire('mxcsv', mxExportCsv);
   } else if (v === 'checkout') {
     app.innerHTML = checkoutSetupView();
@@ -3567,15 +3719,15 @@ function show(v, arg) {
     $('#tocard').addEventListener('click', () => show('card'));
     goalSel = null; planDraft = null; unitDraft = null;
     wire('togoals2', () => show('goals')); wire('togoals3', () => show('goals'));
-    wire('tomyskills', () => show('myskills')); wire('toteacher', () => demo ? exitDemo() : loadClass()); wire('toarchive', () => show('archive'));
+    wire('tomyskills', () => show('myskills')); wire('toteacher', () => demo ? exitDemo() : loadClass()); wire('toarchive', () => show('archive')); wire('tolunch', lunchOpen);
     wire('towo', () => { woStart('profile'); show('workout'); });
     wire('toapself', () => { apDraft = null; show('apself'); }); wire('toapself2', () => { apDraft = null; show('apself'); });
     const apt = $('#aptrend'); if (apt) apt.addEventListener('click', e => { const c = e.target.closest('[data-apkey]'); if (!c) return; e.stopPropagation(); apKey = c.dataset.apkey; const d = apt.querySelector('.aps-time'); if (d) d.innerHTML = '<summary>📈 See it over time</summary>' + apTrend(); });
     wire('hubnext', () => { const g = $('#hubnext').dataset.go, to = { topredict: 'predict', toentry: 'entry', tocompare: 'compare', togoals: 'goals', toplan: 'plan' }[g];
-      if (g === 'towo') { woStart('profile'); return show('workout'); } if (g === 'tolesson') return hlOpen('train'); lastHub = 'fitness'; show(to); });
+      if (g === 'towo') { woStart('profile'); return show('workout'); } if (g === 'tolesson') return hlOpen('train'); if (g === 'tolunch') return lunchOpen(); lastHub = 'fitness'; show(to); });
     onWrap(e => { const h = e.target.closest('[data-hl]'); if (h) return hlOpen(h.dataset.hl); if (openUnit(e)) return; const t = e.target.closest('[data-ov]'); if (t) openOv(t.dataset.ov); });
   }
-  if (!(v === 'plan' && prevView === 'plan') && !(v === 'apself' && prevView === 'apself')) window.scrollTo(0, 0);
+  if (!(v === 'plan' && prevView === 'plan') && !(v === 'apself' && prevView === 'apself') && !(v === 'lunch' && prevView === 'lunch') && !(v === 'nutri' && prevView === 'nutri')) window.scrollTo(0, 0);
   badgeCheck();
 }
 

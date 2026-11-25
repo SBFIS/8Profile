@@ -108,10 +108,10 @@ var TABS = {
   Plan:          ['Email', 'Plan', 'Updated'],                                   // the student's personal workout plan (JSON)
   Locks:         ['Email', 'Checkpoint', 'Locked', 'Updated'],                   // teacher finalize-lock per student per checkpoint
   Reflections:   ['Email', 'Key', 'Text', 'Updated'],                            // student reflections + unit self-assessments, one row per key
-  Assess:        ['Email', 'Task', 'k4', 's2', 'sm', 'Note', 'Updated', 'Flag', 'Day', 'FlagK4', 'serve', 'rally', 'move', 'part', 'Live'] // teacher's summative ratings (1–7) per task (workout: k4 s2 sm; badminton: serve rally move part) + live bands (workout: Flag/FlagK4; badminton: Live JSON) and the day first assessed; teacher-only, never sent to a student
+  Assess:        ['Email', 'Task', 'k4', 's2', 'sm', 'Note', 'Updated', 'Flag', 'Day', 'FlagK4', 'serve', 'rally', 'move', 'part', 'Live', 'k1', 'c3'] // teacher's summative ratings (1–7) per task (workout: k4 s2 sm; badminton: serve rally move part; nutrition: k1 c3) + live bands (workout: Flag/FlagK4; badminton: Live JSON) and the day first assessed; teacher-only, never sent to a student
 };
 // Reflection slots a student may write. Unit keys hold a small JSON self-assessment.
-var REFLECT_KEYS = ['compare-intro', 'unit-badminton'];
+var REFLECT_KEYS = ['compare-intro', 'unit-badminton', 'unit-nutrition'];
 var REFLECT_MAX = 2000;
 var PROFILE_KEY = 'Email';
 
@@ -291,7 +291,7 @@ function doPost(e) {
 }
 // Opening the API URL in a browser is not the app; say so, with no data.
 // Bump with each server change: opening the /exec link in a browser shows which build is live.
-var BUILD = '2026-11-24b · Page and server show their build to teachers, so a missed upload or deploy is obvious';
+var BUILD = '2026-11-25a · Health: students record their active-day lunch; teachers mark Nutrition (K1, C3) one by one';
 function doGet() {
   return ContentService.createTextOutput(JSON.stringify({ ok: false, build: BUILD, error: 'This is the data service for My PE Profile. Open the app link your PE teacher shared.' }))
     .setMimeType(ContentService.MimeType.JSON);
@@ -1100,11 +1100,11 @@ function classLessons_(cfg, id, klass) {
 // The teacher rates each criterion 1–7 while the class performs, next to a short evidence
 // summary built from the plan. Ratings live in the Assess tab; no student function reads it,
 // and Canvas stays the official record (the screen copies the ratings out for it).
-var ASSESS_TASKS = ['workout', 'badminton'];
-var ASSESS_KEYS_BY = { workout: ['k4', 's2', 'sm'], badminton: ['serve', 'rally', 'move', 'part'] };
+var ASSESS_TASKS = ['workout', 'badminton', 'nutrition'];
+var ASSESS_KEYS_BY = { workout: ['k4', 's2', 'sm'], badminton: ['serve', 'rally', 'move', 'part'], nutrition: ['k1', 'c3'] };
 var ASSESS_KEYS = ASSESS_KEYS_BY.workout;
 // Where a task's AP check-outs start, and which AP areas count (badminton: Take part and try hard = effort + team).
-var ASSESS_AP_BY = { workout: { from: '2026-10-22', keys: ['effort', 'manage'] }, badminton: { from: '2026-11-17', keys: ['effort', 'team'] } };
+var ASSESS_AP_BY = { workout: { from: '2026-10-22', keys: ['effort', 'manage'] }, badminton: { from: '2026-11-17', keys: ['effort', 'team'] }, nutrition: { from: '9999-12-31', keys: [] } }; // nutrition: no AP part
 var ASSESS_NOTE_MAX = 300;
 var ASSESS_FLAGS = ['ny', 'ap', 'got', 'lead']; // workout-day band per row: Not yet, Approaching, Got it, Leading
 var ASSESS_FLAG_OLD = { up: 'lead', down: 'ap' }; // first version's 🌟/⚠
@@ -1130,7 +1130,7 @@ function classAssess_(cfg, id, klass, task) {
     var fk = lower_(r.FlagK4); fk = ASSESS_FLAG_OLD[fk] || fk;
     saved[e] = { scores: sc, note: str_(r.Note).slice(0, ASSESS_NOTE_MAX), updated: ymd_(r.Updated), flag: ASSESS_FLAGS.indexOf(fl) === -1 ? '' : fl, flagK4: ASSESS_FLAGS.indexOf(fk) === -1 ? '' : fk, day: ymd_(r.Day), live: assessLiveRead_(r.Live, keys) };
   });
-  if (task === 'badminton') return classAssessUnit_(roster, saved, apIdx, klass, task, keys);
+  if (task === 'badminton' || task === 'nutrition') return classAssessUnit_(roster, saved, apIdx, klass, task, keys);
   var parts = ['warmup', 'cardio', 'strength', 'focus', 'cooldown'], goals = {};
   readTab_('Goals').forEach(function (r) {
     var e = lower_(r.Email), c = lower_(r.Component); if (!e || GOAL_COMPONENTS.indexOf(c) === -1) return;
@@ -1182,6 +1182,7 @@ function classAssessUnit_(roster, saved, apIdx, klass, task, keys) {
     var e = lower_(r.Email); if (!e || str_(r.Key) !== rk) return;
     var o = null; try { o = JSON.parse(str_(r.Text) || 'null'); } catch (x) {}
     if (!o || typeof o !== 'object') return;
+    if (task === 'nutrition') { checks[e] = lunchCheck_(o, ymd_(r.Updated)); return; }
     var lv = (o.levels instanceof Array ? o.levels : []).slice(0, keys.length);
     var levels = keys.map(function (k, i) { var n = lv[i]; return (typeof n === 'number' && n >= 0 && n <= 3 && n % 1 === 0) ? n : null; });
     checks[e] = { levels: levels, focus: str_(o.focus).slice(0, 500), how: str_(o.how).slice(0, 500), updated: ymd_(r.Updated) };
@@ -1191,6 +1192,23 @@ function classAssessUnit_(roster, saved, apIdx, klass, task, keys) {
     return { sid: e, name: rosterName_(r), klass: str_(r.Class), scores: a.scores, note: a.note, updated: a.updated, live: a.live || {}, day: a.day, check: checks[e] || null, ap: assessAp_(apIdx[e], task) };
   }).sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
   return { role: 'classAssess', klass: klass, task: task, keys: keys, students: students };
+}
+// The student's lunch record (Health · Nutrition), cleaned for the teacher's screen: the day they
+// planned for, each food with what it counts as, and their three reflection answers. Nothing else.
+var LUNCH_DAYS = ['pe', 'train', 'match', 'study'];
+var LUNCH_PARTS = ['e', 'r', 'f', 'v', 'c', 'w'];
+var LUNCH_WHEN = ['lunch', 'snack', 'drink'];
+function lunchCheck_(o, updated) {
+  var day = lower_(o.day);
+  var items = ((o.items instanceof Array) ? o.items : []).slice(0, 10).map(function (x) {
+    x = x || {};
+    var k = ((x.k instanceof Array) ? x.k : []).map(lower_).filter(function (v, i, a) { return LUNCH_PARTS.indexOf(v) !== -1 && a.indexOf(v) === i; });
+    var w = lower_(x.w);
+    return { n: str_(x.n).slice(0, 60), w: LUNCH_WHEN.indexOf(w) === -1 ? 'lunch' : w, k: k };
+  }).filter(function (x) { return x.n; });
+  var r = ((o.r instanceof Array) ? o.r : []).slice(0, 3).map(function (t) { return str_(t).slice(0, 500); });
+  while (r.length < 3) r.push('');
+  return { day: LUNCH_DAYS.indexOf(day) === -1 ? '' : day, items: items, r: r, updated: updated };
 }
 // Live bands, stored as JSON {criterion: 'ny'|'ap'|'got'|'lead'}; anything else is dropped.
 function assessLiveRead_(raw, keys) {
